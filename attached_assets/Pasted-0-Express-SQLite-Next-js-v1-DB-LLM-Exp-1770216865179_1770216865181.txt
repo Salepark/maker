@@ -1,0 +1,673 @@
+0) 프로젝트 선택: Express + SQLite + 간단 서버렌더(권장)
+Next.js도 가능하지만, v1은 관리자 대시보드 + 크론 + DB + LLM 호출이 핵심이라 Express가 빠르고 단단합니다.
+런타임: Node.js (TypeScript)
+서버: Express
+DB: SQLite (better-sqlite3)
+템플릿: EJS (초간단 관리자 UI)
+스케줄: node-cron
+LLM: Claude/OpenAI 스위치 가능
+
+1) 폴더 구조 (Replit 그대로 생성)
+aiartmarket-bot/
+  package.json
+  tsconfig.json
+  .env.example
+  src/
+    index.ts
+    config.ts
+
+    db/
+      db.ts
+      schema.sql
+      migrate.ts
+
+    jobs/
+      scheduler.ts
+      collect_rss.ts
+      analyze_items.ts
+      draft_replies.ts
+
+    llm/
+      client.ts
+      prompts.ts
+      types.ts
+
+    services/
+      rss.ts
+      dedupe.ts
+      scoring.ts
+      guardrails.ts
+
+    web/
+      server.ts
+      routes.ts
+      views/
+        layout.ejs
+        login.ejs
+        dashboard.ejs
+        item.ejs
+        drafts.ejs
+        approved.ejs
+
+    util/
+      log.ts
+      text.ts
+
+2) package.json (필수 의존성)
+{
+  "name": "aiartmarket-bot",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "build": "tsc -p tsconfig.json",
+    "migrate": "tsx src/db/migrate.ts"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.5.0",
+    "cookie-parser": "^1.4.6",
+    "dotenv": "^16.4.5",
+    "ejs": "^3.1.10",
+    "express": "^4.19.2",
+    "node-cron": "^3.0.3",
+    "rss-parser": "^3.13.0"
+  },
+  "devDependencies": {
+    "@types/cookie-parser": "^1.4.7",
+    "@types/ejs": "^3.1.5",
+    "@types/express": "^4.17.21",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}
+
+3) 환경변수(.env.example)
+PORT=3000
+ADMIN_PASSWORD=change-me
+
+DB_PATH=./data/app.db
+
+LLM_PROVIDER=claude   # claude | openai
+LLM_API_KEY=your-key
+
+APP_BASE_URL=https://aiartmarket.io
+
+# v1: RSS 위주
+RSS_FEEDS_JSON=["https://example.com/feed.xml","https://another.com/rss"]
+
+4) DB 스키마 (src/db/schema.sql)
+PRAGMA journal_mode=WAL;
+
+CREATE TABLE IF NOT EXISTS sources (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  type TEXT NOT NULL, -- rss/reddit/forum/news
+  url TEXT NOT NULL,
+  rules_json TEXT NOT NULL DEFAULT '{}',
+  enabled INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS items (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  source_id INTEGER,
+  external_id TEXT,
+  url TEXT NOT NULL,
+  title TEXT,
+  author TEXT,
+  created_at TEXT,
+  content_text TEXT NOT NULL,
+  tags_json TEXT NOT NULL DEFAULT '[]',
+  status TEXT NOT NULL DEFAULT 'new', -- new/analyzed/drafted/approved/posted/skipped
+  inserted_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(url),
+  FOREIGN KEY(source_id) REFERENCES sources(id)
+);
+
+CREATE TABLE IF NOT EXISTS analysis (
+  item_id INTEGER PRIMARY KEY,
+  category TEXT NOT NULL,
+  relevance_score INTEGER NOT NULL,
+  reply_worthiness_score INTEGER NOT NULL,
+  link_fit_score INTEGER NOT NULL,
+  risk_flags_json TEXT NOT NULL DEFAULT '[]',
+  recommended_action TEXT NOT NULL, -- observe/draft/skip
+  suggested_angle TEXT NOT NULL DEFAULT '',
+  summary_short TEXT NOT NULL,
+  summary_long TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY(item_id) REFERENCES items(id)
+);
+
+CREATE TABLE IF NOT EXISTS drafts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  item_id INTEGER NOT NULL,
+  variant TEXT NOT NULL, -- A/B/C
+  draft_text TEXT NOT NULL,
+  includes_link INTEGER NOT NULL DEFAULT 0,
+  link_type TEXT NOT NULL DEFAULT 'none', -- none/homepage/specific
+  tone TEXT NOT NULL DEFAULT 'helpful',
+  admin_decision TEXT NOT NULL DEFAULT 'pending', -- pending/approved/rejected
+  final_text TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY(item_id) REFERENCES items(id)
+);
+
+CREATE TABLE IF NOT EXISTS posts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  draft_id INTEGER NOT NULL,
+  posted_at TEXT NOT NULL DEFAULT (datetime('now')),
+  result_json TEXT NOT NULL DEFAULT '{}',
+  FOREIGN KEY(draft_id) REFERENCES drafts(id)
+);
+
+5) 마이그레이션 실행 파일 (src/db/migrate.ts)
+import fs from "node:fs";
+import path from "node:path";
+import Database from "better-sqlite3";
+import { config } from "../config.js";
+
+const db = new Database(config.DB_PATH);
+db.pragma("journal_mode = WAL");
+
+const schemaPath = path.resolve("src/db/schema.sql");
+const schema = fs.readFileSync(schemaPath, "utf-8");
+db.exec(schema);
+
+console.log("✅ DB migrated:", config.DB_PATH);
+
+6) 핵심 서버 엔트리 (src/index.ts)
+import { config } from "./config.js";
+import { startWeb } from "./web/server.js";
+import { startScheduler } from "./jobs/scheduler.js";
+import { ensureDataDir } from "./util/text.js";
+
+ensureDataDir(config.DB_PATH);
+
+startWeb();
+startScheduler();
+
+console.log(`✅ Running on http://localhost:${config.PORT}`);
+
+7) Config (src/config.ts)
+import "dotenv/config";
+
+export const config = {
+  PORT: Number(process.env.PORT ?? 3000),
+  ADMIN_PASSWORD: process.env.ADMIN_PASSWORD ?? "change-me",
+  DB_PATH: process.env.DB_PATH ?? "./data/app.db",
+  LLM_PROVIDER: (process.env.LLM_PROVIDER ?? "claude") as "claude" | "openai",
+  LLM_API_KEY: process.env.LLM_API_KEY ?? "",
+  APP_BASE_URL: process.env.APP_BASE_URL ?? "https://aiartmarket.io",
+  RSS_FEEDS: JSON.parse(process.env.RSS_FEEDS_JSON ?? "[]") as string[],
+};
+
+8) DB 접근 (src/db/db.ts)
+import Database from "better-sqlite3";
+import { config } from "../config.js";
+
+export const db = new Database(config.DB_PATH);
+db.pragma("journal_mode = WAL");
+
+9) 스케줄러 (src/jobs/scheduler.ts)
+import cron from "node-cron";
+import { collectRss } from "./collect_rss.js";
+import { analyzeNewItems } from "./analyze_items.js";
+import { draftForAnalyzed } from "./draft_replies.js";
+
+export function startScheduler() {
+  // 10분마다 수집
+  cron.schedule("*/10 * * * *", async () => {
+    await collectRss();
+  });
+
+  // 5분마다 분석
+  cron.schedule("*/5 * * * *", async () => {
+    await analyzeNewItems();
+  });
+
+  // 5분마다 초안 생성
+  cron.schedule("*/5 * * * *", async () => {
+    await draftForAnalyzed();
+  });
+
+  console.log("🕒 Scheduler started");
+}
+
+10) RSS 수집 (src/jobs/collect_rss.ts)
+import Parser from "rss-parser";
+import { config } from "../config.js";
+import { db } from "../db/db.js";
+
+const parser = new Parser();
+
+export async function collectRss() {
+  for (const feedUrl of config.RSS_FEEDS) {
+    try {
+      const feed = await parser.parseURL(feedUrl);
+
+      // source upsert (단순화)
+      const sourceName = feed.title ?? "RSS";
+      const stmt = db.prepare(
+        `INSERT INTO sources (name, type, url) VALUES (?, 'rss', ?)
+         ON CONFLICT(url) DO UPDATE SET name=excluded.name`
+      );
+      // sqlite ON CONFLICT(url) 하려면 sources.url UNIQUE 필요 → v1은 생략해도 OK
+      // 대신 여기선 그냥 insert ignore 스타일로 처리
+      // 간단히: 먼저 조회 후 없으면 insert
+      const existing = db.prepare("SELECT id FROM sources WHERE url=?").get(feedUrl) as any;
+      let sourceId = existing?.id;
+      if (!sourceId) {
+        const info = db.prepare("INSERT INTO sources (name,type,url) VALUES (?,?,?)")
+          .run(sourceName, "rss", feedUrl);
+        sourceId = Number(info.lastInsertRowid);
+      }
+
+      for (const it of feed.items ?? []) {
+        const url = it.link ?? "";
+        if (!url) continue;
+
+        const title = it.title ?? "";
+        const content = (it.contentSnippet ?? it.content ?? "").toString();
+        const createdAt = (it.isoDate ?? it.pubDate ?? null) as any;
+
+        try {
+          db.prepare(
+            `INSERT INTO items (source_id, external_id, url, title, author, created_at, content_text)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`
+          ).run(sourceId, it.guid ?? null, url, title, it.creator ?? null, createdAt, content || title);
+        } catch {
+          // 중복 URL이면 무시
+        }
+      }
+    } catch (e) {
+      console.error("RSS error:", feedUrl, e);
+    }
+  }
+}
+메모: sources.url UNIQUE를 두면 upsert가 깔끔해집니다. v1은 단순히 “있으면 건너뛰기”로도 충분합니다.
+
+11) LLM 클라이언트 (src/llm/client.ts)
+아래는 “provider 스위치 구조”만 잡아둔 형태입니다.
+(Claude/OpenAI 각각 HTTP 호출만 붙이면 됩니다 — 여기선 안전하게 스켈레톤만 제공합니다.)
+import { config } from "../config.js";
+
+export async function callLLM(prompt: string): Promise<string> {
+  if (!config.LLM_API_KEY) throw new Error("Missing LLM_API_KEY");
+
+  // TODO: 실제 API 호출 연결
+  // v1 개발 중엔 임시로 로컬 mock(고정 JSON)로 시작해도 됩니다.
+  throw new Error("LLM call not implemented. Connect Claude/OpenAI API here.");
+}
+원하시면 다음 턴에서 Claude API / OpenAI API 실제 호출 코드를 “당장 동작”하게 붙여드릴게요.
+(여기선 키/모델/엔드포인트가 바뀔 수 있어서, 실제 사용하실 쪽 기준으로 정확히 작성하는 게 안전합니다.)
+
+12) 프롬프트 3종 세트 (src/llm/prompts.ts)
+12-1) Analyze 프롬프트
+export function buildAnalyzePrompt(input: {
+  title: string;
+  body: string;
+  sourceName: string;
+  sourceRules: string; // JSON string
+}) {
+  return `
+너는 "AI Art 커뮤니티 기여자 + 리서처"다.
+목표는 스팸 홍보가 아니라, 질문에 도움이 되는 정보 제공이다.
+커뮤니티 규칙을 최우선으로 고려한다.
+
+[입력]
+- Source: ${input.sourceName}
+- Rules(JSON): ${input.sourceRules}
+- Title: ${input.title}
+- Body:
+${input.body}
+
+[출력 형식] 아래 JSON만 출력해라(설명 금지).
+{
+  "category": "question|rant|tool_request|business|legal|ethics|showcase|other",
+  "summary_short": "한 줄 요약",
+  "summary_long": "3~6줄 요약",
+  "relevance_score": 0-100,
+  "reply_worthiness_score": 0-100,
+  "link_fit_score": 0-100,
+  "risk_flags": ["promo_ban","link_ban","heated_topic","new_account_risk","unknown_rules"],
+  "recommended_action": "observe|draft|skip",
+  "suggested_angle": "어떤 관점으로 답하면 도움이 되는지"
+}
+
+[스코어 가이드]
+- relevance_score: AI art + 판매/마켓/프롬프트/라이선스/정산/툴 비교 관련이면 높게
+- reply_worthiness_score: 질문이 구체적이고 답변이 부족해 보이면 높게
+- link_fit_score: '어디서 팔까/마켓 추천'이면 높게, 윤리 논쟁은 낮게
+- risk_flags: 규칙에 따라 링크/홍보 제한이 있으면 반드시 표시
+- recommended_action:
+  - relevance>=60 AND reply_worthiness>=60 이면 draft
+  - risk가 너무 크면 observe 또는 skip
+`.trim();
+}
+12-2) Draft 프롬프트
+export function buildDraftPrompt(input: {
+  title: string;
+  body: string;
+  analysisJson: string;
+  allowLink: boolean;
+  baseUrl: string;
+}) {
+  return `
+너는 AI Art 커뮤니티에서 신뢰를 잃지 않는 기여자다.
+짧고 자연스럽게, 맥락에 맞게 쓴다.
+복붙 티 나지 않게 문장 구조를 바꿔라.
+공격적/과장 광고 금지.
+
+[참고: aiartmarket 사실 3줄]
+- aiartmarket.io는 AI로 생성된 아트/프롬프트/템플릿 등의 디지털 자산 거래를 목표로 한다.
+- 핵심은 판매/구매/라이선스/정산 흐름을 단순하게 하는 것이다.
+- 없는 기능은 절대 말하지 않는다.
+
+[입력]
+Title: ${input.title}
+Body:
+${input.body}
+
+Analysis(JSON):
+${input.analysisJson}
+
+링크 허용: ${input.allowLink ? "YES" : "NO"}
+기본 URL: ${input.baseUrl}
+
+[출력]
+아래 JSON만 출력해라.
+{
+  "drafts": [
+    {"variant":"A","tone":"helpful","includes_link":true/false,"text":"..."},
+    {"variant":"B","tone":"neutral","includes_link":true/false,"text":"..."},
+    {"variant":"C","tone":"curious","includes_link":true/false,"text":"..."}
+  ],
+  "notes": "주의할 점 1~2줄"
+}
+
+[링크 규칙]
+- 링크 허용이 NO면 절대 링크/도메인/유도 문구를 넣지 마라.
+- YES여도 10번 중 2~3번 느낌으로만, '참고로' 수준으로만 언급.
+`.trim();
+}
+12-3) Rewrite(관리자 편집 후 톤 정리용)
+export function buildRewritePrompt(input: { text: string; style: string }) {
+  return `
+다음 글을 "${input.style}" 스타일로 짧고 자연스럽게 다듬어라.
+과장/광고/명령형 표현 금지. 한글 문장 흐름을 매끈하게.
+결과만 출력.
+
+[원문]
+${input.text}
+`.trim();
+}
+
+13) 분석/초안 생성 Job (src/jobs/analyze_items.ts, draft_replies.ts)
+analyze_items.ts
+import { db } from "../db/db.js";
+import { callLLM } from "../llm/client.js";
+import { buildAnalyzePrompt } from "../llm/prompts.js";
+
+export async function analyzeNewItems() {
+  const items = db.prepare(
+    `SELECT i.*, s.name as source_name, s.rules_json as rules_json
+     FROM items i
+     LEFT JOIN sources s ON s.id = i.source_id
+     WHERE i.status = 'new'
+     ORDER BY i.inserted_at DESC
+     LIMIT 10`
+  ).all() as any[];
+
+  for (const it of items) {
+    const prompt = buildAnalyzePrompt({
+      title: it.title ?? "",
+      body: it.content_text ?? "",
+      sourceName: it.source_name ?? "unknown",
+      sourceRules: it.rules_json ?? "{}",
+    });
+
+    try {
+      const raw = await callLLM(prompt);
+      const j = JSON.parse(raw);
+
+      db.prepare(
+        `INSERT INTO analysis
+         (item_id, category, relevance_score, reply_worthiness_score, link_fit_score, risk_flags_json,
+          recommended_action, suggested_angle, summary_short, summary_long)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).run(
+        it.id,
+        j.category,
+        j.relevance_score,
+        j.reply_worthiness_score,
+        j.link_fit_score,
+        JSON.stringify(j.risk_flags ?? []),
+        j.recommended_action,
+        j.suggested_angle ?? "",
+        j.summary_short ?? "",
+        j.summary_long ?? ""
+      );
+
+      db.prepare(`UPDATE items SET status='analyzed' WHERE id=?`).run(it.id);
+    } catch (e) {
+      console.error("Analyze failed:", it.id, e);
+      // 실패해도 new로 남겨두면 반복됨 → 실패 카운트 컬럼을 두는 것도 방법
+    }
+  }
+}
+draft_replies.ts
+import { db } from "../db/db.js";
+import { callLLM } from "../llm/client.js";
+import { buildDraftPrompt } from "../llm/prompts.js";
+import { config } from "../config.js";
+
+function shouldAllowLink(riskFlags: string[]): boolean {
+  if (riskFlags.includes("promo_ban")) return false;
+  if (riskFlags.includes("link_ban")) return false;
+  if (riskFlags.includes("heated_topic")) return false; // v1에선 보수적으로
+  return true;
+}
+
+export async function draftForAnalyzed() {
+  const items = db.prepare(
+    `SELECT i.*, a.category, a.risk_flags_json, a.recommended_action
+     FROM items i
+     JOIN analysis a ON a.item_id = i.id
+     WHERE i.status = 'analyzed'
+     ORDER BY i.inserted_at DESC
+     LIMIT 10`
+  ).all() as any[];
+
+  for (const it of items) {
+    if (it.recommended_action !== "draft") {
+      db.prepare(`UPDATE items SET status='skipped' WHERE id=?`).run(it.id);
+      continue;
+    }
+
+    const riskFlags = JSON.parse(it.risk_flags_json ?? "[]") as string[];
+    const allowLink = shouldAllowLink(riskFlags);
+
+    const prompt = buildDraftPrompt({
+      title: it.title ?? "",
+      body: it.content_text ?? "",
+      analysisJson: JSON.stringify({
+        category: it.category,
+        risk_flags: riskFlags,
+      }),
+      allowLink,
+      baseUrl: config.APP_BASE_URL,
+    });
+
+    try {
+      const raw = await callLLM(prompt);
+      const j = JSON.parse(raw);
+
+      for (const d of j.drafts ?? []) {
+        db.prepare(
+          `INSERT INTO drafts (item_id, variant, draft_text, includes_link, tone)
+           VALUES (?, ?, ?, ?, ?)`
+        ).run(it.id, d.variant, d.text, d.includes_link ? 1 : 0, d.tone ?? "helpful");
+      }
+
+      db.prepare(`UPDATE items SET status='drafted' WHERE id=?`).run(it.id);
+    } catch (e) {
+      console.error("Draft failed:", it.id, e);
+    }
+  }
+}
+
+14) 관리자 웹 UI 설계 (페이지 구성)
+URL 라우트 설계
+GET /login / POST /login
+GET / → dashboard (status별 카운트 + 최신 drafted 목록)
+GET /items/:id → 원문/요약/리스크/초안들 보기
+POST /drafts/:draftId/approve → 승인 + final_text 저장
+POST /drafts/:draftId/reject
+POST /items/:id/skip
+대시보드에서 보고 싶은 것(핵심)
+New / Analyzed / Drafted / Approved / Posted / Skipped 숫자
+Drafted 목록: 점수/리스크 뱃지
+아이템 상세에서:
+초안 A/B/C 탭
+“링크 강제 제거” 토글(승인 전 수동 편집)
+“복사 버튼” (최종본)
+
+15) 웹 서버 뼈대 (src/web/server.ts, routes.ts)
+server.ts
+import express from "express";
+import cookieParser from "cookie-parser";
+import path from "node:path";
+import { config } from "../config.js";
+import { router } from "./routes.js";
+
+export function startWeb() {
+  const app = express();
+
+  app.use(express.urlencoded({ extended: true }));
+  app.use(cookieParser());
+
+  app.set("view engine", "ejs");
+  app.set("views", path.resolve("src/web/views"));
+
+  app.use(router);
+
+  app.listen(config.PORT, () => console.log("🌐 Web started"));
+}
+routes.ts (핵심만)
+import express from "express";
+import { config } from "../config.js";
+import { db } from "../db/db.js";
+
+export const router = express.Router();
+
+function requireAuth(req: any, res: any, next: any) {
+  if (req.cookies?.auth === "1") return next();
+  return res.redirect("/login");
+}
+
+router.get("/login", (req, res) => res.render("login"));
+
+router.post("/login", (req, res) => {
+  const pw = req.body.password ?? "";
+  if (pw === config.ADMIN_PASSWORD) {
+    res.cookie("auth", "1", { httpOnly: true });
+    return res.redirect("/");
+  }
+  return res.render("login", { error: "비밀번호가 틀렸습니다." });
+});
+
+router.get("/", requireAuth, (req, res) => {
+  const counts = db.prepare(
+    `SELECT status, COUNT(*) as cnt FROM items GROUP BY status`
+  ).all() as any[];
+
+  const drafted = db.prepare(
+    `SELECT i.id, i.title, i.url, i.inserted_at
+     FROM items i
+     WHERE i.status='drafted'
+     ORDER BY i.inserted_at DESC
+     LIMIT 30`
+  ).all() as any[];
+
+  res.render("dashboard", { counts, drafted });
+});
+
+router.get("/items/:id", requireAuth, (req, res) => {
+  const id = Number(req.params.id);
+
+  const item = db.prepare(`SELECT * FROM items WHERE id=?`).get(id) as any;
+  const analysis = db.prepare(`SELECT * FROM analysis WHERE item_id=?`).get(id) as any;
+  const drafts = db.prepare(`SELECT * FROM drafts WHERE item_id=? ORDER BY variant`).all(id) as any[];
+
+  res.render("item", { item, analysis, drafts });
+});
+
+router.post("/drafts/:draftId/approve", requireAuth, (req, res) => {
+  const draftId = Number(req.params.draftId);
+  const finalText = (req.body.final_text ?? "").toString().trim();
+
+  db.prepare(`UPDATE drafts SET admin_decision='approved', final_text=? WHERE id=?`)
+    .run(finalText, draftId);
+
+  // 해당 item 상태 approved로
+  const row = db.prepare(`SELECT item_id FROM drafts WHERE id=?`).get(draftId) as any;
+  db.prepare(`UPDATE items SET status='approved' WHERE id=?`).run(row.item_id);
+
+  res.redirect(`/items/${row.item_id}`);
+});
+
+router.post("/drafts/:draftId/reject", requireAuth, (req, res) => {
+  const draftId = Number(req.params.draftId);
+  db.prepare(`UPDATE drafts SET admin_decision='rejected' WHERE id=?`).run(draftId);
+  const row = db.prepare(`SELECT item_id FROM drafts WHERE id=?`).get(draftId) as any;
+  res.redirect(`/items/${row.item_id}`);
+});
+
+router.post("/items/:id/skip", requireAuth, (req, res) => {
+  const id = Number(req.params.id);
+  db.prepare(`UPDATE items SET status='skipped' WHERE id=?`).run(id);
+  res.redirect(`/items/${id}`);
+});
+
+16) EJS UI 최소 디자인 가이드 (정리만)
+login.ejs: 비밀번호 입력 1개
+dashboard.ejs:
+상태 카운트 카드
+Drafted 목록 테이블(제목/시간/링크)
+item.ejs:
+원문 링크 버튼
+분석 요약/리스크 뱃지
+초안 A/B/C 각각 textarea로 표시
+승인 버튼(선택한 초안을 final_text에 복사해 넣는 작은 JS)
+“복사” 버튼
+UI는 예쁘게보다 빠르게 운영이 우선입니다. 예쁜 건 나중에요. (봇이 예쁘면 돈을 더 벌진 않습니다… 😄)
+
+17) “반자동 게시” UX (v1에서 바로 효과 나오는 장치)
+Approved 상태에서 item 상세에 이렇게 보여주세요:
+✅ 최종본(final_text) 큰 박스
+버튼:
+Copy Final
+Copy w/o Link (링크 제거 버전 자동 생성)
+Copy Short (2줄로 압축)
+그리고 체크리스트:
+이 커뮤니티는 링크 허용? (risk_flags 기반)
+같은 문구 반복 위험? (최근 final_text 유사도)
+
+18) 바로 실행 순서 (Replit에서)
+파일 생성 + 의존성 설치
+.env 작성
+npm run migrate
+npm run dev
+브라우저에서 /login → 대시보드 확인
+RSS_FEEDS_JSON에 실제 피드 2~5개 넣고 수집 테스트
+LLM 연결 전엔 callLLM에 임시 JSON 리턴 넣어서 UI/흐름 먼저 검증
+
+다음으로 제가 해드릴 것 (선택지 2개 중 “바로 동작”으로)
+당장 막히는 지점은 LLM API 실제 연결이에요.
+원하시는 방식으로 다음 답변에서 “완성 코드” 붙여드릴게요:
+Claude API로 연결 (추천: 클로드봇 목적에 자연스러움)
+
+(추가 질문 없이, 해당 제공자 기준으로 callLLM()까지 완성해서 드릴게요.)
+
