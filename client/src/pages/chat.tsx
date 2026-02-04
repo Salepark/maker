@@ -199,6 +199,32 @@ export default function Chat() {
               <Badge variant="secondary" className="text-xs">설정 변경</Badge>
             </div>
           </div>
+
+          {messages && messages.filter(m => m.role === "user" && m.commandJson).length > 0 && (
+            <div className="mt-6 pt-4 border-t border-border">
+              <p className="text-xs text-muted-foreground mb-2">최근 명령:</p>
+              <div className="space-y-1">
+                {messages
+                  .filter(m => m.role === "user" && m.commandJson)
+                  .slice(-5)
+                  .reverse()
+                  .map((msg) => (
+                    <div 
+                      key={msg.id} 
+                      className="flex items-center gap-2 text-xs"
+                      data-testid={`history-${msg.id}`}
+                    >
+                      <Badge variant="outline" className="text-xs shrink-0">
+                        {msg.commandJson?.action}
+                      </Badge>
+                      <span className="text-muted-foreground truncate">
+                        {msg.commandJson?.topic || msg.commandJson?.job || msg.commandJson?.key || ""}
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

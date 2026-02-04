@@ -39,7 +39,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Rss, Plus, Trash2, RefreshCw, ExternalLink, Power, PowerOff } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Rss, Plus, Trash2, RefreshCw, ExternalLink, Power, PowerOff, Shield, Globe } from "lucide-react";
 import { format } from "date-fns";
 
 interface Source {
@@ -47,6 +54,9 @@ interface Source {
   name: string;
   type: string;
   url: string;
+  topic: string;
+  trustLevel: string;
+  region: string;
   enabled: boolean;
   createdAt: string;
   itemCount: number;
@@ -56,9 +66,31 @@ const sourceFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
   url: z.string().url("Must be a valid URL"),
   type: z.string().default("rss"),
+  topic: z.string().default("ai_art"),
+  trustLevel: z.string().default("medium"),
+  region: z.string().default("global"),
 });
 
 type SourceFormValues = z.infer<typeof sourceFormSchema>;
+
+const TOPICS = [
+  { value: "ai_art", label: "AI Art" },
+  { value: "investing", label: "Investing" },
+];
+
+const TRUST_LEVELS = [
+  { value: "high", label: "High" },
+  { value: "medium", label: "Medium" },
+  { value: "low", label: "Low" },
+];
+
+const REGIONS = [
+  { value: "global", label: "Global" },
+  { value: "us", label: "US" },
+  { value: "crypto", label: "Crypto" },
+  { value: "macro", label: "Macro" },
+  { value: "asia", label: "Asia" },
+];
 
 export default function Sources() {
   const { toast } = useToast();
@@ -70,6 +102,9 @@ export default function Sources() {
       name: "",
       url: "",
       type: "rss",
+      topic: "ai_art",
+      trustLevel: "medium",
+      region: "global",
     },
   });
 
@@ -189,6 +224,74 @@ export default function Sources() {
                     </FormItem>
                   )}
                 />
+                <div className="grid grid-cols-3 gap-3">
+                  <FormField
+                    control={form.control}
+                    name="topic"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Topic</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-source-topic">
+                              <SelectValue placeholder="Topic" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {TOPICS.map((t) => (
+                              <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="trustLevel"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Trust</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-source-trust">
+                              <SelectValue placeholder="Trust" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {TRUST_LEVELS.map((t) => (
+                              <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="region"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Region</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-source-region">
+                              <SelectValue placeholder="Region" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {REGIONS.map((r) => (
+                              <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
                 <DialogFooter>
                   <Button
                     type="submit"
@@ -228,12 +331,20 @@ export default function Sources() {
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="font-medium text-sm">{source.name}</h3>
                         <Badge variant={source.enabled ? "default" : "secondary"}>
                           {source.enabled ? "Active" : "Disabled"}
                         </Badge>
-                        <Badge variant="outline">{source.type}</Badge>
+                        <Badge variant="outline">{source.topic === "ai_art" ? "AI Art" : "Investing"}</Badge>
+                        <Badge variant="outline">
+                          <Shield className="h-3 w-3 mr-1" />
+                          {source.trustLevel}
+                        </Badge>
+                        <Badge variant="outline">
+                          <Globe className="h-3 w-3 mr-1" />
+                          {source.region}
+                        </Badge>
                       </div>
                       <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
                         <a

@@ -23,6 +23,8 @@ export const sources = pgTable("sources", {
   type: text("type").notNull().default("rss"),
   url: text("url").notNull().unique(),
   topic: text("topic").notNull().default("ai_art"),
+  trustLevel: text("trust_level").notNull().default("medium"),
+  region: text("region").notNull().default("global"),
   rulesJson: jsonb("rules_json").notNull().default({}),
   enabled: boolean("enabled").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),

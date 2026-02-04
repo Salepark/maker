@@ -11,6 +11,8 @@ export interface IStorage {
     approved: number;
     posted: number;
     skipped: number;
+    lastCollectAt: string | null;
+    lastAnalyzeAt: string | null;
   }>;
 
   getSources(): Promise<(Source & { itemCount: number })[]>;
@@ -57,7 +59,17 @@ export class DatabaseStorage implements IStorage {
       .from(items)
       .groupBy(items.status);
 
-    const stats = {
+    const stats: {
+      total: number;
+      new: number;
+      analyzed: number;
+      drafted: number;
+      approved: number;
+      posted: number;
+      skipped: number;
+      lastCollectAt: string | null;
+      lastAnalyzeAt: string | null;
+    } = {
       total: 0,
       new: 0,
       analyzed: 0,
@@ -65,6 +77,8 @@ export class DatabaseStorage implements IStorage {
       approved: 0,
       posted: 0,
       skipped: 0,
+      lastCollectAt: null,
+      lastAnalyzeAt: null,
     };
 
     for (const row of result) {
@@ -73,6 +87,26 @@ export class DatabaseStorage implements IStorage {
       if (row.status in stats) {
         (stats as any)[row.status] = c;
       }
+    }
+
+    const lastCollect = await db
+      .select({ insertedAt: items.insertedAt })
+      .from(items)
+      .orderBy(desc(items.insertedAt))
+      .limit(1);
+    
+    if (lastCollect.length > 0 && lastCollect[0].insertedAt) {
+      stats.lastCollectAt = lastCollect[0].insertedAt.toISOString();
+    }
+
+    const lastAnalyze = await db
+      .select({ createdAt: analysis.createdAt })
+      .from(analysis)
+      .orderBy(desc(analysis.createdAt))
+      .limit(1);
+    
+    if (lastAnalyze.length > 0 && lastAnalyze[0].createdAt) {
+      stats.lastAnalyzeAt = lastAnalyze[0].createdAt.toISOString();
     }
 
     return stats;

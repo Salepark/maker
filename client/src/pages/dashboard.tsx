@@ -2,7 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { FileText, Search, Edit, CheckCircle, Send, XCircle, Clock } from "lucide-react";
+import { FileText, Search, Edit, CheckCircle, Send, XCircle, Clock, RefreshCw } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 import { Link } from "wouter";
 import { format } from "date-fns";
 
@@ -14,6 +15,8 @@ interface DashboardStats {
   approved: number;
   posted: number;
   skipped: number;
+  lastCollectAt: string | null;
+  lastAnalyzeAt: string | null;
 }
 
 interface RecentItem {
@@ -88,6 +91,31 @@ export default function Dashboard() {
           </Card>
         ))}
       </div>
+
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center gap-6 text-sm">
+            <div className="flex items-center gap-2">
+              <RefreshCw className="h-4 w-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Last Collect:</span>
+              <span className="font-medium" data-testid="text-last-collect">
+                {stats?.lastCollectAt 
+                  ? formatDistanceToNow(new Date(stats.lastCollectAt), { addSuffix: true })
+                  : "Never"}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Search className="h-4 w-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Last Analyze:</span>
+              <span className="font-medium" data-testid="text-last-analyze">
+                {stats?.lastAnalyzeAt 
+                  ? formatDistanceToNow(new Date(stats.lastAnalyzeAt), { addSuffix: true })
+                  : "Never"}
+              </span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-2">

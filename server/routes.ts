@@ -100,11 +100,11 @@ export async function registerRoutes(
 
   app.post("/api/sources", async (req, res) => {
     try {
-      const { name, url, type = "rss" } = req.body;
+      const { name, url, type = "rss", topic = "ai_art", trustLevel = "medium", region = "global" } = req.body;
       if (!name || !url) {
         return res.status(400).json({ error: "Name and URL are required" });
       }
-      const source = await storage.createSource({ name, url, type });
+      const source = await storage.createSource({ name, url, type, topic, trustLevel, region });
       res.status(201).json(source);
     } catch (error: any) {
       if (error.code === "23505") {
