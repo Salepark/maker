@@ -119,7 +119,7 @@ export type InsertPost = z.infer<typeof insertPostSchema>;
 
 export const reports = pgTable("reports", {
   id: serial("id").primaryKey(),
-  topic: text("topic").notNull().default("investing"),
+  topic: text("topic").notNull().default("ai_art"),
   title: text("title").notNull(),
   content: text("content").notNull(),
   itemsCount: integer("items_count").notNull().default(0),
