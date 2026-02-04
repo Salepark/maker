@@ -116,6 +116,24 @@ export const insertPostSchema = createInsertSchema(posts).omit({
 export type Post = typeof posts.$inferSelect;
 export type InsertPost = z.infer<typeof insertPostSchema>;
 
+export const reports = pgTable("reports", {
+  id: serial("id").primaryKey(),
+  topic: text("topic").notNull().default("investing"),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  itemsCount: integer("items_count").notNull().default(0),
+  itemIdsJson: jsonb("item_ids_json").notNull().default([]),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertReportSchema = createInsertSchema(reports).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type Report = typeof reports.$inferSelect;
+export type InsertReport = z.infer<typeof insertReportSchema>;
+
 export const conversations = pgTable("conversations", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),

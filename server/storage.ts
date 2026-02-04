@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { sources, items, analysis, drafts, posts, type Source, type Item, type Analysis, type Draft, type Post, type InsertSource, type InsertItem, type InsertAnalysis, type InsertDraft } from "@shared/schema";
+import { sources, items, analysis, drafts, posts, reports, type Source, type Item, type Analysis, type Draft, type Post, type Report, type InsertSource, type InsertItem, type InsertAnalysis, type InsertDraft, type InsertReport } from "@shared/schema";
 import { eq, desc, sql, and, count, gte, lt } from "drizzle-orm";
 
 export interface IStorage {
@@ -34,6 +34,11 @@ export interface IStorage {
   getDraftsByItemId(itemId: number): Promise<Draft[]>;
   createDraft(data: InsertDraft): Promise<Draft>;
   updateDraftDecision(id: number, decision: string, finalText?: string): Promise<void>;
+
+  getReports(limit?: number): Promise<Report[]>;
+  getReport(id: number): Promise<Report | undefined>;
+  createReport(data: InsertReport): Promise<Report>;
+  getAnalyzedItemsForBrief(lookbackHours: number, limit: number): Promise<any[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -291,6 +296,56 @@ export class DatabaseStorage implements IStorage {
       // Update the item status to approved
       await db.update(items).set({ status: "approved" }).where(eq(items.id, draft.itemId));
     }
+  }
+
+  async getReports(limit: number = 20): Promise<Report[]> {
+    return db.select().from(reports).orderBy(desc(reports.createdAt)).limit(limit);
+  }
+
+  async getReport(id: number): Promise<Report | undefined> {
+    const [report] = await db.select().from(reports).where(eq(reports.id, id));
+    return report;
+  }
+
+  async createReport(data: InsertReport): Promise<Report> {
+    const [report] = await db.insert(reports).values(data).returning();
+    return report;
+  }
+
+  async getAnalyzedItemsForBrief(lookbackHours: number, limit: number): Promise<any[]> {
+    const cutoff = new Date(Date.now() - lookbackHours * 60 * 60 * 1000);
+    
+    const result = await db
+      .select({
+        item: items,
+        sourceName: sources.name,
+        sourceUrl: sources.url,
+        analysisData: analysis,
+      })
+      .from(items)
+      .innerJoin(analysis, eq(items.id, analysis.itemId))
+      .leftJoin(sources, eq(items.sourceId, sources.id))
+      .where(gte(items.insertedAt, cutoff))
+      .orderBy(desc(analysis.relevanceScore))
+      .limit(limit);
+
+    return result.map((r) => ({
+      id: r.item.id,
+      title: r.item.title,
+      url: r.item.url,
+      source: r.sourceName || "Unknown",
+      key_takeaway: r.analysisData.summaryShort,
+      why_it_matters: r.analysisData.suggestedAngle,
+      impact_scope: {
+        equities: r.analysisData.relevanceScore,
+        rates_fx: Math.floor(r.analysisData.relevanceScore * 0.7),
+        commodities: Math.floor(r.analysisData.relevanceScore * 0.5),
+        crypto: Math.floor(r.analysisData.relevanceScore * 0.8),
+      },
+      risk_flags: r.analysisData.riskFlagsJson || [],
+      confidence: r.analysisData.relevanceScore,
+      category: r.analysisData.category,
+    }));
   }
 }
 

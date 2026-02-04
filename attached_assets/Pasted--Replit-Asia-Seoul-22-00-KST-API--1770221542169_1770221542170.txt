@@ -1,0 +1,134 @@
+좋습니다. 아래는 **Replit 코드에 그대로 넣을 수 있는 스케줄러 템플릿(Asia/Seoul, 매일 22:00 KST)** + **수동 실행 버튼용 API**까지 포함한 지시서입니다. (초기엔 반자동이 제맛이죠 😄)
+
+---
+
+## 1) 환경변수 추가 (권장)
+
+`.env.example` / Secrets에 추가:
+
+* `REPORT_TZ=Asia/Seoul`
+* `DAILY_BRIEF_CRON=0 22 * * *`  (매일 22:00 KST)
+
+---
+
+## 2) 스케줄러 등록 (server/jobs/scheduler.ts)
+
+```ts
+import cron from "node-cron";
+import { generateDailyBrief } from "./generate_daily_brief";
+
+export function startScheduler() {
+  const tz = process.env.REPORT_TZ || "Asia/Seoul";
+  const cronExpr = process.env.DAILY_BRIEF_CRON || "0 22 * * *";
+
+  console.log(`[Scheduler] Starting... TZ=${tz}`);
+  console.log(`[Scheduler] Daily Brief scheduled: "${cronExpr}" (${tz})`);
+
+  cron.schedule(
+    cronExpr,
+    async () => {
+      const startedAt = new Date();
+      console.log(`[DailyBriefJob] START ${startedAt.toISOString()}`);
+
+      try {
+        const report = await generateDailyBrief({
+          // 최근 24시간 또는 last report 이후로 구현 (권장)
+          // v1은 최근 24시간만 해도 충분
+          lookbackHours: 24,
+          maxItems: 12,
+          topic: "investing",
+        });
+
+        console.log(
+          `[DailyBriefJob] DONE reportId=${report.id} items=${report.itemsCount}`
+        );
+      } catch (err) {
+        console.error("[DailyBriefJob] FAIL", err);
+      }
+    },
+    { timezone: tz }
+  );
+}
+```
+
+✅ 포인트
+
+* `timezone: "Asia/Seoul"`을 명시했기 때문에, 서버가 어디서 돌아도 **KST 22:00 고정**입니다.
+
+---
+
+## 3) 엔트리에서 스케줄러 시작 확인 (server/index.ts)
+
+서버가 켜질 때 스케줄러가 반드시 시작되어야 합니다.
+
+```ts
+import { startScheduler } from "./jobs/scheduler";
+
+startScheduler();
+```
+
+로그에 아래가 뜨면 성공:
+
+* `[Scheduler] Starting... TZ=Asia/Seoul`
+* `[Scheduler] Daily Brief scheduled: "0 22 * * *" (Asia/Seoul)`
+
+---
+
+## 4) 수동 실행 API (디버그/반자동 운영용)
+
+`server/routes.ts`에 추가:
+
+```ts
+import { generateDailyBrief } from "./jobs/generate_daily_brief";
+
+router.post("/api/debug/generate-daily-brief", async (req, res) => {
+  try {
+    const report = await generateDailyBrief({
+      lookbackHours: 24,
+      maxItems: 12,
+      topic: "investing",
+      force: true, // 있으면 사용, 없으면 제거
+    });
+    res.json({ ok: true, reportId: report.id });
+  } catch (err: any) {
+    res.status(500).json({ ok: false, error: err?.message ?? String(err) });
+  }
+});
+```
+
+이제 대시보드에서 버튼만 붙이면:
+
+* “오늘 리포트 지금 생성”이 가능합니다.
+
+---
+
+## 5) (선택) 프론트엔드에 “지금 생성” 버튼 붙이기 아이디어
+
+Reports 페이지에 버튼 하나:
+
+* `POST /api/debug/generate-daily-brief`
+* 성공하면 목록 새로고침
+
+초기에는 자동보다 **수동 버튼**이 훨씬 안정적입니다.
+
+---
+
+## 6) 리포트 커버 기간(추천)
+
+v1은 가장 단순하게:
+
+* `lookbackHours: 24`
+
+v1.1부터는 더 예쁘게:
+
+* “마지막 리포트 생성 시간 이후”만 포함
+  (중복/노이즈가 줄어요)
+
+---
+
+원하시면 다음으로, **미국 개장 1~2시간 전**에 가장 의미 있는 정보가 모이도록:
+
+* “22:00 리포트 + 23:00 짧은 업데이트(선택)” 같은 구조도 만들 수 있는데,
+  지금은 사용자가 원하신 대로 **1일 1회 22:00 고정**이 제일 깔끔합니다.
+
+지금 코드베이스에서 `generateDailyBrief` 파일명/함수명이 다르면, 그 부분만 알려주시면 위 템플릿을 **당신 프로젝트 구조에 딱 맞게** 맞춰드릴게요.
