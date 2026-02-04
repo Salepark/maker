@@ -37,3 +37,13 @@ author = "agent"
 task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
+
+[agent]
+integrations = ["javascript_openai_ai_integrations:2.0.0"]
+
+[userenv]
+
+[userenv.shared]
+LLM_PROVIDER = "claude"
+CLAUDE_MODEL = "claude-sonnet-4-5-20250929"
+APP_BASE_URL = "https://aiartmarket.io"
