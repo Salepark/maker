@@ -23,7 +23,7 @@ Preferred communication style: Simple, everyday language.
 - **Styling**: Tailwind CSS with CSS variables for theming
 - **Build Tool**: Vite with HMR support
 
-The frontend is a single-page application with pages for Dashboard, Items, Drafts, Observe, Reports, Sources, and Settings. Theme switching (light/dark) is supported via CSS custom properties.
+The frontend is a single-page application with pages for Dashboard, Items, Drafts, Observe, Reports, Sources, Settings, and Chat. Theme switching (light/dark) is supported via CSS custom properties.
 
 ### Backend Architecture
 - **Runtime**: Node.js with TypeScript (tsx for development)
@@ -37,6 +37,7 @@ Key server modules:
 - `server/jobs/` - Scheduled background jobs (collect, analyze, draft)
 - `server/llm/` - Claude AI integration for content analysis
 - `server/services/` - Business logic (RSS parsing, deduplication)
+- `server/chat/` - Command Chat system (parser, executor)
 
 ### Data Storage
 - **Database**: PostgreSQL via Drizzle ORM
@@ -50,6 +51,8 @@ Core tables:
 - `drafts` - Generated reply drafts awaiting review
 - `reports` - Daily market briefs generated from analyzed content
 - `users` - Admin authentication
+- `chat_messages` - Chat history with parsed commands and results
+- `settings` - Persistent configuration key-value store
 
 ### Background Jobs
 - **Scheduler**: node-cron for periodic task execution with timezone support (Asia/Seoul)
@@ -71,6 +74,26 @@ Core tables:
 - **Model**: claude-sonnet-4-5-20250929 (configurable via CLAUDE_MODEL env)
 - **Prompts**: Korean-language prompts for community-appropriate responses
 - **Output**: Structured JSON for analysis and draft generation
+
+### Command Chat Feature
+Natural language interface for bot control using Claude to parse commands.
+
+**Whitelisted Commands:**
+- `generate_report` - Create market brief (topic: ai_art/investing, lookbackHours: 1-168, maxItems: 5-30)
+- `run_pipeline` - Execute pipeline jobs (collect, analyze, draft)
+- `set_preference` - Configure settings (default_topic, daily_brief_time_kst, draft_threshold_profile)
+- `help` - Show available commands
+
+**Validation:**
+- Topic: ai_art or investing only
+- Time format: HH:MM (e.g., 22:00)
+- Threshold profiles: default, strict, relaxed
+- Parameter clamping applied for ranges
+
+**Architecture:**
+- Parser (command-parser.ts): LLM parses natural language to JSON
+- Executor (executor.ts): Validates and executes whitelisted commands
+- Storage: Messages persisted with commandJson and resultJson
 
 ## External Dependencies
 
