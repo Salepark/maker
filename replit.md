@@ -23,7 +23,7 @@ Preferred communication style: Simple, everyday language.
 - **Styling**: Tailwind CSS with CSS variables for theming
 - **Build Tool**: Vite with HMR support
 
-The frontend is a single-page application with pages for Dashboard, Items, Drafts, Sources, and Settings. Theme switching (light/dark) is supported via CSS custom properties.
+The frontend is a single-page application with pages for Dashboard, Items, Drafts, Observe, Reports, Sources, and Settings. Theme switching (light/dark) is supported via CSS custom properties.
 
 ### Backend Architecture
 - **Runtime**: Node.js with TypeScript (tsx for development)
@@ -48,13 +48,23 @@ Core tables:
 - `items` - Collected posts with status workflow (new → analyzed → drafted → approved → posted)
 - `analysis` - LLM analysis results (scores, categories, risk flags)
 - `drafts` - Generated reply drafts awaiting review
+- `reports` - Daily market briefs generated from analyzed content
 - `users` - Admin authentication
 
 ### Background Jobs
-- **Scheduler**: node-cron for periodic task execution
+- **Scheduler**: node-cron for periodic task execution with timezone support (Asia/Seoul)
 - **Collect Job**: Every 10 minutes - fetches new items from RSS sources
 - **Analyze Job**: Every 5 minutes - runs LLM analysis on new items
 - **Draft Job**: Every 5 minutes - generates reply drafts for analyzed items
+- **Daily Brief Job**: Every day at 22:00 KST - generates Korean market summary report
+
+### Daily Brief Feature
+- **Schedule**: Automated daily at 22:00 KST
+- **Lookback**: Analyzes items from last 24 hours
+- **Max Items**: Up to 12 most relevant items
+- **Output Language**: Korean
+- **Sections**: TL;DR, Market Drivers (facts/why/impact/risks), Risk Radar, Checklist, Sources
+- **Manual Generation**: Available via Reports page or POST /api/debug/generate-daily-brief
 
 ### LLM Integration
 - **Provider**: Anthropic Claude API
