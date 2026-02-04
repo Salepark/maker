@@ -50,8 +50,12 @@ export default function Items() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
 
+  const itemsUrl = statusFilter === "all" 
+    ? "/api/items" 
+    : `/api/items?status=${statusFilter}`;
+  
   const { data: items, isLoading } = useQuery<Item[]>({
-    queryKey: ["/api/items", { status: statusFilter }],
+    queryKey: [itemsUrl],
   });
 
   const filteredItems = items?.filter((item) => {

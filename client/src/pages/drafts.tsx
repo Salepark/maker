@@ -43,8 +43,12 @@ export default function Drafts() {
   const [decisionFilter, setDecisionFilter] = useState<string>("pending");
   const [copiedId, setCopiedId] = useState<number | null>(null);
 
+  const draftsUrl = decisionFilter === "all" 
+    ? "/api/drafts" 
+    : `/api/drafts?decision=${decisionFilter}`;
+  
   const { data: drafts, isLoading } = useQuery<DraftItem[]>({
-    queryKey: ["/api/drafts", { decision: decisionFilter }],
+    queryKey: [draftsUrl],
   });
 
   const approveMutation = useMutation({
