@@ -1,6 +1,10 @@
 import { storage } from "../storage";
 import { callLLMWithJsonParsing } from "../llm/client";
-import { buildAnalyzePrompt, type AnalysisResult } from "../llm/prompts";
+import { 
+  buildAnalyzePrompt, 
+  buildAiArtPromoAnalyzePrompt,
+  type AnalysisResult 
+} from "../llm/prompts";
 
 export async function analyzeNewItems(): Promise<number> {
   console.log("[AnalyzeJob] Starting analysis for new items...");
@@ -9,14 +13,21 @@ export async function analyzeNewItems(): Promise<number> {
   let analyzed = 0;
 
   for (const item of items) {
-    console.log(`[AnalyzeJob] Analyzing item #${item.id}: ${item.title?.slice(0, 50)}...`);
+    console.log(`[AnalyzeJob] Analyzing item #${item.id} (topic: ${item.sourceTopic}): ${item.title?.slice(0, 50)}...`);
 
-    const prompt = buildAnalyzePrompt({
-      title: item.title ?? "",
-      body: item.contentText ?? "",
-      sourceName: item.sourceName ?? "unknown",
-      sourceRules: JSON.stringify(item.rulesJson ?? {}),
-    });
+    // Use AI Art promo prompt for ai_art topic, investing prompt for others
+    const prompt = item.sourceTopic === "ai_art"
+      ? buildAiArtPromoAnalyzePrompt({
+          title: item.title ?? "",
+          body: item.contentText ?? "",
+          sourceName: item.sourceName ?? "unknown",
+        })
+      : buildAnalyzePrompt({
+          title: item.title ?? "",
+          body: item.contentText ?? "",
+          sourceName: item.sourceName ?? "unknown",
+          sourceRules: JSON.stringify(item.rulesJson ?? {}),
+        });
 
     try {
       const result = await callLLMWithJsonParsing<AnalysisResult>(prompt);

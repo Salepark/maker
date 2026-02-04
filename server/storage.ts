@@ -25,7 +25,7 @@ export interface IStorage {
   getRecentItems(limit?: number): Promise<(Item & { sourceName: string })[]>;
   getObserveItems(limit?: number): Promise<any[]>;
   getItem(id: number): Promise<(Item & { sourceName: string; analysis?: Analysis; drafts: Draft[] }) | undefined>;
-  getItemsByStatus(status: string, limit?: number): Promise<(Item & { sourceName: string; rulesJson?: unknown })[]>;
+  getItemsByStatus(status: string, limit?: number): Promise<(Item & { sourceName: string; sourceTopic: string; rulesJson?: unknown })[]>;
   createItem(data: InsertItem): Promise<Item>;
   updateItemStatus(id: number, status: string): Promise<void>;
 
@@ -251,11 +251,12 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getItemsByStatus(status: string, limit: number = 10): Promise<(Item & { sourceName: string; rulesJson?: unknown })[]> {
+  async getItemsByStatus(status: string, limit: number = 10): Promise<(Item & { sourceName: string; sourceTopic: string; rulesJson?: unknown })[]> {
     const result = await db
       .select({
         item: items,
         sourceName: sources.name,
+        sourceTopic: sources.topic,
         rulesJson: sources.rulesJson,
       })
       .from(items)
@@ -267,6 +268,7 @@ export class DatabaseStorage implements IStorage {
     return result.map((r) => ({
       ...r.item,
       sourceName: r.sourceName || "Unknown",
+      sourceTopic: r.sourceTopic || "ai_art",
       rulesJson: r.rulesJson,
     }));
   }

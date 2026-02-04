@@ -1,0 +1,150 @@
+1️⃣ ai_art 운영 흐름 (홍보용)
+
+Sources (topic = ai_art)
+
+Reddit r/aiArt, HN(ai art 키워드), 관련 블로그 RSS
+
+Collect → 새 글 수집
+
+Analyze (홍보 관점 필터링)
+
+“대화 걸기 좋나?”
+
+“논쟁/저작권 폭탄 아님?”
+
+“링크 끼워 넣어도 자연스러울까?”
+
+Draft (댓글 초안 생성)
+
+공격적 홍보 ❌
+
+공감/정보/경험 공유 톤 ⭕
+
+필요할 때만 aiartmarket.io 언급
+
+Drafts 페이지에서 승인 → 복사 → 직접 게시 (초기에는 반자동)
+
+2️⃣ ai_art 전용 Analyze Prompt (홍보 필터)
+
+이걸 server/llm/prompts.ts 같은 곳에 추가하세요:
+
+export function buildAiArtPromoAnalyzePrompt(input: {
+  title: string;
+  body: string;
+  sourceName: string;
+}) {
+  return `
+너는 AI 아트 커뮤니티 마케팅 보조 분석가다.
+아래 게시글이 "자연스럽게 대화에 참여하며 aiartmarket.io를 언급할 수 있는지" 평가하라.
+
+다음 기준으로 판단하라:
+- 논쟁/저작권/혐오/정치/분쟁 가능성이 크면: 리스크 높음
+- 질문형, 도구 공유, 워크플로우 토론, 팁 요청 글이면: 답변 가치 높음
+- 명백한 광고/스팸 글이면: 답변 가치 낮음
+- 커뮤니티 톤에 맞게 "도움되는 댓글"을 달 수 있으면: 긍정
+
+JSON으로만 출력:
+{
+  "category": "tool|workflow|prompt|discussion|news|other",
+  "relevance_score": 0-100,
+  "reply_worthiness_score": 0-100,
+  "link_fit_score": 0-100,
+  "risk_flags": ["copyright","toxic","politics","spam","drama"] 중 해당되는 것들,
+  "recommended_action": "reply|observe|skip",
+  "suggested_angle": "어떤 관점으로 댓글을 달면 좋을지 한 줄",
+  "summary_short": "한 줄 요약",
+  "summary_long": "3~4줄 요약"
+}
+
+[제목]
+${input.title}
+
+[본문]
+${input.body}
+
+[출처]
+${input.sourceName}
+`;
+}
+
+
+👉 의미:
+
+reply_worthiness_score: 댓글 달 가치
+
+link_fit_score: 링크 끼워 넣어도 자연스러운지
+
+risk_flags: 불지뢰 감지
+
+recommended_action: reply / observe / skip
+
+3️⃣ ai_art 전용 Draft Prompt (홍보 댓글 생성기)
+export function buildAiArtPromoDraftPrompt(input: {
+  title: string;
+  body: string;
+  suggestedAngle: string;
+}) {
+  return `
+너는 AI 아트 커뮤니티에서 활동하는 친절한 사용자다.
+아래 게시글에 달 "자연스럽고 도움 되는 댓글 초안"을 작성하라.
+
+규칙:
+- 공격적 홍보 금지
+- 판매/마케팅 톤 금지
+- 공감 + 정보 + 경험 공유 톤
+- 필요할 때만 aiartmarket.io를 "도움되는 리소스"로 가볍게 언급
+- 링크는 최대 1번만
+- 댓글 길이는 4~8문장 정도
+- 영어로 작성 (HN/Reddit 기준)
+
+[게시글 제목]
+${input.title}
+
+[게시글 내용]
+${input.body}
+
+[추천 관점]
+${input.suggestedAngle}
+
+댓글 초안을 작성하라:
+`;
+}
+
+
+👉 결과:
+
+“Hey, I’ve tried something similar…” 같은 사람 말투
+
+중간이나 끝에:
+
+“By the way, we’ve been collecting prompts/tools here: https://aiartmarket.io
+ — might be useful.”
+이런 식으로 툭 끼워 넣는 댓글
+
+4️⃣ Drafts 페이지 운영법 (실전)
+
+Drafts 열기
+
+초안 읽기
+
+❌ 별로면: Skip
+
+✅ 좋으면: Copy → 커뮤니티에 직접 붙여넣기
+
+나중에:
+
+“이 톤이 좋다” / “이건 너무 광고 같다” 피드백 모아서 프롬프트 미세조정
+
+5️⃣ Chat으로 이렇게 쓰게 됩니다
+
+ai_art 수집 돌려줘
+
+ai_art 분석 실행
+
+ai_art 댓글 초안 만들어줘
+
+ai_art 중에서 reply 가치 높은 것만 보여줘
+
+🎯 한 줄 요약
+
+ai_art는 **“논쟁 피하고, 대화에 자연스럽게 끼어들어, aiartmarket.io를 ‘도움 되는 리소스’로 소개하는 댓글”**을 만드는 홍보 봇으로 운영하면 됩니다.

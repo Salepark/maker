@@ -1,6 +1,11 @@
 import { storage } from "../storage";
 import { callLLMWithJsonParsing } from "../llm/client";
-import { buildDraftPrompt, type DraftResult, type SourceRules } from "../llm/prompts";
+import { 
+  buildDraftPrompt, 
+  buildAiArtPromoDraftPrompt,
+  type DraftResult, 
+  type SourceRules 
+} from "../llm/prompts";
 
 const APP_BASE_URL = process.env.APP_BASE_URL || "https://aiartmarket.io";
 
@@ -62,24 +67,32 @@ export async function draftForAnalyzed(): Promise<number> {
 
     console.log(`[DraftJob] Item #${item.id} will get drafts: ${reason}`);
 
-    console.log(`Generating drafts for item #${item.id}: ${item.title?.slice(0, 50)}...`);
+    console.log(`Generating drafts for item #${item.id} (topic: ${item.sourceTopic}): ${item.title?.slice(0, 50)}...`);
 
     const riskFlags = (analysis.riskFlagsJson as string[]) || [];
     const sourceRules = (item.rulesJson as SourceRules) || {};
     const allowLink = shouldAllowLink(riskFlags) && (sourceRules.allowLinks !== false);
 
-    const prompt = buildDraftPrompt({
-      title: item.title ?? "",
-      body: item.contentText ?? "",
-      analysisJson: JSON.stringify({
-        category: analysis.category,
-        risk_flags: riskFlags,
-        suggested_angle: analysis.suggestedAngle,
-      }),
-      allowLink,
-      baseUrl: APP_BASE_URL,
-      sourceRules,
-    });
+    // Use AI Art promo draft prompt for ai_art topic (promotional comments)
+    const prompt = item.sourceTopic === "ai_art"
+      ? buildAiArtPromoDraftPrompt({
+          title: item.title ?? "",
+          body: item.contentText ?? "",
+          suggestedAngle: analysis.suggestedAngle || "",
+          baseUrl: APP_BASE_URL,
+        })
+      : buildDraftPrompt({
+          title: item.title ?? "",
+          body: item.contentText ?? "",
+          analysisJson: JSON.stringify({
+            category: analysis.category,
+            risk_flags: riskFlags,
+            suggested_angle: analysis.suggestedAngle,
+          }),
+          allowLink,
+          baseUrl: APP_BASE_URL,
+          sourceRules,
+        });
 
     try {
       const result = await callLLMWithJsonParsing<DraftResult>(prompt);
