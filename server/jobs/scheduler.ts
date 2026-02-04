@@ -4,10 +4,10 @@ import { analyzeNewItems } from "./analyze_items";
 import { draftForAnalyzed } from "./draft_replies";
 import { generateDailyBrief } from "./generate_daily_brief";
 
-let collectTask: cron.ScheduledTask | null = null;
-let analyzeTask: cron.ScheduledTask | null = null;
-let draftTask: cron.ScheduledTask | null = null;
-let dailyBriefTask: cron.ScheduledTask | null = null;
+let collectTask: ReturnType<typeof cron.schedule> | null = null;
+let analyzeTask: ReturnType<typeof cron.schedule> | null = null;
+let draftTask: ReturnType<typeof cron.schedule> | null = null;
+let dailyBriefTask: ReturnType<typeof cron.schedule> | null = null;
 let isRunning = false;
 
 let lastCollect: Date | null = null;

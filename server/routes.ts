@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { collectFromSource, collectAllSources } from "./services/rss";
-import { startScheduler, stopScheduler, getSchedulerStatus, runCollectNow, runAnalyzeNow, runDraftNow } from "./jobs/scheduler";
+import { startScheduler, stopScheduler, getSchedulerStatus, runCollectNow, runAnalyzeNow, runDraftNow, runDailyBriefNow } from "./jobs/scheduler";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -244,6 +244,40 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error running draft:", error);
       res.status(500).json({ error: "Failed to run draft" });
+    }
+  });
+
+  app.get("/api/reports", async (req, res) => {
+    try {
+      const reports = await storage.getReports(20);
+      res.json(reports);
+    } catch (error) {
+      console.error("Error getting reports:", error);
+      res.status(500).json({ error: "Failed to get reports" });
+    }
+  });
+
+  app.get("/api/reports/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const report = await storage.getReport(id);
+      if (!report) {
+        return res.status(404).json({ error: "Report not found" });
+      }
+      res.json(report);
+    } catch (error) {
+      console.error("Error getting report:", error);
+      res.status(500).json({ error: "Failed to get report" });
+    }
+  });
+
+  app.post("/api/debug/generate-daily-brief", async (req, res) => {
+    try {
+      const result = await runDailyBriefNow();
+      res.json({ ok: true, reportId: result.id, itemsCount: result.itemsCount });
+    } catch (error: any) {
+      console.error("Error generating daily brief:", error);
+      res.status(500).json({ ok: false, error: error?.message ?? String(error) });
     }
   });
 
