@@ -127,11 +127,11 @@ export async function runDraftNow() {
   return count;
 }
 
-export async function runDailyBriefNow(topic: string = "ai_art") {
-  console.log(`📊 Manual Daily Brief generation triggered for topic=${topic}...`);
+export async function runDailyBriefNow(topic: string = "ai_art", lookbackHours: number = 24, maxItems: number = 12) {
+  console.log(`📊 Manual Daily Brief generation triggered for topic=${topic}, lookback=${lookbackHours}h, max=${maxItems}...`);
   const result = await generateDailyBrief({
-    lookbackHours: 24,
-    maxItems: 12,
+    lookbackHours,
+    maxItems,
     topic,
     force: true,
   });

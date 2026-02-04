@@ -1,0 +1,209 @@
+Replit 개발 지시서 — Command Chat v1 (채팅형 명령창)
+목표
+
+앱에 “Chat(명령)” 페이지를 추가한다.
+
+사용자가 자연어로 요청하면, LLM(Claude)이 명령 JSON으로 변환한다.
+
+서버는 허용된 action만 실행한다(화이트리스트).
+
+결과를 채팅 로그로 보여준다.
+
+초기에는 “게시/외부 전송” 같은 위험 작업은 금지하고, 보고서 생성/파이프라인 실행/필터 변경만 허용한다.
+
+1) 데이터 모델 추가
+테이블: chat_threads (선택)
+
+id
+
+title
+
+created_at
+
+테이블: chat_messages
+
+id
+
+thread_id
+
+role: "user" | "assistant" | "system"
+
+content_text (text)
+
+created_at
+
+(간단히 v1은 thread 없이 messages만 둬도 됨)
+
+2) 서버: 명령 실행 API
+엔드포인트
+
+POST /api/chat/command
+
+Request
+{
+  "message": "오늘 미국시장 개장 전에 볼 investing daily brief 만들어줘"
+}
+
+Response (예시)
+{
+  "ok": true,
+  "assistantMessage": "알겠습니다. investing 토픽으로 지난 24시간 기준 Daily Brief를 생성했어요. (reportId=123)",
+  "executed": {
+    "action": "generate_report",
+    "topic": "investing",
+    "lookbackHours": 24,
+    "maxItems": 12,
+    "scheduleHint": "22:00 KST"
+  },
+  "result": { "reportId": 123 }
+}
+
+3) “명령 파서” 설계 (Claude를 이용한 JSON 파싱)
+3-1) 허용 명령 스키마(화이트리스트)
+
+서버에서 아래 액션만 실행 가능하게 제한:
+
+A. generate_report
+
+topic: "ai_art" | "investing"
+
+lookbackHours: number (기본 24)
+
+maxItems: number (기본 12)
+
+reportType: "daily_brief" (v1 고정)
+
+force: boolean (기본 false)
+
+B. run_pipeline
+
+job: "collect" | "analyze" | "draft" | "report"
+
+topic: optional ("ai_art" | "investing")
+
+limit: optional number
+
+C. set_preference
+
+key: "default_topic" | "daily_brief_time_kst" | "draft_threshold_profile"
+
+value: string/number
+
+D. help
+
+examples 요청
+
+⚠️ 금지: 외부 글쓰기/포스팅/자동 댓글 등록/계정 액션 전부 (v1)
+
+3-2) Claude “Command Parser Prompt” (JSON만 출력)
+
+서버에 buildCommandParsePrompt(userMessage, context) 추가:
+
+프롬프트 핵심 규칙
+
+반드시 JSON만 출력
+
+아래 스키마 중 하나로 매핑
+
+애매하면 help로 유도
+
+Prompt 템플릿
+너는 앱의 "명령 파서"다. 사용자의 자연어 요청을 아래 허용된 명령(JSON) 중 하나로 변환하라.
+반드시 JSON만 출력하라. 설명 문장 금지.
+
+[허용 action]
+1) generate_report: { action, topic, lookbackHours, maxItems, reportType, force }
+2) run_pipeline: { action, job, topic?, limit? }
+3) set_preference: { action, key, value }
+4) help: { action, message }
+
+[규칙]
+- topic이 명시되지 않으면 default_topic을 사용. (context로 제공)
+- "미국 시장 개장 전"은 report 생성 시간 힌트로만 사용(스케줄 변경은 set_preference로).
+- "다시/재생성"은 force=true.
+- lookbackHours: "지난 2일"=48, "지난 1주"=168
+- maxItems 기본 12 (사용자가 지정하면 반영)
+
+[context]
+default_topic={{default_topic}}
+daily_brief_time_kst={{daily_brief_time_kst}}
+
+[사용자 메시지]
+{{userMessage}}
+
+4) 서버: 실행기(Executor)
+
+executeCommand(cmd) 구현:
+
+cmd.action 검사 (화이트리스트)
+
+topic 검증 ("ai_art" | "investing")
+
+lookback/maxItems 범위 제한 (예: maxItems 5~30)
+
+실행:
+
+generate_report → generateDailyBrief({ topic, lookbackHours, maxItems, force })
+
+run_pipeline → 기존 job 함수 호출
+
+set_preference → settings 테이블(또는 env) 업데이트
+
+assistantMessage는 “사람 말”로 짧게 정리
+
+chat_messages에 user/assistant 저장
+
+5) 프론트: Chat UI 페이지
+라우트
+
+/chat
+
+UI 구성
+
+상단: “명령 챗”
+
+가운데: 메시지 리스트 (user/assistant 말풍선)
+
+하단: 입력창 + Send
+
+우측(또는 상단) 작은 가이드:
+
+예시 명령 5개
+
+예시 문구(가이드)
+
+“ai_art 리포트 지금 만들어줘”
+
+“investing으로 지난 48시간 daily brief 재생성”
+
+“analyze 다시 돌려줘”
+
+“오늘은 수집만 실행”
+
+“기본 토픽을 investing으로 설정해줘”
+
+6) “섞임 방지”를 위한 필수 조건 (중요)
+
+리포트 생성/잡 실행 모두 topic 필터를 DB 레벨에서 강제:
+
+reports 생성 시: sources.topic == requested topic 인 items만 사용
+
+analyze/draft도 가능하면 topic별로 돌릴 수 있게 개선
+
+7) v1 테스트 시나리오
+
+“ai_art 리포트 만들어줘” → ai_art 내용만
+
+“investing 리포트 만들어줘” → investing 소스에서만
+
+“지난 48시간으로 investing 리포트 다시 만들어줘” → force=true, lookback=48
+
+“analyze 다시 돌려줘” → run_pipeline(job=analyze)
+
+애매한 질문 → help 반환
+
+UX 팁 (바로 효과 보는 한 줄)
+
+채팅 입력창 placeholder를 이렇게:
+
+“예: investing 리포트 지금 만들어줘 / 지난 48시간으로 재생성 / analyze 실행”

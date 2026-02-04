@@ -3,6 +3,8 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { collectFromSource, collectAllSources } from "./services/rss";
 import { startScheduler, stopScheduler, getSchedulerStatus, runCollectNow, runAnalyzeNow, runDraftNow, runDailyBriefNow } from "./jobs/scheduler";
+import { parseCommand } from "./chat/command-parser";
+import { executeCommand } from "./chat/executor";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -278,6 +280,52 @@ export async function registerRoutes(
       res.json({ ok: true, reportId: result.id, itemsCount: result.itemsCount, topic });
     } catch (error: any) {
       console.error("Error generating daily brief:", error);
+      res.status(500).json({ ok: false, error: error?.message ?? String(error) });
+    }
+  });
+
+  app.get("/api/chat/messages", async (req, res) => {
+    try {
+      const messages = await storage.getChatMessages(100);
+      res.json(messages.reverse());
+    } catch (error) {
+      console.error("Error getting chat messages:", error);
+      res.status(500).json({ error: "Failed to get chat messages" });
+    }
+  });
+
+  app.post("/api/chat/command", async (req, res) => {
+    try {
+      const { message } = req.body;
+      if (!message || typeof message !== "string") {
+        return res.status(400).json({ error: "Message is required" });
+      }
+
+      await storage.createChatMessage({
+        role: "user",
+        contentText: message,
+      });
+
+      const defaultTopic = (await storage.getSetting("default_topic")) || "ai_art";
+      const dailyBriefTime = (await storage.getSetting("daily_brief_time_kst")) || "22:00";
+
+      const command = await parseCommand(message, {
+        default_topic: defaultTopic,
+        daily_brief_time_kst: dailyBriefTime,
+      });
+
+      const result = await executeCommand(command);
+
+      await storage.createChatMessage({
+        role: "assistant",
+        contentText: result.assistantMessage,
+        commandJson: result.executed,
+        resultJson: result.result,
+      });
+
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error processing chat command:", error);
       res.status(500).json({ ok: false, error: error?.message ?? String(error) });
     }
   });

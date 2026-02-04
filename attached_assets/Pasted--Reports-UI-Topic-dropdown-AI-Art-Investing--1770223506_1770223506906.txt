@@ -1,0 +1,177 @@
+📌 현재 상황 요약 (정확히 파악됨)
+
+✅ Reports UI에 Topic 선택(dropdown) 이 추가돼 있고
+
+AI Art
+
+Investing
+둘 다 선택할 수 있음
+
+그리고 각 리포트 카드마다
+
+제목
+
+생성 시간
+
+item 수(아이템 개수)
+
+topic 태그(ai_art / investing)
+
+가 잘 표시되고 있습니다.
+
+하지만 현재는:
+
+Investing 리포트가 있고
+
+아이템 수도 표시되지만
+
+아직 investing 전용 데이터가 거의 없음 ⇒ 내용이 비어있거나 AI Art 내용으로 보였던 상황이었습니다.
+
+이제 목표는:
+
+👉 **“Investing 토픽에 맞는 소스 → 분석 → 리포트”**가 제대로 돌아가도록 소스를 채우는 것
+
+즉, Reports UI/토픽 구조는 이미 완성돼 있고,
+데이터만 올바른 방향으로 채우면 시나리오가 완성됩니다.
+
+🔢 지금 필요한 건
+❗ Investing 리포트를 의미 있게 만드는 것:
+
+지금 Investing 리포트에 들어오는 아이템 수가 적거나,
+들어오더라도 AI Art 관련 내용만 있어서 리포트가 비었거나, 잘못된 내용이었던 겁니다.
+
+이제 해야 할 건:
+
+✔️ Investing 토픽용 RSS 소스를 추가
+✔️ Investing 토픽 아이템이 분석 → status = analyzed로 누적되도록
+✔️ Investing 리포트 생성 시 그 topic만 사용
+
+📌 “Investing” 전용 RSS 소스 리스트
+
+아래 소스들을 Sources 화면에서 topic = investing으로 추가하면
+이 소스들에서 수집 → 분석 → Investing 리포트가 정상적으로 만들어집니다.
+
+📈 1) 글로벌 시장 / 거시경제
+
+Reuters Markets
+
+https://www.reuters.com/markets/rss
+
+
+Wall Street Journal – Markets
+
+https://feeds.a.dj.com/rss/RSSMarketsMain.xml
+
+
+Financial Times – Markets
+
+https://www.ft.com/rss/markets
+
+
+MarketWatch – Top Stories
+
+https://www.marketwatch.com/rss/topstories
+
+📊 2) 기업/재무/투자 분석
+
+Seeking Alpha
+
+https://seekingalpha.com/feed.xml
+
+
+Investing.com – Economic Calendar (뉴스/분석)
+
+https://www.investing.com/rss/news.rss
+
+💱 3) 크립토 (정책/시장 중심)
+
+CoinDesk – Markets & Analysis
+
+https://www.coindesk.com/arc/outboundfeeds/rss/?outputType=xml
+
+
+The Block – News
+
+https://www.theblock.co/rss.xml
+
+🌍 4) 거시경제/정책/리스크
+
+(옵션 — 필요하면 추가)
+
+Reuters World News
+
+https://www.reuters.com/rssFeed/worldNews
+
+
+Bloomberg – Markets (요약 피드)
+
+https://www.bloomberg.com/feed/podcast/etf-report.xml
+
+📌 소스 추가 가이드 (Replit Sources UI)
+
+Sources 화면에서 Add Source 버튼을 누르고:
+
+필드	예
+Name	Reuters Markets
+Type	rss
+URL	https://www.reuters.com/markets/rss
+
+Rules JSON	{}
+Topic	investing
+Enabled	true
+
+이런 식으로 topic = investing 으로 반드시 세팅해야 합니다.
+
+✅ 예상되는 플로우
+
+Sources 업데이트 (위 리스트)
+
+Collect Job 실행 → Investing 소스도 수집
+
+Analyze Job 실행 → Investing 아이템 점수/카테고리 분석
+
+Daily Brief (investing) 생성
+
+지금 UI에서 topic = Investing 선택
+
+Generate 클릭 또는 자동 22:00 스케줄
+
+📌 검증 방법 (단계별 체크리스트)
+
+✔️ Sources에서 investing 토픽만 선택해서 리스트 보기
+✔️ Items 리스트에서 topic=investing으로 필터링
+✔️ analyzed 상태로 status가 올라가는지 확인
+✔️ Reports에서 topic=Investing 선택
+✔️ “Generate” 눌러서 리포트 생성
+✔️ 리포트에 AI Art가 포함되지 않는지 확인
+
+🎯 빠른 테스트 명령 (Command Chat v1 기준)
+
+“investing으로 지난 48시간 리포트 생성해줘”
+
+→ 이 명령을 입력했을 때:
+
+✔️ topic = investing
+✔️ lookbackHours = 48
+✔️ generate_report action으로 변환
+✔️ Investing 리포트가 생성
+
+이게 되면 완전 정상입니다.
+
+🧠 왜 이 8~10개 소스인가?
+카테고리	기대 효과
+Reuters / FT / WSJ / MarketWatch	거시·주식·시장 구조 뉴스
+Seeking Alpha / Investing.com	기업/재무/경제 캘린더
+CoinDesk / The Block	크립토 시장 흐름
+Reuters World	지정학/리스크 변수
+
+이 조합이면:
+
+🔍 가격 방향 예측이 아니라
+📊 구조/리스크/정책/데이터 중심 정세 브리핑이 됩니다.
+
+(이게 우리가 원한 신뢰도 우선 investing 리포트 스타일입니다.)
+
+✔️ 한 문장 마무리
+
+💡 Sources에 위 8~10개 투자/시장/정책 중심 RSS를 topic=investing으로 추가하면, Reports에서 Investing 리포트가 AI Art가 아닌: “진짜 시장 정세” 중심 내용으로 생성됩니다.

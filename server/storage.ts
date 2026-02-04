@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { sources, items, analysis, drafts, posts, reports, type Source, type Item, type Analysis, type Draft, type Post, type Report, type InsertSource, type InsertItem, type InsertAnalysis, type InsertDraft, type InsertReport } from "@shared/schema";
+import { sources, items, analysis, drafts, posts, reports, chatMessages, settings, type Source, type Item, type Analysis, type Draft, type Post, type Report, type InsertSource, type InsertItem, type InsertAnalysis, type InsertDraft, type InsertReport, type ChatMessage, type InsertChatMessage, type Setting } from "@shared/schema";
 import { eq, desc, sql, and, count, gte, lt } from "drizzle-orm";
 
 export interface IStorage {
@@ -39,6 +39,12 @@ export interface IStorage {
   getReport(id: number): Promise<Report | undefined>;
   createReport(data: InsertReport): Promise<Report>;
   getAnalyzedItemsForBrief(lookbackHours: number, limit: number, topic?: string): Promise<any[]>;
+
+  getChatMessages(limit?: number): Promise<ChatMessage[]>;
+  createChatMessage(data: InsertChatMessage): Promise<ChatMessage>;
+
+  getSetting(key: string): Promise<string | undefined>;
+  setSetting(key: string, value: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -354,6 +360,27 @@ export class DatabaseStorage implements IStorage {
       confidence: r.analysisData.relevanceScore,
       category: r.analysisData.category,
     }));
+  }
+
+  async getChatMessages(limit: number = 50): Promise<ChatMessage[]> {
+    return db.select().from(chatMessages).orderBy(desc(chatMessages.createdAt)).limit(limit);
+  }
+
+  async createChatMessage(data: InsertChatMessage): Promise<ChatMessage> {
+    const [msg] = await db.insert(chatMessages).values(data).returning();
+    return msg;
+  }
+
+  async getSetting(key: string): Promise<string | undefined> {
+    const [row] = await db.select().from(settings).where(eq(settings.key, key));
+    return row?.value;
+  }
+
+  async setSetting(key: string, value: string): Promise<void> {
+    await db.insert(settings).values({ key, value }).onConflictDoUpdate({
+      target: settings.key,
+      set: { value, updatedAt: new Date() }
+    });
   }
 }
 

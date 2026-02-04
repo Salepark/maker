@@ -16,6 +16,7 @@ import Observe from "@/pages/observe";
 import Reports from "@/pages/reports";
 import Sources from "@/pages/sources";
 import Settings from "@/pages/settings";
+import Chat from "@/pages/chat";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -29,6 +30,7 @@ function Router() {
       <Route path="/reports" component={Reports} />
       <Route path="/sources" component={Sources} />
       <Route path="/settings" component={Settings} />
+      <Route path="/chat" component={Chat} />
       <Route component={NotFound} />
     </Switch>
   );
