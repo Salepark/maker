@@ -11,7 +11,7 @@ export interface GenerateReportCommand {
 
 export interface RunPipelineCommand {
   action: "run_pipeline";
-  job: "collect" | "analyze" | "draft" | "report";
+  job: "collect" | "analyze" | "draft";
   topic?: "ai_art" | "investing";
   limit?: number;
 }
@@ -40,7 +40,7 @@ function buildCommandParsePrompt(userMessage: string, context: CommandContext): 
 
 [허용 action]
 1) generate_report: { "action": "generate_report", "topic": "ai_art" | "investing", "lookbackHours": number, "maxItems": number, "reportType": "daily_brief", "force": boolean }
-2) run_pipeline: { "action": "run_pipeline", "job": "collect" | "analyze" | "draft" | "report", "topic": "ai_art" | "investing" (optional), "limit": number (optional) }
+2) run_pipeline: { "action": "run_pipeline", "job": "collect" | "analyze" | "draft", "topic": "ai_art" | "investing" (optional), "limit": number (optional) }
 3) set_preference: { "action": "set_preference", "key": "default_topic" | "daily_brief_time_kst" | "draft_threshold_profile", "value": string | number }
 4) help: { "action": "help", "message": "도움말 메시지" }
 

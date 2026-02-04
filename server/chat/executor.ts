@@ -57,20 +57,21 @@ async function executeGenerateReport(cmd: GenerateReportCommand): Promise<Execut
 }
 
 async function executeRunPipeline(cmd: RunPipelineCommand): Promise<ExecutionResult> {
-  const validJobs = ["collect", "analyze", "draft", "report"];
-  if (!validJobs.includes(cmd.job)) {
+  const validJobs = ["collect", "analyze", "draft"];
+  const jobStr = String(cmd.job);
+  
+  if (!validJobs.includes(jobStr)) {
+    if (jobStr === "report") {
+      return {
+        ok: false,
+        assistantMessage: `리포트 생성은 'generate_report' 명령을 사용해주세요. 예: 'ai_art 리포트 만들어줘'`,
+        executed: cmd,
+        result: null
+      };
+    }
     return {
       ok: false,
-      assistantMessage: `잘못된 작업입니다. collect, analyze, draft, report 중 선택해주세요.`,
-      executed: cmd,
-      result: null
-    };
-  }
-
-  if (cmd.topic && !validateTopic(cmd.topic)) {
-    return {
-      ok: false,
-      assistantMessage: `잘못된 토픽입니다. ai_art 또는 investing을 선택해주세요.`,
+      assistantMessage: `잘못된 작업입니다. collect, analyze, draft 중 선택해주세요.`,
       executed: cmd,
       result: null
     };
@@ -93,11 +94,6 @@ async function executeRunPipeline(cmd: RunPipelineCommand): Promise<ExecutionRes
         result = await runDraftNow();
         message = `드래프트 완료: ${result}개 드래프트 생성됨`;
         break;
-      case "report":
-        const topic = cmd.topic || "ai_art";
-        result = await runDailyBriefNow(topic);
-        message = `리포트 생성 완료: ${result.itemsCount}개 아이템 (reportId=${result.id})`;
-        break;
       default:
         message = "알 수 없는 작업";
         result = null;
@@ -119,6 +115,12 @@ async function executeRunPipeline(cmd: RunPipelineCommand): Promise<ExecutionRes
   }
 }
 
+function validateTimeFormat(time: string): boolean {
+  return /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/.test(time);
+}
+
+const VALID_THRESHOLD_PROFILES = ["default", "strict", "relaxed"];
+
 async function executeSetPreference(cmd: SetPreferenceCommand): Promise<ExecutionResult> {
   const validKeys = ["default_topic", "daily_brief_time_kst", "draft_threshold_profile"];
   if (!validKeys.includes(cmd.key)) {
@@ -134,6 +136,24 @@ async function executeSetPreference(cmd: SetPreferenceCommand): Promise<Executio
     return {
       ok: false,
       assistantMessage: `잘못된 토픽입니다. ai_art 또는 investing을 선택해주세요.`,
+      executed: cmd,
+      result: null
+    };
+  }
+
+  if (cmd.key === "daily_brief_time_kst" && !validateTimeFormat(String(cmd.value))) {
+    return {
+      ok: false,
+      assistantMessage: `잘못된 시간 형식입니다. HH:MM 형식으로 입력해주세요 (예: 22:00).`,
+      executed: cmd,
+      result: null
+    };
+  }
+
+  if (cmd.key === "draft_threshold_profile" && !VALID_THRESHOLD_PROFILES.includes(String(cmd.value))) {
+    return {
+      ok: false,
+      assistantMessage: `잘못된 프로필입니다. default, strict, relaxed 중 선택해주세요.`,
       executed: cmd,
       result: null
     };
@@ -180,7 +200,18 @@ function executeHelp(cmd: HelpCommand): ExecutionResult {
   };
 }
 
+const ALLOWED_ACTIONS = ["generate_report", "run_pipeline", "set_preference", "help"];
+
 export async function executeCommand(cmd: Command): Promise<ExecutionResult> {
+  if (!cmd || !cmd.action || !ALLOWED_ACTIONS.includes(cmd.action)) {
+    return {
+      ok: false,
+      assistantMessage: "허용되지 않은 명령입니다. 도움말을 요청해보세요.",
+      executed: { action: "help", message: "Unknown command" } as HelpCommand,
+      result: null
+    };
+  }
+
   switch (cmd.action) {
     case "generate_report":
       return executeGenerateReport(cmd);
