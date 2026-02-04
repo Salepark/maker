@@ -1,6 +1,6 @@
 import { storage } from "../storage";
 import { callLLMWithJsonParsing } from "../llm/client";
-import { buildDraftPrompt, type DraftResult } from "../llm/prompts";
+import { buildDraftPrompt, type DraftResult, type SourceRules } from "../llm/prompts";
 
 const APP_BASE_URL = process.env.APP_BASE_URL || "https://aiartmarket.io";
 
@@ -65,7 +65,8 @@ export async function draftForAnalyzed(): Promise<number> {
     console.log(`Generating drafts for item #${item.id}: ${item.title?.slice(0, 50)}...`);
 
     const riskFlags = (analysis.riskFlagsJson as string[]) || [];
-    const allowLink = shouldAllowLink(riskFlags);
+    const sourceRules = (item.rulesJson as SourceRules) || {};
+    const allowLink = shouldAllowLink(riskFlags) && (sourceRules.allowLinks !== false);
 
     const prompt = buildDraftPrompt({
       title: item.title ?? "",
@@ -77,6 +78,7 @@ export async function draftForAnalyzed(): Promise<number> {
       }),
       allowLink,
       baseUrl: APP_BASE_URL,
+      sourceRules,
     });
 
     try {

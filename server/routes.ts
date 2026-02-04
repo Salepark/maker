@@ -29,6 +29,16 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/items/observe", async (req, res) => {
+    try {
+      const items = await storage.getObserveItems(50);
+      res.json(items);
+    } catch (error) {
+      console.error("Error getting observe items:", error);
+      res.status(500).json({ error: "Failed to get observe items" });
+    }
+  });
+
   app.get("/api/items", async (req, res) => {
     try {
       const status = req.query.status as string | undefined;

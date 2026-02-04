@@ -1,6 +1,6 @@
 import { db } from "./db";
 import { sources, items, analysis, drafts, posts, type Source, type Item, type Analysis, type Draft, type Post, type InsertSource, type InsertItem, type InsertAnalysis, type InsertDraft } from "@shared/schema";
-import { eq, desc, sql, and, count } from "drizzle-orm";
+import { eq, desc, sql, and, count, gte, lt } from "drizzle-orm";
 
 export interface IStorage {
   getStats(): Promise<{
@@ -21,6 +21,7 @@ export interface IStorage {
 
   getItems(status?: string): Promise<(Item & { sourceName: string; relevanceScore?: number; replyWorthinessScore?: number })[]>;
   getRecentItems(limit?: number): Promise<(Item & { sourceName: string })[]>;
+  getObserveItems(limit?: number): Promise<any[]>;
   getItem(id: number): Promise<(Item & { sourceName: string; analysis?: Analysis; drafts: Draft[] }) | undefined>;
   getItemsByStatus(status: string, limit?: number): Promise<(Item & { sourceName: string; rulesJson?: unknown })[]>;
   createItem(data: InsertItem): Promise<Item>;
@@ -142,6 +143,43 @@ export class DatabaseStorage implements IStorage {
     return result.map((r) => ({
       ...r.item,
       sourceName: r.sourceName || "Unknown",
+    }));
+  }
+
+  async getObserveItems(limit: number = 50): Promise<any[]> {
+    const result = await db
+      .select({
+        item: items,
+        sourceName: sources.name,
+        relevanceScore: analysis.relevanceScore,
+        replyWorthinessScore: analysis.replyWorthinessScore,
+        category: analysis.category,
+        summaryShort: analysis.summaryShort,
+      })
+      .from(items)
+      .leftJoin(sources, eq(items.sourceId, sources.id))
+      .leftJoin(analysis, eq(items.id, analysis.itemId))
+      .where(
+        and(
+          eq(items.status, "skipped"),
+          gte(analysis.relevanceScore, 60),
+          lt(analysis.replyWorthinessScore, 50)
+        )
+      )
+      .orderBy(desc(analysis.relevanceScore))
+      .limit(limit);
+
+    return result.map((r) => ({
+      id: r.item.id,
+      title: r.item.title,
+      url: r.item.url,
+      sourceName: r.sourceName || "Unknown",
+      status: r.item.status,
+      publishedAt: r.item.publishedAt,
+      relevanceScore: r.relevanceScore || 0,
+      replyWorthinessScore: r.replyWorthinessScore || 0,
+      category: r.category || "other",
+      summaryShort: r.summaryShort || "",
     }));
   }
 

@@ -1,4 +1,4 @@
-import { LayoutDashboard, FileText, Rss, CheckCircle, Settings } from "lucide-react";
+import { LayoutDashboard, FileText, Rss, CheckCircle, Settings, Eye } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -17,6 +17,7 @@ const menuItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Items", url: "/items", icon: FileText },
   { title: "Drafts", url: "/drafts", icon: CheckCircle },
+  { title: "Observe", url: "/observe", icon: Eye },
   { title: "Sources", url: "/sources", icon: Rss },
   { title: "Settings", url: "/settings", icon: Settings },
 ];

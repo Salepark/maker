@@ -3,11 +3,27 @@ import { storage } from "../storage";
 
 const parser = new Parser();
 
+async function fetchRSS(feedUrl: string): Promise<string> {
+  const response = await fetch(feedUrl, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+    },
+  });
+  
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  }
+  
+  return response.text();
+}
+
 export async function collectFromSource(sourceId: number, feedUrl: string): Promise<number> {
   let collected = 0;
 
   try {
-    const feed = await parser.parseURL(feedUrl);
+    const xmlContent = await fetchRSS(feedUrl);
+    const feed = await parser.parseString(xmlContent);
 
     for (const item of feed.items ?? []) {
       const url = item.link ?? "";
