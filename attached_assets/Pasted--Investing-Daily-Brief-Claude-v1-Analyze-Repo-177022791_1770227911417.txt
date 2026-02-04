@@ -1,0 +1,124 @@
+좋아요. 그럼 **Investing 전용 Daily Brief 프롬프트 (Claude용, v1)** 를 바로 써먹을 수 있게 정리해 드릴게요.
+지금 구조(Analyze → Report 생성)에 그대로 끼워 넣어도 됩니다.
+
+---
+
+# 📊 Daily Brief Prompt v1 — Investing (신뢰도 우선)
+
+> **목표:**
+>
+> * 속보 요약이 아니라 **시장 구조, 정책, 리스크, 자금 흐름** 중심
+> * 감정적 표현/선동 금지
+> * **리서치 노트 스타일**
+> * 한국어, 마크다운 출력
+> * 투자 조언 금지(정보 제공 목적 명시)
+
+---
+
+## 🧠 System / Instruction (Claude에게 주는 역할)
+
+```
+You are a senior macro & markets research analyst.
+Write a daily market brief for investors based only on the provided analyzed items.
+Prioritize credibility, macro context, policy impact, and cross-market linkages.
+Avoid hype, price predictions, and trading advice.
+Use neutral, analytical tone.
+```
+
+---
+
+## 📝 User Prompt Template (실제 생성용)
+
+```
+아래는 지난 24~48시간 동안 수집·분석된 투자 관련 뉴스 요약들입니다.
+이 자료만을 사용해서 "Daily Market Brief"를 작성하세요.
+
+요구사항:
+- 출력은 한국어
+- 마크다운 형식
+- 투자 조언이 아님을 명시
+- 속보 나열이 아니라 '왜 중요한지' 중심
+- 신뢰도 낮은 소스는 보조 참고로만 사용
+- AI 아트/엔터테인먼트 등 투자와 무관한 내용은 제외
+
+구성:
+
+# Daily Market Brief — {DATE}
+
+> ⚠️ 본 리포트는 정보 제공 목적이며 투자 조언이 아닙니다.
+
+## TL;DR (오늘의 한 줄 요약)
+- 1~2줄로 오늘 시장의 핵심 분위기 요약
+
+## Market Drivers (핵심 이슈 3~5개)
+각 이슈마다:
+### 1) 제목
+- **무슨 일이 있었나 (Facts):**
+- **왜 중요한가 (Why it matters):**
+- **영향 범위 (Impact):** (주식/채권/크립토/환율/원자재 등)
+- **리스크/불확실성:**
+
+## Cross-Market View (자산군 간 연결)
+- 주식 ↔ 금리 ↔ 달러 ↔ 크립토 ↔ 원자재 간 연결 설명
+
+## Risk Radar (주요 리스크)
+- 단기 리스크 2~3개 요약
+
+## Checklist (오늘/이번 주 체크 포인트)
+- 정책 일정, 지표 발표, 지정학 이벤트 등
+
+## Sources
+- 사용한 주요 출처 리스트
+```
+
+---
+
+## 🧩 파이프라인에 넣는 위치
+
+현재 구조 기준:
+
+* `server/llm/prompts.ts`
+* 또는 `report generation prompt` 부분에
+
+👉 **AI Art용 프롬프트와 Investing용 프롬프트를 분리**해서
+`topic === "investing"` 일 때 이 프롬프트 사용
+
+---
+
+## 🛡️ 톤 & 품질 가이드 (이 프롬프트가 강제하는 것)
+
+✔️ “오를 것 같다 / 내릴 것 같다” → ❌ 금지
+✔️ “왜 시장이 이 뉴스에 반응하는가” → ✅ 필수
+✔️ “정책/금리/자금흐름/리스크” → ✅ 우선
+✔️ 유튜브/커뮤니티 떡밥 → ❌ 배제 또는 보조
+
+---
+
+## 🕰️ 운영 팁 (당신이 원한 조건 반영)
+
+* **1일 1회** (미국 시장 개장 전)
+* 예: KST 오전 8~9시 생성
+* Lookback: 지난 24~48시간
+* Topic: investing
+* Source: trust 높은 RSS 위주
+
+---
+
+## ✨ 결과물 예시 스타일
+
+* 은행 리서치 데일리 노트
+* 증권사 Morning Brief
+* 매크로/정책 중심 전략 노트
+* “읽고 나면 오늘 시장의 프레임이 잡히는” 문서
+
+---
+
+## ✅ 한 줄 요약
+
+> 이 프롬프트를 쓰면, 당신 봇은 **“뉴스 요약기”가 아니라 “매일 아침 받는 매크로 리서치 노트”**를 만들어줍니다.
+
+---
+
+원하시면 다음 단계로:
+👉 **Chat 명령어 → 내부 액션(JSON) 매핑 스펙**도 깔끔하게 정리해 드릴게요.
+예: “investing 오늘 브리핑 만들어줘” → `{ action: "generate_report", topic: "investing", lookbackHours: 24 }`
