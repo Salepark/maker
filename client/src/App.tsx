@@ -13,6 +13,7 @@ import Items from "@/pages/items";
 import ItemDetail from "@/pages/item-detail";
 import Drafts from "@/pages/drafts";
 import Observe from "@/pages/observe";
+import Reports from "@/pages/reports";
 import Sources from "@/pages/sources";
 import Settings from "@/pages/settings";
 import NotFound from "@/pages/not-found";
@@ -25,6 +26,7 @@ function Router() {
       <Route path="/items/:id" component={ItemDetail} />
       <Route path="/drafts" component={Drafts} />
       <Route path="/observe" component={Observe} />
+      <Route path="/reports" component={Reports} />
       <Route path="/sources" component={Sources} />
       <Route path="/settings" component={Settings} />
       <Route component={NotFound} />
