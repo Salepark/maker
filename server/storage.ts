@@ -243,7 +243,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateDraftDecision(id: number, decision: string, finalText?: string): Promise<void> {
+    // Update the draft's decision
     await db.update(drafts).set({ adminDecision: decision, finalText }).where(eq(drafts.id, id));
+    
+    // Get the draft to find the associated item
+    const [draft] = await db.select({ itemId: drafts.itemId }).from(drafts).where(eq(drafts.id, id));
+    
+    if (draft && decision === "approved") {
+      // Update the item status to approved
+      await db.update(items).set({ status: "approved" }).where(eq(items.id, draft.itemId));
+    }
   }
 }
 

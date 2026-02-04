@@ -56,7 +56,10 @@ export default function Drafts() {
       return apiRequest("POST", `/api/drafts/${draftId}/approve`, { finalText });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/drafts"] });
+      // Invalidate all drafts queries (with any filter)
+      queryClient.invalidateQueries({ predicate: (query) => 
+        Boolean(query.queryKey[0]?.toString().startsWith("/api/drafts"))
+      });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       toast({ title: "Draft approved" });
     },
@@ -67,7 +70,10 @@ export default function Drafts() {
       return apiRequest("POST", `/api/drafts/${draftId}/reject`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/drafts"] });
+      // Invalidate all drafts queries (with any filter)
+      queryClient.invalidateQueries({ predicate: (query) => 
+        Boolean(query.queryKey[0]?.toString().startsWith("/api/drafts"))
+      });
       toast({ title: "Draft rejected" });
     },
   });

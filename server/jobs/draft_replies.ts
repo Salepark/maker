@@ -11,23 +11,56 @@ function shouldAllowLink(riskFlags: string[]): boolean {
   return true;
 }
 
+function shouldGenerateDraft(analysis: {
+  recommendedAction: string;
+  relevanceScore: number;
+  replyWorthinessScore: number;
+}): { shouldDraft: boolean; reason: string } {
+  // If LLM explicitly recommends draft, always generate
+  if (analysis.recommendedAction === "draft") {
+    return { shouldDraft: true, reason: "LLM recommended draft" };
+  }
+
+  // Relaxed v1 conditions: high relevance + moderate reply worthiness
+  if (analysis.relevanceScore >= 75 && analysis.replyWorthinessScore >= 35) {
+    return { shouldDraft: true, reason: `High relevance (${analysis.relevanceScore}) + reply worthiness (${analysis.replyWorthinessScore})` };
+  }
+
+  // Very high relevance alone can trigger draft (info-only, no promo links)
+  if (analysis.relevanceScore >= 85) {
+    return { shouldDraft: true, reason: `Very high relevance (${analysis.relevanceScore})` };
+  }
+
+  return { shouldDraft: false, reason: `Low scores: relevance=${analysis.relevanceScore}, reply=${analysis.replyWorthinessScore}` };
+}
+
 export async function draftForAnalyzed(): Promise<number> {
+  console.log("[DraftJob] Starting draft generation for analyzed items...");
   const items = await storage.getItemsByStatus("analyzed", 10);
+  console.log(`[DraftJob] Found ${items.length} items in 'analyzed' status`);
   let drafted = 0;
 
   for (const item of items) {
     const analysis = await storage.getAnalysisByItemId(item.id);
 
     if (!analysis) {
-      console.log(`No analysis found for item #${item.id}, skipping`);
+      console.log(`[DraftJob] No analysis found for item #${item.id}, skipping`);
       continue;
     }
 
-    if (analysis.recommendedAction !== "draft") {
-      console.log(`Item #${item.id} recommended action is ${analysis.recommendedAction}, skipping draft`);
+    const { shouldDraft, reason } = shouldGenerateDraft({
+      recommendedAction: analysis.recommendedAction,
+      relevanceScore: analysis.relevanceScore,
+      replyWorthinessScore: analysis.replyWorthinessScore,
+    });
+
+    if (!shouldDraft) {
+      console.log(`[DraftJob] Item #${item.id} skipped: ${reason}`);
       await storage.updateItemStatus(item.id, "skipped");
       continue;
     }
+
+    console.log(`[DraftJob] Item #${item.id} will get drafts: ${reason}`);
 
     console.log(`Generating drafts for item #${item.id}: ${item.title?.slice(0, 50)}...`);
 

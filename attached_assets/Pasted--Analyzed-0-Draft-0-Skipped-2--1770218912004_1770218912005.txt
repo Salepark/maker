@@ -1,0 +1,143 @@
+좋습니다. 이 설명을 보면 **파이프라인 설계는 완성**인데, 현재 현상(Analyzed 0 / Draft 0 / Skipped만 증가)은 거의 확실히 아래 2개 중 하나(혹은 둘 다)입니다.
+
+1. **Analyze Job / Draft Job가 실제로는 안 돌고 있음** (스케줄러가 등록 안 됐거나, import가 안 됐거나, 크론이 막힘)
+2. **Analyze 단계에서 곧바로 `items.status = 'skipped'`로 보내버리는 로직** (그래서 analyzed 카운트가 0)
+
+지금 로그를 보면 “잡 실행 로그”가 전혀 없고, 대신 아이템에 `relevanceScore`, `replyWorthinessScore`가 붙어있어요.
+→ 즉 **분석 로직은 실행된 적이 있는데**, “분석 결과 저장/상태 업데이트”가 `analyzed`로 남지 않거나, 분석 직후 skip 처리하는 구조가 들어가 있습니다.
+
+아래는 **Replit에 그대로 전달해서 고치면 바로 정상화되는 수정 지시서**입니다.
+
+---
+
+## 1) 먼저: 잡이 진짜 도는지 “강제 실행 API”부터 붙이세요 (10분짜리 진단)
+
+`server/routes.ts`에 디버그 엔드포인트 2개를 추가하세요.
+(이게 있으면 스케줄러 문제인지/로직 문제인지 즉시 판별됩니다.)
+
+```ts
+// server/routes.ts (예시)
+router.post("/api/debug/run-analyze", async (req, res) => {
+  const result = await analyzeJob({ limit: 10, force: true }); // 구현에 맞게
+  res.json({ ok: true, result });
+});
+
+router.post("/api/debug/run-draft", async (req, res) => {
+  const result = await draftJob({ limit: 10, force: true }); // 구현에 맞게
+  res.json({ ok: true, result });
+});
+```
+
+그리고 서버 로그에 반드시 찍기:
+
+* “analyzeJob start/end”
+* “draftJob start/end”
+* 처리한 item 수
+
+✅ 기대 결과
+
+* analyze 실행 후: `new`가 줄고 `analyzed`가 늘어야 함
+* draft 실행 후: `drafted`가 늘고 `/api/drafts`에 1개라도 생겨야 함
+
+---
+
+## 2) Analyze 단계 로직 수정: “분석은 무조건 저장, 상태는 analyzed로 남겨라”
+
+### 지금(추정)
+
+* 조건 안 맞으면 바로 `skipped`로 만들고 끝
+
+### 바꿀 것(정답)
+
+* analysis 테이블에 **항상 insert**
+* item.status는 일단 **analyzed로 업데이트**
+* 그 다음 recommended_action이 skip이면 `skipped`로 바꾸되, **analysis는 남김**
+
+의사코드:
+
+```ts
+// analyze job 내부
+for (item of newItems) {
+  const analysis = await llmAnalyze(item);
+
+  await storage.analysis.upsert(item.id, analysis); // 무조건 저장
+  await storage.items.updateStatus(item.id, "analyzed"); // 무조건 analyzed로
+
+  if (analysis.recommendedAction === "skip") {
+    await storage.items.updateStatus(item.id, "skipped"); // 그 다음 skip
+  }
+}
+```
+
+이렇게 하면 대시보드에서
+
+* analyzed가 0으로 고정되는 문제가 사라집니다.
+
+---
+
+## 3) Draft 기준을 v1에서 완화하세요 (HN 소스는 특히 필요)
+
+현재 HN 글들이 replyWorthiness가 15~45 수준이 많죠.
+지금 기준이 `>=60` 같은 형태면 Draft는 영원히 0입니다.
+
+### v1 추천 Draft 조건(현실 버전)
+
+* `relevanceScore >= 75 && replyWorthinessScore >= 35` → draft
+* 또는 `relevanceScore >= 85`면 **reply 낮아도 draft(단, 링크 금지)**
+
+그리고 “heated/ethical 논쟁”은 링크 없이 정보성으로만.
+
+---
+
+## 4) 스케줄러가 실제로 등록되는지 확인 로그 추가
+
+`server/jobs/scheduler.ts` (또는 job 초기화 파일)에 이 로그가 반드시 떠야 합니다:
+
+* `Scheduler started`
+* `collect scheduled: */10`
+* `analyze scheduled: */5`
+* `draft scheduled: */5`
+
+그리고 서버 엔트리(`server/index.ts`)에서 확실히:
+
+```ts
+import { startScheduler } from "./jobs/scheduler";
+startScheduler();
+```
+
+이게 빠져 있으면 잡이 절대 안 돕니다.
+
+---
+
+## 5) Reddit RSS가 0인 문제는 별개로 해결(하지만 중요)
+
+`https://www.reddit.com/r/aiArt/.rss`는 User-Agent 문제로 0이 자주 뜹니다.
+
+우선 소스 URL을 이걸로 교체해 보세요:
+
+* `https://old.reddit.com/r/aiArt/.rss`
+
+(이것만으로 살아나는 경우가 많습니다.)
+
+---
+
+# 바로 실행 플랜 (오늘 안에 Draft 나오게 하는 순서)
+
+1. `/api/debug/run-analyze` 붙이고 실행 → analyzed가 늘어나는지 확인
+2. `/api/debug/run-draft` 붙이고 실행 → drafts가 생성되는지 확인
+3. Draft 조건 완화
+4. Reddit 소스 URL 교체
+
+---
+
+# 제가 “한 방에 정확히” 잡아드릴 수 있는 최소 정보
+
+아래 2개 파일에서 해당 함수 부분만(30~60줄) 복사해 주세요:
+
+1. `server/jobs/analyze*.ts` (new → status 바꾸는 부분)
+2. `server/jobs/draft*.ts` (analyzed → draft 생성 조건 부분)
+
+그 코드만 보면, 제가 **정확히 어디를 어떻게 바꾸면 되는지** 줄단위로 바로 드릴게요.
+
+지금은 “엔진은 달렸는데 기어가 P에 있는 상태”예요.
+기어만 D로 넣으면… 이제부터 봇이 밤새 일합니다 😄

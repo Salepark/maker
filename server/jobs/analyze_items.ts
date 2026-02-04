@@ -3,11 +3,13 @@ import { callLLMWithJsonParsing } from "../llm/client";
 import { buildAnalyzePrompt, type AnalysisResult } from "../llm/prompts";
 
 export async function analyzeNewItems(): Promise<number> {
+  console.log("[AnalyzeJob] Starting analysis for new items...");
   const items = await storage.getItemsByStatus("new", 10);
+  console.log(`[AnalyzeJob] Found ${items.length} items in 'new' status`);
   let analyzed = 0;
 
   for (const item of items) {
-    console.log(`Analyzing item #${item.id}: ${item.title?.slice(0, 50)}...`);
+    console.log(`[AnalyzeJob] Analyzing item #${item.id}: ${item.title?.slice(0, 50)}...`);
 
     const prompt = buildAnalyzePrompt({
       title: item.title ?? "",
