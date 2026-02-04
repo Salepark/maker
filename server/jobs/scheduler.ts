@@ -2,15 +2,18 @@ import cron from "node-cron";
 import { collectAllSources } from "../services/rss";
 import { analyzeNewItems } from "./analyze_items";
 import { draftForAnalyzed } from "./draft_replies";
+import { generateDailyBrief } from "./generate_daily_brief";
 
 let collectTask: cron.ScheduledTask | null = null;
 let analyzeTask: cron.ScheduledTask | null = null;
 let draftTask: cron.ScheduledTask | null = null;
+let dailyBriefTask: cron.ScheduledTask | null = null;
 let isRunning = false;
 
 let lastCollect: Date | null = null;
 let lastAnalyze: Date | null = null;
 let lastDraft: Date | null = null;
+let lastDailyBrief: Date | null = null;
 
 export function startScheduler() {
   if (isRunning) {
@@ -51,6 +54,26 @@ export function startScheduler() {
     }
   });
 
+  const tz = process.env.REPORT_TZ || "Asia/Seoul";
+  const dailyBriefCron = process.env.DAILY_BRIEF_CRON || "0 22 * * *";
+  
+  console.log(`[Scheduler] Daily Brief scheduled: "${dailyBriefCron}" (${tz})`);
+  
+  dailyBriefTask = cron.schedule(dailyBriefCron, async () => {
+    console.log("📊 Running Daily Brief generation job...");
+    try {
+      const result = await generateDailyBrief({
+        lookbackHours: 24,
+        maxItems: 12,
+        topic: "investing",
+      });
+      lastDailyBrief = new Date();
+      console.log(`✓ Generated Daily Brief: reportId=${result.id}, items=${result.itemsCount}`);
+    } catch (error) {
+      console.error("Daily Brief generation failed:", error);
+    }
+  }, { timezone: tz });
+
   isRunning = true;
   console.log("🕒 Scheduler started");
 }
@@ -64,6 +87,7 @@ export function stopScheduler() {
   collectTask?.stop();
   analyzeTask?.stop();
   draftTask?.stop();
+  dailyBriefTask?.stop();
   isRunning = false;
   console.log("🕒 Scheduler stopped");
 }
@@ -74,9 +98,11 @@ export function getSchedulerStatus() {
     collectInterval: "10 minutes",
     analyzeInterval: "5 minutes",
     draftInterval: "5 minutes",
+    dailyBriefSchedule: process.env.DAILY_BRIEF_CRON || "0 22 * * * (KST)",
     lastCollect: lastCollect?.toISOString(),
     lastAnalyze: lastAnalyze?.toISOString(),
     lastDraft: lastDraft?.toISOString(),
+    lastDailyBrief: lastDailyBrief?.toISOString(),
   };
 }
 
@@ -99,4 +125,16 @@ export async function runDraftNow() {
   const count = await draftForAnalyzed();
   lastDraft = new Date();
   return count;
+}
+
+export async function runDailyBriefNow() {
+  console.log("📊 Manual Daily Brief generation triggered...");
+  const result = await generateDailyBrief({
+    lookbackHours: 24,
+    maxItems: 12,
+    topic: "investing",
+    force: true,
+  });
+  lastDailyBrief = new Date();
+  return result;
 }

@@ -15,7 +15,7 @@ interface AnthropicResponse {
   stop_reason: string;
 }
 
-export async function callLLM(prompt: string, maxRetries: number = 2): Promise<string> {
+export async function callLLM(prompt: string, maxRetries: number = 2, maxTokens: number = 1200): Promise<string> {
   if (!LLM_API_KEY) {
     throw new Error("Missing LLM_API_KEY environment variable");
   }
@@ -33,7 +33,7 @@ export async function callLLM(prompt: string, maxRetries: number = 2): Promise<s
         },
         body: JSON.stringify({
           model: CLAUDE_MODEL,
-          max_tokens: 1200,
+          max_tokens: maxTokens,
           temperature: 0.2,
           messages: [{ role: "user", content: prompt }],
         }),
