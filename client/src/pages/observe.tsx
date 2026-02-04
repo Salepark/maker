@@ -92,13 +92,13 @@ export default function Observe() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" asChild>
+                  <Button variant="outline" size="sm" asChild data-testid={`button-view-original-${item.id}`}>
                     <a href={item.url} target="_blank" rel="noopener noreferrer">
                       <ExternalLink className="h-3 w-3 mr-1" />
                       View Original
                     </a>
                   </Button>
-                  <Button variant="ghost" size="sm" asChild>
+                  <Button variant="ghost" size="sm" asChild data-testid={`button-details-${item.id}`}>
                     <Link href={`/items/${item.id}`}>
                       <ArrowRight className="h-3 w-3 mr-1" />
                       Details
