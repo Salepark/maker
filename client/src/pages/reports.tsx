@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FileText, Plus, Loader2, Calendar, Hash, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -32,21 +33,22 @@ function ReportContent({ content }: { content: string }) {
 export default function Reports() {
   const { toast } = useToast();
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  const [selectedTopic, setSelectedTopic] = useState<string>("ai_art");
 
   const { data: reports, isLoading } = useQuery<Report[]>({
     queryKey: ["/api/reports"],
   });
 
   const generateMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/debug/generate-daily-brief");
+    mutationFn: async (topic: string) => {
+      const res = await apiRequest("POST", "/api/debug/generate-daily-brief", { topic });
       return res.json();
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/reports"] });
       toast({
         title: "Report Generated",
-        description: `Daily Brief created with ${data.itemsCount} items`,
+        description: `${data.topic === "ai_art" ? "AI Art" : "Investing"} Brief created with ${data.itemsCount} items`,
       });
     },
     onError: (error: any) => {
@@ -70,18 +72,29 @@ export default function Reports() {
             AI-generated market briefs from analyzed content (22:00 KST daily)
           </p>
         </div>
-        <Button
-          onClick={() => generateMutation.mutate()}
-          disabled={generateMutation.isPending}
-          data-testid="button-generate-report"
-        >
-          {generateMutation.isPending ? (
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          ) : (
-            <Plus className="h-4 w-4 mr-2" />
-          )}
-          Generate Now
-        </Button>
+        <div className="flex items-center gap-2">
+          <Select value={selectedTopic} onValueChange={setSelectedTopic}>
+            <SelectTrigger className="w-32" data-testid="select-topic">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ai_art">AI Art</SelectItem>
+              <SelectItem value="investing">Investing</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            onClick={() => generateMutation.mutate(selectedTopic)}
+            disabled={generateMutation.isPending}
+            data-testid="button-generate-report"
+          >
+            {generateMutation.isPending ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Plus className="h-4 w-4 mr-2" />
+            )}
+            Generate
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (
@@ -99,7 +112,7 @@ export default function Reports() {
               Reports are generated daily at 22:00 KST, or click the button above to generate now
             </p>
             <Button
-              onClick={() => generateMutation.mutate()}
+              onClick={() => generateMutation.mutate(selectedTopic)}
               disabled={generateMutation.isPending}
               data-testid="button-generate-first-report"
             >

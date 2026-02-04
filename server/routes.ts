@@ -273,8 +273,9 @@ export async function registerRoutes(
 
   app.post("/api/debug/generate-daily-brief", async (req, res) => {
     try {
-      const result = await runDailyBriefNow();
-      res.json({ ok: true, reportId: result.id, itemsCount: result.itemsCount });
+      const topic = req.body?.topic || "ai_art";
+      const result = await runDailyBriefNow(topic);
+      res.json({ ok: true, reportId: result.id, itemsCount: result.itemsCount, topic });
     } catch (error: any) {
       console.error("Error generating daily brief:", error);
       res.status(500).json({ ok: false, error: error?.message ?? String(error) });

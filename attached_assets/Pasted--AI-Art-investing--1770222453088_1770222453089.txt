@@ -1,0 +1,139 @@
+**문제의 본질은 “리포트 엔진은 하나인데, 입력 데이터(소스/아이템)가 AI Art랑 투자 쪽이 섞여 들어가고 있다는 것”**입니다.
+그래서 이름은 investing 인데, 내용은 AI Art 뉴스로 리포트가 만들어진 상태예요.
+
+좋은 소식부터:
+👉 엔진은 정상이고, 분리만 해주면 깔끔하게 해결됩니다.
+
+🔥 지금 왜 이런 일이 생겼나?
+
+현재 구조를 보면:
+
+Items 테이블: AI Art + Reddit + HN 등 **전부 한 풀(pool)**에 있음
+
+Reports 생성 로직:
+
+topic=investing이라고 써놨지만
+
+실제로는 **“최근 분석된 아이템 전체”**에서 뽑고 있음
+
+그래서:
+
+투자 소스가 아직 충분히 없거나
+
+필터가 없어서
+→ AI Art 아이템으로 리포트를 만들어버림
+
+즉:
+
+❌ 리포트 프롬프트 문제 아님
+❌ Claude 문제 아님
+✅ 데이터 필터링(토픽/소스 분리) 문제
+
+✅ 해결 전략 (제일 깔끔한 구조)
+1) Sources에 topic 컬럼을 명확히 씁니다
+
+예:
+
+AI Art 소스들 → topic = "ai_art"
+
+투자/거시 소스들 → topic = "investing"
+
+이미 Sources 테이블이 있으니, 여기에:
+
+ALTER TABLE sources ADD COLUMN topic TEXT;
+
+
+그리고:
+
+HackerNews AI Art, Reddit AIArt → ai_art
+
+Reuters, WSJ, FT, CoinDesk 등 → investing
+
+2) Items는 source를 통해 topic이 결정되게 합니다
+
+Items에 굳이 topic을 중복 저장 안 해도 되고,
+쿼리할 때 이렇게 씁니다:
+
+“items JOIN sources WHERE sources.topic = 'investing'”
+
+3) generateDailyBrief에서 반드시 topic 필터를 거치게 합니다
+
+지금(추정) 이런 느낌일 겁니다:
+
+const items = await storage.getAnalyzedItems({ limit: 50 });
+
+
+이걸 무조건 이렇게 바꿔야 합니다:
+
+const items = await storage.getAnalyzedItemsByTopic({
+  topic: "investing",
+  limit: 50,
+});
+
+
+즉:
+
+📌 investing 리포트 = investing 소스에서 온 아이템만 사용
+
+4) 안전장치: 프롬프트 레벨에서도 한 번 더 거르기 (보조)
+
+Daily Brief 프롬프트 앞에 이런 조건을 추가하세요:
+
+입력 기사들이 주식, 금리, 환율, 크립토, 원자재, 거시경제와 직접 관련이 없는 경우 리포트에 포함하지 마라.
+AI 아트, 크리에이티브 도구, 커뮤니티 이슈는 제외하라.
+
+하지만 이건 보조 수단이고,
+근본 해결은 DB 레벨 필터링입니다.
+
+🛠️ 바로 고치라고 Replit에 줄 “교정 지시문”
+
+Replit Assistant에게 이걸 그대로 던지세요:
+
+중요: 현재 Daily Brief 리포트가 AI Art 아이템으로 생성되고 있습니다.
+이는 리포트 생성 시 아이템을 topic별로 필터링하지 않기 때문입니다.
+
+다음과 같이 수정하세요:
+
+1) sources 테이블에 topic 컬럼이 없으면 추가하고,
+   - AI Art 관련 소스: topic = "ai_art"
+   - 투자/거시/시장 관련 소스: topic = "investing"
+   으로 구분하세요.
+
+2) items를 조회할 때 반드시 sources와 조인해서 topic으로 필터링하세요.
+   예:
+   - investing 리포트 생성 시: sources.topic = "investing" 인 items만 사용
+   - ai_art 리포트/분석 시: sources.topic = "ai_art" 인 items만 사용
+
+3) generateDailyBrief 함수에서:
+   - "최근 분석된 전체 items"를 쓰지 말고
+   - topic 파라미터를 받아서 해당 topic의 items만 조회하도록 수정하세요.
+
+4) UI에서 Reports에 표시되는 "investing" 리포트는
+   - investing topic 아이템만 사용해서 생성되도록 보장하세요.
+
+5) 기존에 잘못 생성된 리포트(AI Art 내용이 섞인 investing 리포트)는
+   - 삭제하거나 무시해도 됩니다.
+
+목표:
+- AI Art Bot은 AI Art만 다루고
+- Investing Daily Brief는 투자/거시/시장 뉴스만 다루도록
+데이터 파이프라인을 완전히 분리하세요.
+
+🧪 빠른 검증 방법
+
+investing 소스 3~5개만 등록 (Reuters, WSJ, CoinDesk 등)
+
+AI Art 소스는 전부 ai_art로 분리
+
+“Generate Now” 눌러서 새 리포트 생성
+
+결과에:
+
+AI Art, Reddit, Show HN 얘기 나오면 ❌
+
+금리, 시장, 정책, 기업, 크립토 제도 얘기 나오면 ✅
+
+😄 한 줄 요약
+
+지금은 “부엌은 두 개인데 재료 창고가 하나”라서 요리가 섞인 겁니다.
+재료(Items)를 topic별로 나누면, 요리(리포트)는 자동으로 분리됩니다.

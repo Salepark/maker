@@ -13,7 +13,76 @@ interface DailyBriefResult {
   itemsCount: number;
 }
 
-function buildDailyBriefPrompt(items: any[], date: string): string {
+function buildAIArtPrompt(items: any[], date: string): string {
+  const itemsData = items.map((item) => ({
+    title: item.title,
+    source: item.source,
+    url: item.url,
+    key_takeaway: item.key_takeaway,
+    why_it_matters: item.why_it_matters,
+    category: item.category,
+    risk_flags: item.risk_flags,
+    confidence: item.confidence,
+  }));
+
+  return `너는 AI Art 마켓플레이스와 크리에이터 커뮤니티를 분석하는 리서처다.
+목표는 AI 아트 생태계의 **트렌드, 도구, 커뮤니티 동향**을 정리한 Daily Brief를 작성하는 것이다.
+기술적 발전, 새로운 도구, 커뮤니티 반응, 시장 기회 등을 중심으로 분석한다.
+출처(URL)를 포함하고, 과장/추측/확정적 표현을 피한다.
+
+## 📥 입력 데이터
+
+다음은 지난 24시간 동안 수집·분석된 AI Art 관련 게시물 목록이다:
+
+${JSON.stringify(itemsData, null, 2)}
+
+오늘 날짜: ${date}
+
+## 📝 출력 형식 (반드시 Markdown)
+
+# AI Art Daily Brief — ${date}
+
+> 본 리포트는 AI 아트 생태계 동향 정보 제공 목적입니다.
+
+## TL;DR (오늘의 한 줄 요약)
+- 한 문장으로 오늘 AI Art 씬의 핵심 동향을 요약하라.
+
+## 주요 트렌드 (3~5개)
+각 트렌드마다 아래 형식을 따른다:
+
+### 1) {{트렌드 제목}}
+- **무슨 일이 있었나 (What):** 사실 위주 요약 (2~3문장)
+- **왜 중요한가 (Why):** 크리에이터/마켓에 미치는 영향 설명
+- **관련 분야:** 이미지생성/영상/음악/도구/플랫폼/커뮤니티 중 해당 분야
+- **기회/리스크:** 크리에이터가 활용할 수 있는 기회 또는 주의점
+- **출처:** {{Source}} — {{URL}}
+
+## 도구/기술 업데이트
+- 새로운 AI 아트 도구, 모델 업데이트, 플랫폼 변경사항 정리
+- 각 항목별 2~3줄
+
+## 커뮤니티 화제
+- Reddit, HN 등 커뮤니티에서 화제가 된 작품, 논쟁, 토론 정리
+- 각 항목별 2~3줄
+
+## 이번 주 체크포인트
+- 주목할 이벤트, 콘테스트, 출시 예정 도구 등 5개 내외
+
+## Sources
+- 본 리포트에 사용한 게시물 링크 목록
+
+---
+
+## 📏 작성 규칙
+
+* ✔️ AI Art 생성, 편집, 워크플로우 관련 내용 중심
+* ✔️ 크리에이터 관점에서 실용적인 인사이트 제공
+* ✔️ 기술적 발전과 커뮤니티 반응을 균형있게 다룰 것
+* ✔️ 투자/금융 관련 내용은 제외할 것
+* ✔️ 과장 없이 사실 중심으로 작성`;
+}
+
+function buildInvestingPrompt(items: any[], date: string): string {
   const itemsData = items.map((item) => ({
     title: item.title,
     source: item.source,
@@ -31,6 +100,15 @@ function buildDailyBriefPrompt(items: any[], date: string): string {
 출처(URL)를 포함하고, 과장/추측/확정적 표현을 피한다.
 신뢰도가 낮은 정보(루머/익명/의견 위주)는 **리스크로 표시**하고 비중을 낮춘다.
 
+## ⚠️ 중요: 데이터 필터링
+
+입력 데이터 중 아래 내용은 반드시 제외하라:
+- AI 아트, 이미지 생성, 크리에이티브 도구 관련 내용
+- Reddit 커뮤니티 토론, Show HN 프로젝트 소개
+- 투자/금융/거시경제와 직접 관련 없는 기술 뉴스
+
+주식, 금리, 환율, 크립토, 원자재, 거시경제와 직접 관련된 내용만 다뤄라.
+
 ## 📥 입력 데이터
 
 다음은 지난 24시간 동안 수집·분석된 기사 목록이다:
@@ -40,8 +118,6 @@ ${JSON.stringify(itemsData, null, 2)}
 오늘 날짜: ${date}
 
 ## 📝 출력 형식 (반드시 Markdown)
-
-아래 구조를 **그대로 유지**해서 작성하라:
 
 # Daily Market Brief — ${date}
 
@@ -93,12 +169,19 @@ ${JSON.stringify(itemsData, null, 2)}
 * 단기 가격 예측 중심 기사보다 **원인과 영향 설명이 있는 기사**를 우선 채택`;
 }
 
+function buildDailyBriefPrompt(items: any[], date: string, topic: string): string {
+  if (topic === "investing") {
+    return buildInvestingPrompt(items, date);
+  }
+  return buildAIArtPrompt(items, date);
+}
+
 export async function generateDailyBrief(options: DailyBriefOptions = {}): Promise<DailyBriefResult> {
-  const { lookbackHours = 24, maxItems = 12, topic = "investing" } = options;
+  const { lookbackHours = 24, maxItems = 12, topic = "ai_art" } = options;
 
   console.log(`[DailyBrief] Generating report for topic=${topic}, lookback=${lookbackHours}h, maxItems=${maxItems}`);
 
-  const items = await storage.getAnalyzedItemsForBrief(lookbackHours, maxItems);
+  const items = await storage.getAnalyzedItemsForBrief(lookbackHours, maxItems, topic);
   
   if (items.length === 0) {
     console.log("[DailyBrief] No analyzed items found for the lookback period");
@@ -120,7 +203,7 @@ export async function generateDailyBrief(options: DailyBriefOptions = {}): Promi
     timeZone: "Asia/Seoul",
   });
 
-  const prompt = buildDailyBriefPrompt(items, today);
+  const prompt = buildDailyBriefPrompt(items, today, topic);
 
   console.log(`[DailyBrief] Calling LLM with ${items.length} items...`);
   

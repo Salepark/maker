@@ -38,7 +38,7 @@ export interface IStorage {
   getReports(limit?: number): Promise<Report[]>;
   getReport(id: number): Promise<Report | undefined>;
   createReport(data: InsertReport): Promise<Report>;
-  getAnalyzedItemsForBrief(lookbackHours: number, limit: number): Promise<any[]>;
+  getAnalyzedItemsForBrief(lookbackHours: number, limit: number, topic?: string): Promise<any[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -312,20 +312,27 @@ export class DatabaseStorage implements IStorage {
     return report;
   }
 
-  async getAnalyzedItemsForBrief(lookbackHours: number, limit: number): Promise<any[]> {
+  async getAnalyzedItemsForBrief(lookbackHours: number, limit: number, topic?: string): Promise<any[]> {
     const cutoff = new Date(Date.now() - lookbackHours * 60 * 60 * 1000);
+    
+    const conditions = [gte(items.insertedAt, cutoff)];
+    
+    if (topic) {
+      conditions.push(eq(sources.topic, topic));
+    }
     
     const result = await db
       .select({
         item: items,
         sourceName: sources.name,
         sourceUrl: sources.url,
+        sourceTopic: sources.topic,
         analysisData: analysis,
       })
       .from(items)
       .innerJoin(analysis, eq(items.id, analysis.itemId))
-      .leftJoin(sources, eq(items.sourceId, sources.id))
-      .where(gte(items.insertedAt, cutoff))
+      .innerJoin(sources, eq(items.sourceId, sources.id))
+      .where(and(...conditions))
       .orderBy(desc(analysis.relevanceScore))
       .limit(limit);
 
@@ -334,6 +341,7 @@ export class DatabaseStorage implements IStorage {
       title: r.item.title,
       url: r.item.url,
       source: r.sourceName || "Unknown",
+      topic: r.sourceTopic,
       key_takeaway: r.analysisData.summaryShort,
       why_it_matters: r.analysisData.suggestedAngle,
       impact_scope: {

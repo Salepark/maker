@@ -65,7 +65,7 @@ export function startScheduler() {
       const result = await generateDailyBrief({
         lookbackHours: 24,
         maxItems: 12,
-        topic: "investing",
+        topic: "ai_art",
       });
       lastDailyBrief = new Date();
       console.log(`✓ Generated Daily Brief: reportId=${result.id}, items=${result.itemsCount}`);
@@ -127,12 +127,12 @@ export async function runDraftNow() {
   return count;
 }
 
-export async function runDailyBriefNow() {
-  console.log("📊 Manual Daily Brief generation triggered...");
+export async function runDailyBriefNow(topic: string = "ai_art") {
+  console.log(`📊 Manual Daily Brief generation triggered for topic=${topic}...`);
   const result = await generateDailyBrief({
     lookbackHours: 24,
     maxItems: 12,
-    topic: "investing",
+    topic,
     force: true,
   });
   lastDailyBrief = new Date();
