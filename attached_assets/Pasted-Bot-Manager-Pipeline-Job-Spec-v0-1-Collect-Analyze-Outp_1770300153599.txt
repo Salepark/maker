@@ -1,0 +1,351 @@
+Bot Manager – Pipeline & Job Spec v0.1
+
+(Collect / Analyze / Output 실행 규격)
+
+이 문서는:
+
+각 Job이 언제
+
+무엇을 읽고
+
+무엇을 쓰며
+
+어떤 규칙으로 topic/profile 섞임을 방지하는지
+를 고정합니다.
+
+0. 전제
+
+모든 실행의 단위는 Profile이다.
+
+모든 데이터는 Topic으로 분리된다.
+
+Job은 크게 3종:
+
+Collect (수집)
+
+Analyze (분석)
+
+Output (산출물 생성: Report/Draft/Alert)
+
+1. Job 1 — Collect Job v0.1
+1.1 목적
+
+sources에서 콘텐츠를 가져와 items에 저장한다.
+
+1.2 실행 주체
+
+시스템 공통 Job으로 실행(예: 10분마다) 또는
+
+Profile 기준으로 선택된 sources만 수집(권장 v0.2)
+
+v0.1 권장:
+
+topic별 sources를 주기적으로 수집하는 방식
+
+1.3 입력
+
+sources where enabled = true
+
+1.4 처리 규칙
+
+RSS/Feed 파싱
+
+item 식별자(external_id) 생성 또는 feed의 guid/link 사용
+
+중복 방지:
+
+(source_id + external_id) unique
+
+또는 external_id unique (권장: source_id 포함)
+
+1.5 출력
+
+items insert
+
+필수 필드 세팅:
+
+item.source_id = source.id
+
+item.topic = source.topic (강제)
+
+item.status = "new"
+
+item.collected_at = now()
+
+item.published_at = feed published date (가능 시)
+
+1.6 실패/재시도
+
+소스별 네트워크 실패 시:
+
+log 남김
+
+다음 주기에 재시도
+
+404/파싱 실패 반복 시:
+
+source health 점수 누적(옵션)
+
+일정 기준 이상이면 자동 disable(옵션 v0.2)
+
+2. Job 2 — Analyze Job v0.1
+2.1 목적
+
+new 상태 items를 LLM으로 분석해 analysis 생성
+
+items.status를 analyzed로 변경
+
+2.2 입력
+
+items where status="new"
+
+batch limit (예: 10~50)
+
+2.3 처리 규칙
+
+item.topic 기준으로 분석 프롬프트/룰을 선택한다.
+
+최소 규칙: topic을 프롬프트에 포함
+
+(v0.2) preset/variant별 분석 룰로 확장 가능
+
+분석 결과에 포함할 최소 항목:
+
+relevance_score (0-100)
+
+importance_score (0-100) ← 시장/업무 영향도 같은 “핵심”
+
+risk_score (0-100)
+
+category
+
+summary_short
+
+flags_json
+
+2.4 출력
+
+analysis insert
+
+analysis.item_id = item.id
+
+analysis.topic = item.topic (강제)
+
+items.status = "analyzed"
+
+2.5 실패/재시도
+
+LLM 호출 실패:
+
+해당 item은 status="new" 유지 또는 "error"로 이동(택1)
+v0.1 권장:
+
+status="new" 유지 + error_count 증가(필드 추가 가능)
+
+3회 이상 실패 시 "skipped"로 이동(옵션)
+
+3. Job 3 — Output Job v0.1
+
+Output Job은 preset.output_type에 따라 3가지로 나뉜다.
+
+Report Output Job (Daily Market Brief 같은 리포트형)
+
+Draft Output Job (Community Engagement 같은 초안형)
+
+Alert Output Job (Competitor Watch의 변경 알림형)
+
+v0.1에서는 Report Output Job부터 안정화가 우선.
+
+4. Report Output Job v0.1 (Daily Market Brief 기준)
+4.1 목적
+
+특정 Profile(=investing 리포트 프로필)의 설정에 따라
+
+일정 기간(보통 24시간) 내 분석된 아이템을 모아
+
+보고서 1개를 생성한다.
+
+4.2 실행 조건
+
+profiles where
+
+preset.output_type = "report"
+
+is_active = true
+
+schedule 조건 충족
+
+4.3 입력 (절대 규칙)
+
+profile_id = X
+
+profile.topic = T
+
+profile이 선택한 sources 집합 S
+
+조회 조건:
+
+items.topic = T
+
+items.source_id ∈ S
+
+items.status = "analyzed"
+
+published_at ∈ [period_start, period_end]
+
+analysis.item_id = items.id
+
+4.4 집계/선별 로직 (v0.1 최소)
+
+상위 N개 선택:
+
+importance_score 우선
+
+그 다음 risk_score 또는 relevance_score
+
+중복 제거:
+
+url 동일, 또는 title 유사도(간단히)로 1차 제거
+
+(v0.2) 클러스터링 개선 가능
+
+4.5 출력
+
+outputs insert (output_type="report")
+
+outputs.profile_id = profile.id
+
+outputs.topic = profile.topic
+
+outputs.period_start, period_end 기록
+
+outputs.title = “Daily Market Brief - YYYY-MM-DD”
+
+outputs.content_text = 생성된 리포트 본문
+
+그리고 처리 마킹:
+
+(옵션 A) items.status="processed"로 변경
+
+(옵션 B) 별도 link 테이블 output_items로 “이 리포트에 포함됨” 기록
+
+v0.1 권장:
+
+output_items 테이블 추천
+
+output_id
+
+item_id
+
+이유: 같은 item이 다른 프로필 리포트에 들어갈 수 있음(개인화 때문)
+
+4.6 실패/재시도
+
+리포트 생성 실패(LLM 오류):
+
+output 생성하지 않음
+
+다음 스케줄에 재시도
+
+동일 기간 중복 생성 방지:
+
+(profile_id + period_start + period_end) unique
+
+5. Draft Output Job v0.1 (커뮤니티형, 후순위)
+
+v0.1에서 안정화 대상은 아니지만, 규격만 정의.
+
+5.1 입력
+
+profiles where preset.output_type="draft"
+
+5.2 처리
+
+analyzed items 중
+
+profile.topic 일치
+
+profile.sources 일치
+
+reply-worthiness 조건 만족(예: replyWorthinessScore ≥ threshold)
+
+drafts 생성 후 관리자 승인 대기
+
+6. 스케줄링 규격 v0.1
+6.1 schedule 저장 방식
+
+Profile에 저장:
+
+schedule_cron (예: "0 22 * * *")
+
+timezone (예: "Asia/Seoul")
+
+또는
+
+schedule_type = "daily_time" | "relative_to_event"
+
+schedule_value = { hour: 22, minute: 0 }
+
+v0.1 권장:
+
+cron + timezone
+
+6.2 실행 방식
+
+node-cron이 1분마다 tick
+
+“지금 실행해야 하는 profile” 목록을 DB에서 조회
+
+last_run_at, next_run_at 기반(권장)
+
+또는 cron을 profile마다 등록(규모 커지면 비권장)
+
+v0.1 현실적 추천:
+
+profile별 cron 등록이 간단하지만
+
+장기적으로는 next_run_at 방식이 더 튼튼함
+
+7. 섞임 방지 체크리스트 (Job별 필수)
+
+Collect:
+
+item.topic = source.topic 강제
+
+Analyze:
+
+analysis.topic = item.topic 강제
+
+Output:
+
+outputs.topic = profile.topic 강제
+
+조회 시 items.topic = profile.topic 조건 필수
+
+조회 시 items.source_id ∈ profile_sources 필수
+
+이 조건이 빠지면 “AI Art가 투자 리포트에 섞이는 사고”가 다시 발생한다.
+
+8. v0.1 구현 우선순위
+
+Profile + Source 선택 연결(profile_sources)
+
+Collect Job 안정화 (중복 방지)
+
+Analyze Job 안정화 (topic 기반 분석)
+
+Report Output Job 구현 (profile 기반 집계)
+
+Reports UI에서 profile별 조회/필터
+
+9. 다음 문서
+
+다음은 제작에 들어가기 위한 문서:
+
+Bot Manager – API & UI Spec v0.1
+
+어떤 API가 필요하고
+
+어떤 화면에서 어떤 설정을 만지며
+
+어떤 리스트를 보여줄지
