@@ -97,7 +97,7 @@ The ai_art topic operates in "community contribution mode" with zero promotional
 
 **Forbidden Content:**
 - URLs and links of any kind
-- Brand mentions: aiartmarket (old branding), civitai, promptbase, artstation, deviantart
+- Brand mentions: civitai, promptbase, artstation, deviantart (aiartmarket.io는 홍보 대상)
 - Promotional phrases: "check out", "I recommend", "sign up", "free trial", etc.
 
 **Goal:** Build community reputation as a helpful, knowledgeable user — not a promotional bot
