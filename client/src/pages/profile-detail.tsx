@@ -14,6 +14,24 @@ import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Save, Loader2 } from "lucide-react";
 
+interface ProfileConfig {
+  scheduleRule?: "DAILY" | "WEEKDAYS" | "WEEKENDS";
+  sections?: {
+    tldr?: boolean;
+    drivers?: boolean;
+    risk?: boolean;
+    checklist?: boolean;
+    sources?: boolean;
+  };
+  verbosity?: "short" | "normal" | "detailed";
+  markdownLevel?: "minimal" | "normal";
+  filters?: {
+    minRelevanceScore?: number;
+    maxRiskLevelAllowed?: number;
+    allowPromotionLinks?: boolean;
+  };
+}
+
 interface Profile {
   id: number;
   userId: string;
@@ -23,7 +41,7 @@ interface Profile {
   variantKey: string | null;
   timezone: string;
   scheduleCron: string;
-  configJson: Record<string, unknown>;
+  configJson: ProfileConfig;
   isActive: boolean;
   createdAt: string;
   presetName: string;
@@ -50,13 +68,21 @@ const timezones = [
   "UTC",
 ];
 
-const cronPresets = [
-  { label: "Every day at 7 AM", value: "0 7 * * *" },
-  { label: "Every day at 9 AM", value: "0 9 * * *" },
-  { label: "Every day at 10 PM", value: "0 22 * * *" },
-  { label: "Every 6 hours", value: "0 */6 * * *" },
-  { label: "Weekdays at 8 AM", value: "0 8 * * 1-5" },
+const scheduleTimePresets = [
+  { label: "7:00 AM", value: "07:00" },
+  { label: "8:00 AM", value: "08:00" },
+  { label: "9:00 AM", value: "09:00" },
+  { label: "6:00 PM", value: "18:00" },
+  { label: "10:00 PM", value: "22:00" },
 ];
+
+const defaultSections = {
+  tldr: true,
+  drivers: true,
+  risk: true,
+  checklist: true,
+  sources: true,
+};
 
 export default function ProfileDetail() {
   const { id } = useParams<{ id: string }>();
@@ -66,10 +92,12 @@ export default function ProfileDetail() {
   const [name, setName] = useState("");
   const [isActive, setIsActive] = useState(true);
   const [timezone, setTimezone] = useState("Asia/Seoul");
-  const [scheduleCron, setScheduleCron] = useState("0 7 * * *");
-  const [importanceWeight, setImportanceWeight] = useState(50);
-  const [riskWeight, setRiskWeight] = useState(50);
-  const [reportLength, setReportLength] = useState("standard");
+  const [scheduleTime, setScheduleTime] = useState("07:00");
+  const [scheduleRule, setScheduleRule] = useState<"DAILY" | "WEEKDAYS" | "WEEKENDS">("DAILY");
+  const [verbosity, setVerbosity] = useState<"short" | "normal" | "detailed">("normal");
+  const [markdownLevel, setMarkdownLevel] = useState<"minimal" | "normal">("minimal");
+  const [sections, setSections] = useState(defaultSections);
+  const [minRelevanceScore, setMinRelevanceScore] = useState(30);
   const [selectedSourceIds, setSelectedSourceIds] = useState<number[]>([]);
 
   const { data: profile, isLoading: profileLoading } = useQuery<Profile>({
@@ -97,12 +125,20 @@ export default function ProfileDetail() {
       setName(profile.name);
       setIsActive(profile.isActive);
       setTimezone(profile.timezone);
-      setScheduleCron(profile.scheduleCron);
       
-      const config = profile.configJson as Record<string, unknown>;
-      setImportanceWeight((config.importanceWeight as number) || 50);
-      setRiskWeight((config.riskWeight as number) || 50);
-      setReportLength((config.length as string) || "standard");
+      // Parse cron to get time (format: "0 H * * *" or "0 H * * 1-5")
+      const cronParts = profile.scheduleCron.split(" ");
+      if (cronParts.length >= 2) {
+        const hour = cronParts[1].padStart(2, "0");
+        setScheduleTime(`${hour}:00`);
+      }
+      
+      const config = profile.configJson || {};
+      setScheduleRule(config.scheduleRule || "DAILY");
+      setVerbosity(config.verbosity || "normal");
+      setMarkdownLevel(config.markdownLevel || "minimal");
+      setSections({ ...defaultSections, ...config.sections });
+      setMinRelevanceScore(config.filters?.minRelevanceScore ?? 30);
     }
   }, [profile]);
 
@@ -112,19 +148,36 @@ export default function ProfileDetail() {
     }
   }, [profileSources]);
 
+  // Build cron from scheduleTime and scheduleRule
+  const buildCron = () => {
+    const hour = parseInt(scheduleTime.split(":")[0]);
+    switch (scheduleRule) {
+      case "WEEKDAYS":
+        return `0 ${hour} * * 1-5`;
+      case "WEEKENDS":
+        return `0 ${hour} * * 0,6`;
+      default:
+        return `0 ${hour} * * *`;
+    }
+  };
+
   const updateMutation = useMutation({
     mutationFn: async () => {
-      const configJson = {
-        importanceWeight,
-        riskWeight,
-        length: reportLength,
+      const configJson: ProfileConfig = {
+        scheduleRule,
+        sections,
+        verbosity,
+        markdownLevel,
+        filters: {
+          minRelevanceScore,
+        },
       };
       
       await apiRequest("PUT", `/api/profiles/${id}`, {
         name,
         isActive,
         timezone,
-        scheduleCron,
+        scheduleCron: buildCron(),
         configJson,
       });
       
@@ -148,6 +201,10 @@ export default function ProfileDetail() {
         ? prev.filter((id) => id !== sourceId)
         : [...prev, sourceId]
     );
+  };
+
+  const toggleSection = (key: keyof typeof sections) => {
+    setSections((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
   const getTopicColor = (topic: string) => {
@@ -246,7 +303,7 @@ export default function ProfileDetail() {
           </CardHeader>
           <CardContent className="grid gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="timezone">Timezone</Label>
+              <Label>Timezone</Label>
               <Select value={timezone} onValueChange={setTimezone}>
                 <SelectTrigger data-testid="select-timezone">
                   <SelectValue />
@@ -259,64 +316,110 @@ export default function ProfileDetail() {
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="schedule">Schedule</Label>
-              <Select value={scheduleCron} onValueChange={setScheduleCron}>
-                <SelectTrigger data-testid="select-schedule">
+              <Label>Run Days</Label>
+              <Select value={scheduleRule} onValueChange={(v) => setScheduleRule(v as typeof scheduleRule)}>
+                <SelectTrigger data-testid="select-schedule-rule">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {cronPresets.map((preset) => (
+                  <SelectItem value="DAILY">Every Day</SelectItem>
+                  <SelectItem value="WEEKDAYS">Weekdays Only (Mon-Fri)</SelectItem>
+                  <SelectItem value="WEEKENDS">Weekends Only (Sat-Sun)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label>Run Time</Label>
+              <Select value={scheduleTime} onValueChange={setScheduleTime}>
+                <SelectTrigger data-testid="select-schedule-time">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {scheduleTimePresets.map((preset) => (
                     <SelectItem key={preset.value} value={preset.value}>
                       {preset.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">Cron expression: {scheduleCron}</p>
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Output Options</CardTitle>
-            <CardDescription>Customize how your bot generates content</CardDescription>
+            <CardTitle>Report Format</CardTitle>
+            <CardDescription>Customize how your reports look</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-6">
             <div className="grid gap-2">
-              <Label>Importance Weight: {importanceWeight}%</Label>
-              <Slider
-                value={[importanceWeight]}
-                onValueChange={([v]) => setImportanceWeight(v)}
-                min={0}
-                max={100}
-                step={10}
-                data-testid="slider-importance"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label>Risk Weight: {riskWeight}%</Label>
-              <Slider
-                value={[riskWeight]}
-                onValueChange={([v]) => setRiskWeight(v)}
-                min={0}
-                max={100}
-                step={10}
-                data-testid="slider-risk"
-              />
-            </div>
-            <div className="grid gap-2">
               <Label>Report Length</Label>
-              <Select value={reportLength} onValueChange={setReportLength}>
-                <SelectTrigger data-testid="select-length">
+              <Select value={verbosity} onValueChange={(v) => setVerbosity(v as typeof verbosity)}>
+                <SelectTrigger data-testid="select-verbosity">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="short">Short</SelectItem>
-                  <SelectItem value="standard">Standard</SelectItem>
-                  <SelectItem value="long">Long</SelectItem>
+                  <SelectItem value="short">Short (Brief summary)</SelectItem>
+                  <SelectItem value="normal">Normal (Balanced)</SelectItem>
+                  <SelectItem value="detailed">Detailed (Comprehensive)</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label>Markdown Style</Label>
+              <Select value={markdownLevel} onValueChange={(v) => setMarkdownLevel(v as typeof markdownLevel)}>
+                <SelectTrigger data-testid="select-markdown">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="minimal">Minimal (Clean, less formatting)</SelectItem>
+                  <SelectItem value="normal">Normal (Standard formatting)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-3">
+              <Label>Report Sections</Label>
+              <div className="grid gap-2">
+                {[
+                  { key: "tldr", label: "TL;DR Summary" },
+                  { key: "drivers", label: "Market Drivers" },
+                  { key: "risk", label: "Risk Radar" },
+                  { key: "checklist", label: "Action Checklist" },
+                  { key: "sources", label: "Source References" },
+                ].map(({ key, label }) => (
+                  <div key={key} className="flex items-center gap-2">
+                    <Checkbox
+                      checked={sections[key as keyof typeof sections]}
+                      onCheckedChange={() => toggleSection(key as keyof typeof sections)}
+                      data-testid={`checkbox-section-${key}`}
+                    />
+                    <Label className="font-normal">{label}</Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Filters</CardTitle>
+            <CardDescription>Set minimum criteria for items to be included</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            <div className="grid gap-2">
+              <Label>Minimum Relevance Score: {minRelevanceScore}%</Label>
+              <Slider
+                value={[minRelevanceScore]}
+                onValueChange={([v]) => setMinRelevanceScore(v)}
+                min={0}
+                max={100}
+                step={10}
+                data-testid="slider-relevance"
+              />
+              <p className="text-xs text-muted-foreground">
+                Items scoring below this threshold will be excluded from reports
+              </p>
             </div>
           </CardContent>
         </Card>
