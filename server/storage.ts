@@ -63,6 +63,7 @@ export interface IStorage {
   // Profiles
   listProfiles(userId: string): Promise<(Profile & { presetName: string })[]>;
   getProfile(id: number, userId: string): Promise<(Profile & { presetName: string }) | undefined>;
+  getProfileById(id: number): Promise<Profile | undefined>;
   createProfile(data: InsertProfile): Promise<Profile>;
   updateProfile(id: number, userId: string, patch: Partial<InsertProfile>): Promise<Profile | undefined>;
   deleteProfile(id: number, userId: string): Promise<void>;
@@ -527,6 +528,14 @@ export class DatabaseStorage implements IStorage {
       ...result.profile,
       presetName: result.presetName || "Unknown",
     };
+  }
+
+  async getProfileById(id: number): Promise<Profile | undefined> {
+    const [result] = await db
+      .select()
+      .from(profiles)
+      .where(eq(profiles.id, id));
+    return result;
   }
 
   async createProfile(data: InsertProfile): Promise<Profile> {

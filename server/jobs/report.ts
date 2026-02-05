@@ -152,14 +152,18 @@ export async function generateReportsForDueProfiles(): Promise<ReportJobResult[]
   return results;
 }
 
-export async function generateReportForProfile(profileId: number): Promise<ReportJobResult | null> {
+export async function generateReportForProfile(profileId: number, userId?: string): Promise<ReportJobResult | null> {
   console.log(`[ReportJob] Manual generation for profile ${profileId}`);
 
-  const profiles = await storage.getActiveReportProfiles();
-  const profile = profiles.find((p) => p.id === profileId);
+  const profile = await storage.getProfileById(profileId);
 
   if (!profile) {
-    console.error(`[ReportJob] Profile ${profileId} not found or not a report profile`);
+    console.error(`[ReportJob] Profile ${profileId} not found`);
+    return null;
+  }
+
+  if (userId && profile.userId !== userId) {
+    console.error(`[ReportJob] Profile ${profileId} does not belong to user ${userId}`);
     return null;
   }
 

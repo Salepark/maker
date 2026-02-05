@@ -158,10 +158,10 @@ export async function runDailyBriefNow(topic: string = "ai_art", lookbackHours: 
   return result;
 }
 
-export async function runReportNow(profileId?: number) {
+export async function runReportNow(profileId?: number, userId?: string) {
   console.log(`📊 Manual Report generation triggered${profileId ? ` for profile ${profileId}` : " for all due profiles"}...`);
   if (profileId) {
-    const result = await generateReportForProfile(profileId);
+    const result = await generateReportForProfile(profileId, userId);
     lastReportRun = new Date();
     return result;
   } else {

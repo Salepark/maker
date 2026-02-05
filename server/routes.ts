@@ -348,7 +348,7 @@ export async function registerRoutes(
         return res.status(404).json({ ok: false, error: "Profile not found" });
       }
 
-      const result = await runReportNow(profileId);
+      const result = await runReportNow(profileId, userId);
       res.json({ ok: true, result });
     } catch (error: any) {
       console.error("Error generating report:", error);

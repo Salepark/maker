@@ -98,7 +98,13 @@ Core tables:
 - `items` - Collected posts with status workflow (new → analyzed → drafted → approved → posted)
 - `analysis` - LLM analysis results (scores, categories, risk flags)
 - `drafts` - Generated reply drafts awaiting review
-- `reports` - Daily market briefs generated from analyzed content
+- `outputs` - Universal output storage (reports, alerts, etc.) with fields:
+  - `userId`, `profileId`, `presetId` - ownership and linkage
+  - `topic`, `outputType` - categorization ("report", "alert", etc.)
+  - `title`, `contentText` - generated content
+  - `periodStart`, `periodEnd` - data coverage period
+  - Unique index on (profileId, periodStart, periodEnd) prevents duplicates
+- `output_items` - Links outputs to source items they were generated from
 - `chat_messages` - Chat history with parsed commands and results
 - `settings` - Persistent configuration key-value store
 

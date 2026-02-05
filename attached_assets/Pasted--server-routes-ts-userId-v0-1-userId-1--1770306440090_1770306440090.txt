@@ -1,0 +1,95 @@
+아래 코드를 **server/routes.ts**에 붙여 넣으세요.
+(프로젝트에 인증/세션이 있으면 userId 가져오는 부분만 맞추면 됩니다. v0.1은 임시로 userId=1로 둡니다.)
+
+Step 5: Reports API 추가 (복붙용)
+5-1) server/routes.ts 상단 import에 추가
+import { z } from "zod";
+import { storage } from "./storage"; // 이미 있으면 생략
+
+
+⚠️ 이미 zod를 쓰고 있으면 import 중복 제거하세요.
+
+5-2) 라우트 2개 추가
+(1) 목록: GET /api/reports
+
+query: profileId(옵션)
+
+기본: 최근 50개
+
+app.get("/api/reports", async (req, res) => {
+  try {
+    // ✅ v0.1: 임시 userId
+    const userId = 1;
+
+    const schema = z.object({
+      profileId: z.string().optional(),
+    });
+
+    const parsed = schema.safeParse(req.query);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Invalid query", details: parsed.error.flatten() });
+    }
+
+    const profileId = parsed.data.profileId ? Number(parsed.data.profileId) : undefined;
+    if (parsed.data.profileId && !Number.isFinite(profileId)) {
+      return res.status(400).json({ error: "profileId must be a number" });
+    }
+
+    const rows = await storage.listReports({
+      userId,
+      profileId,
+    });
+
+    return res.json(rows);
+  } catch (e) {
+    console.error("[GET /api/reports] failed:", e);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+(2) 상세: GET /api/reports/:id
+app.get("/api/reports/:id", async (req, res) => {
+  try {
+    const userId = 1;
+
+    const reportId = Number(req.params.id);
+    if (!Number.isFinite(reportId)) {
+      return res.status(400).json({ error: "Invalid report id" });
+    }
+
+    const report = await storage.getReport({ userId, reportId });
+    if (!report) {
+      return res.status(404).json({ error: "Report not found" });
+    }
+
+    return res.json(report);
+  } catch (e) {
+    console.error("[GET /api/reports/:id] failed:", e);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+✅ 바로 테스트
+
+서버 실행 후 브라우저에서:
+
+목록
+
+/api/reports
+
+특정 리포트
+
+/api/reports/1 (id는 실제 outputs.id로)
+
+✅ 완료 체크:
+
+목록에서 report id들이 내려오고
+
+상세에서 contentText가 내려옵니다.
+
+다음 Step 6
+
+Reports UI 연결입니다.
+(“Daily Reports” 페이지에서 목록 + 클릭하면 본문 표시)
+
+원하시면 다음 답변에서 **Step 6 프론트 코드(React Query + shadcn/ui 스타일로, 최소 수정)**로 바로 드릴게요.
