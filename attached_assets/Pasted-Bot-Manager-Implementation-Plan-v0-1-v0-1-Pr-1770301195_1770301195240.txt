@@ -1,0 +1,191 @@
+Bot Manager – Implementation Plan v0.1
+
+(구현 로드맵 / 작업 순서 고정)
+
+목표:
+v0.1에서 “범용 봇 매니저의 뼈대”를 완성한다.
+핵심은 Profile 기반 개인화 + topic 섞임 방지 + Report 파이프라인 안정화다.
+
+Milestone 0 — 안정화 준비 (착수 전 체크)
+
+완료 조건:
+
+DB 연결 정상
+
+Drizzle migration 적용 가능
+
+dev/prod 환경변수 정리
+
+작업:
+
+ENV 정리: DATABASE_URL, LLM_API_KEY, APP_BASE_URL, DEFAULT_TIMEZONE
+
+기본 seed: presets 테이블 채우기
+
+Milestone 1 — 데이터 모델 완성 (Schema v0.1 반영)
+
+완료 조건:
+
+아래 테이블이 실제로 존재하고 CRUD가 가능해야 함
+
+필수 테이블:
+
+users
+
+presets
+
+profiles
+
+sources
+
+profile_sources (연결 테이블)
+
+items
+
+analysis
+
+outputs
+
+output_items (권장)
+
+추가 규칙(중요):
+
+items.topic = sources.topic 강제(애플리케이션 레벨)
+
+outputs.topic = profiles.topic 강제
+
+output_items로 “리포트에 포함된 아이템” 추적
+
+Milestone 2 — Profiles & Sources UI/API (사용자 조작 패널)
+
+완료 조건:
+
+사용자가 “봇 하나”를 만들고 설정할 수 있어야 함
+
+구현 순서:
+
+Presets API
+
+GET /api/presets
+
+Profiles CRUD
+
+목록 / 생성(Wizard) / 편집 / 활성 토글 / 삭제 / 복제
+
+Sources CRUD
+
+목록 (topic 필터)
+
+사용자 소스 추가/수정/삭제
+
+Profile ↔ Sources 연결 UI
+
+Profiles 편집 화면에서 체크박스로 소스 선택 저장
+
+Milestone 3 — Collect Job 안정화
+
+완료 조건:
+
+sources에 등록된 RSS에서 items가 지속적으로 들어온다
+
+중복이 쌓이지 않는다
+
+작업:
+
+rss-parser 수집 로직
+
+dedupe: (source_id + external_id) unique
+
+items.status="new"로 저장
+
+topic 강제 복사
+
+운영:
+
+10분마다 실행
+
+Milestone 4 — Analyze Job 안정화
+
+완료 조건:
+
+new items가 analyzed로 바뀌고 analysis가 쌓인다
+
+작업:
+
+batch 처리 (예: 10개)
+
+실패 재시도 최소 장치
+
+analysis.topic = item.topic 강제
+
+items.status="analyzed"
+
+운영:
+
+5~10분마다 실행
+
+Milestone 5 — Report Output Job (Daily Market Brief) v0.1
+
+완료 조건:
+
+“특정 Profile”이 설정한 소스/토픽만으로
+
+하루 1회 report가 생성되고 Reports 화면에서 보인다
+
+다른 토픽이 섞이지 않는다 (가장 중요)
+
+작업 순서:
+
+outputs 테이블 저장 로직
+
+output_items 테이블에 포함 아이템 기록
+
+중복 생성 방지:
+
+(profile_id + period_start + period_end) unique
+
+profile.schedule + timezone 기반 실행
+
+리포트 내용은 “형식/말투” 옵션 없이도 일단 생성(Plain text/저장)
+
+운영:
+
+profile별 스케줄에 따라 1일 1회
+
+Milestone 6 — Reports UI
+
+완료 조건:
+
+Profile별로 리포트를 필터링해서 볼 수 있다
+
+특정 리포트 클릭 시 상세 본문 확인 가능
+
+(옵션) 포함 아이템 목록 확인 가능(output_items 기반)
+
+Milestone 7 — Dashboard 요약
+
+완료 조건:
+
+“내가 가진 Profile 상태” + “최근 outputs”가 한 화면에 보인다
+
+Milestone 8 — Drafts (커뮤니티형) 최소 지원 (후순위)
+
+완료 조건:
+
+커뮤니티형 preset에 대해서만 초안 리스트/승인/거절이 가능
+
+v0.1 “성공 기준” 체크리스트
+
+Profile로 봇을 만들고 설정한다
+
+Sources를 선택/추가한다
+
+Collect가 items를 쌓는다
+
+Analyze가 analysis를 쌓는다
+
+Report Output이 profile 단위로 리포트를 만든다
+
+Reports 화면에서 본다
+
+topic 섞임이 구조적으로 발생하지 않는다
