@@ -32,10 +32,10 @@ export function AppSidebar() {
       <SidebarHeader className="p-4 border-b border-sidebar-border">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
-            <span className="text-primary-foreground font-bold text-sm">AI</span>
+            <span className="text-primary-foreground font-bold text-sm">M</span>
           </div>
           <div className="flex flex-col">
-            <span className="font-semibold text-sm">AI Art Market</span>
+            <span className="font-semibold text-sm">Makelr</span>
             <span className="text-xs text-muted-foreground">Bot Manager</span>
           </div>
         </div>
@@ -64,7 +64,7 @@ export function AppSidebar() {
       </SidebarContent>
       <SidebarFooter className="p-4 border-t border-sidebar-border">
         <div className="text-xs text-muted-foreground">
-          aiartmarket.io Bot v1.0
+          makelr.com Bot v1.0
         </div>
       </SidebarFooter>
     </Sidebar>

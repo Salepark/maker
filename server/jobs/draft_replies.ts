@@ -7,7 +7,7 @@ import {
   type SourceRules 
 } from "../llm/prompts";
 
-const APP_BASE_URL = process.env.APP_BASE_URL || "https://aiartmarket.io";
+const APP_BASE_URL = process.env.APP_BASE_URL || "https://makelr.com";
 
 function shouldAllowLink(riskFlags: string[]): boolean {
   if (riskFlags.includes("promo_ban")) return false;
@@ -61,7 +61,7 @@ function validateCommunityDraft(text: string): { valid: boolean; reason?: string
 
   // Strictly forbidden brand mentions (our service and competitors)
   const forbiddenBrands = [
-    /aiartmarket/i,
+    /makelr/i,
     /civitai/i,
     /promptbase/i,
     /artstation/i,

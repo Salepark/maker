@@ -119,7 +119,7 @@ export default function Landing() {
       </main>
 
       <footer className="border-t border-border py-8 text-center text-sm text-muted-foreground">
-        <p>AI Art Market Bot Manager</p>
+        <p>Makelr Bot Manager</p>
       </footer>
     </div>
   );

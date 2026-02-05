@@ -203,7 +203,7 @@ export default function Settings() {
           <div className="flex items-center justify-between p-4 rounded-md border">
             <div>
               <h3 className="font-medium text-sm">Base URL</h3>
-              <p className="text-xs text-muted-foreground mt-1">aiartmarket.io</p>
+              <p className="text-xs text-muted-foreground mt-1">makelr.com</p>
             </div>
             <Badge variant="outline">Configured</Badge>
           </div>

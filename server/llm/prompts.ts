@@ -80,9 +80,9 @@ export function buildDraftPrompt(input: {
   const tonePreset = TONE_PRESETS[preferredTone] || TONE_PRESETS.informative;
 
   const promoGuidance = {
-    none: "aiartmarket 언급 금지. 순수 정보 제공만.",
+    none: "makelr 언급 금지. 순수 정보 제공만.",
     subtle: "10번 중 1번 정도로만, '참고로' 수준으로 아주 자연스럽게 언급 가능.",
-    moderate: "맥락에 맞으면 aiartmarket.io 언급 가능, 단 광고 티 나지 않게.",
+    moderate: "맥락에 맞으면 makelr.com 언급 가능, 단 광고 티 나지 않게.",
   }[promoLevel];
 
   return `
@@ -92,8 +92,8 @@ export function buildDraftPrompt(input: {
 복붙 티 나지 않게 문장 구조를 바꿔라.
 공격적/과장 광고 금지.
 
-[참고: aiartmarket 사실 3줄]
-- aiartmarket.io는 AI로 생성된 아트/프롬프트/템플릿 등의 디지털 자산 거래를 목표로 한다.
+[참고: makelr 사실 3줄]
+- makelr.com은 AI로 생성된 아트/프롬프트/템플릿 등의 디지털 자산 거래를 목표로 한다.
 - 핵심은 판매/구매/라이선스/정산 흐름을 단순하게 하는 것이다.
 - 없는 기능은 절대 말하지 않는다.
 
