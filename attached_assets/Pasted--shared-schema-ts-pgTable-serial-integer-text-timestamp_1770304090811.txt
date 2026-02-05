@@ -1,0 +1,97 @@
+아래 코드를 **shared/schema.ts**에 붙여 넣으세요.
+(기존에 pgTable, serial, integer, text, timestamp, primaryKey 등을 이미 쓰고 있을 테니 import가 겹치면 합치기만 하면 됩니다.)
+
+Step 1: outputs / output_items 스키마 추가 (복붙용)
+// shared/schema.ts
+
+import {
+  pgTable,
+  serial,
+  integer,
+  text,
+  timestamp,
+  primaryKey,
+  uniqueIndex,
+  index,
+} from "drizzle-orm/pg-core";
+
+// ✅ 이미 users / presets / profiles / items 테이블이 있다면 그대로 두고,
+// 아래 outputs / outputItems만 추가하세요.
+// (FK로 연결할 테이블 이름이 다르면 참조만 맞춰주면 됩니다.)
+
+// 예: 기존에 exports const users = pgTable("users", ...) 이런 식으로 있을 것
+// exports const presets = pgTable("presets", ...)
+// exports const profiles = pgTable("profiles", ...)
+// exports const items = pgTable("items", ...)
+
+// -----------------------------
+// Outputs (Reports / Drafts / Alerts 저장)
+// -----------------------------
+export const outputs = pgTable(
+  "outputs",
+  {
+    id: serial("id").primaryKey(),
+
+    userId: integer("user_id").notNull(), // FK는 아래 references로 연결 권장
+    profileId: integer("profile_id").notNull(),
+    presetId: integer("preset_id").notNull(),
+
+    topic: text("topic").notNull(), // profile.topic과 동일해야 함
+    outputType: text("output_type").notNull(), // "report" | "draft" | "alert"
+
+    title: text("title").notNull(),
+    contentText: text("content_text").notNull(),
+
+    periodStart: timestamp("period_start", { withTimezone: true }).notNull(),
+    periodEnd: timestamp("period_end", { withTimezone: true }).notNull(),
+
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => ({
+    // ✅ 같은 profile + 같은 기간 report가 중복 생성되는 것 방지
+    uqProfilePeriod: uniqueIndex("outputs_uq_profile_period").on(
+      t.profileId,
+      t.periodStart,
+      t.periodEnd
+    ),
+
+    idxProfile: index("outputs_idx_profile").on(t.profileId),
+    idxUser: index("outputs_idx_user").on(t.userId),
+    idxTopic: index("outputs_idx_topic").on(t.topic),
+  })
+);
+
+// -----------------------------
+// Output Items (리포트에 어떤 item이 포함됐는지 기록)
+// -----------------------------
+export const outputItems = pgTable(
+  "output_items",
+  {
+    outputId: integer("output_id").notNull(),
+    itemId: integer("item_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.outputId, t.itemId] }),
+    idxOutput: index("output_items_idx_output").on(t.outputId),
+    idxItem: index("output_items_idx_item").on(t.itemId),
+  })
+);
+
+✅ 바로 실행할 것
+
+Replit Shell에서:
+
+npx drizzle-kit push
+
+완료 체크 (딱 2개)
+
+DB에 outputs, output_items 테이블이 생겼다
+
+outputs에 outputs_uq_profile_period 유니크 인덱스가 적용됐다
+
+다음 스텝은 Step 2: storage.ts에 outputs 관련 함수 5개만 추가입니다.

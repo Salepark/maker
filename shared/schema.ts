@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, serial, integer, timestamp, boolean, jsonb, primaryKey } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, serial, integer, timestamp, boolean, jsonb, primaryKey, uniqueIndex, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -211,16 +211,70 @@ export type Report = typeof reports.$inferSelect;
 export type InsertReport = z.infer<typeof insertReportSchema>;
 
 // ============================================
-// OUTPUT_ITEMS - Report ↔ Item link (for precise tracking)
+// OUTPUTS - Universal output storage (reports, drafts, alerts)
 // ============================================
-export const outputItems = pgTable("output_items", {
-  reportId: integer("report_id").notNull().references(() => reports.id, { onDelete: "cascade" }),
-  itemId: integer("item_id").notNull().references(() => items.id, { onDelete: "cascade" }),
-  rank: integer("rank").notNull().default(0), // Order in report
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-}, (table) => [
-  primaryKey({ columns: [table.reportId, table.itemId] })
-]);
+export const outputs = pgTable(
+  "outputs",
+  {
+    id: serial("id").primaryKey(),
+
+    userId: varchar("user_id").notNull().references(() => users.id),
+    profileId: integer("profile_id").notNull().references(() => profiles.id),
+    presetId: integer("preset_id").notNull().references(() => presets.id),
+
+    topic: text("topic").notNull(), // profile.topic과 동일해야 함
+    outputType: text("output_type").notNull(), // "report" | "draft" | "alert"
+
+    title: text("title").notNull(),
+    contentText: text("content_text").notNull(),
+
+    periodStart: timestamp("period_start", { withTimezone: true }).notNull(),
+    periodEnd: timestamp("period_end", { withTimezone: true }).notNull(),
+
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => ({
+    // 같은 profile + 같은 기간 report가 중복 생성되는 것 방지
+    uqProfilePeriod: uniqueIndex("outputs_uq_profile_period").on(
+      t.profileId,
+      t.periodStart,
+      t.periodEnd
+    ),
+
+    idxProfile: index("outputs_idx_profile").on(t.profileId),
+    idxUser: index("outputs_idx_user").on(t.userId),
+    idxTopic: index("outputs_idx_topic").on(t.topic),
+  })
+);
+
+export const insertOutputSchema = createInsertSchema(outputs).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type Output = typeof outputs.$inferSelect;
+export type InsertOutput = z.infer<typeof insertOutputSchema>;
+
+// ============================================
+// OUTPUT_ITEMS - Output ↔ Item link (for precise tracking)
+// ============================================
+export const outputItems = pgTable(
+  "output_items",
+  {
+    outputId: integer("output_id").notNull().references(() => outputs.id, { onDelete: "cascade" }),
+    itemId: integer("item_id").notNull().references(() => items.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.outputId, t.itemId] }),
+    idxOutput: index("output_items_idx_output").on(t.outputId),
+    idxItem: index("output_items_idx_item").on(t.itemId),
+  })
+);
 
 export type OutputItem = typeof outputItems.$inferSelect;
 
