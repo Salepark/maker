@@ -3,17 +3,20 @@ import { collectAllSources } from "../services/rss";
 import { analyzeNewItems } from "./analyze_items";
 import { draftForAnalyzed } from "./draft_replies";
 import { generateDailyBrief } from "./generate_daily_brief";
+import { generateReportsForDueProfiles, generateReportForProfile } from "./report";
 
 let collectTask: ReturnType<typeof cron.schedule> | null = null;
 let analyzeTask: ReturnType<typeof cron.schedule> | null = null;
 let draftTask: ReturnType<typeof cron.schedule> | null = null;
 let dailyBriefTask: ReturnType<typeof cron.schedule> | null = null;
+let reportTask: ReturnType<typeof cron.schedule> | null = null;
 let isRunning = false;
 
 let lastCollect: Date | null = null;
 let lastAnalyze: Date | null = null;
 let lastDraft: Date | null = null;
 let lastDailyBrief: Date | null = null;
+let lastReportRun: Date | null = null;
 
 export function startScheduler() {
   if (isRunning) {
@@ -74,6 +77,19 @@ export function startScheduler() {
     }
   }, { timezone: tz });
 
+  reportTask = cron.schedule("* * * * *", async () => {
+    console.log("📊 Running Profile Report generation job...");
+    try {
+      const results = await generateReportsForDueProfiles();
+      lastReportRun = new Date();
+      if (results.length > 0) {
+        console.log(`✓ Generated ${results.length} profile reports`);
+      }
+    } catch (error) {
+      console.error("Profile Report generation failed:", error);
+    }
+  });
+
   isRunning = true;
   console.log("🕒 Scheduler started");
 }
@@ -88,6 +104,7 @@ export function stopScheduler() {
   analyzeTask?.stop();
   draftTask?.stop();
   dailyBriefTask?.stop();
+  reportTask?.stop();
   isRunning = false;
   console.log("🕒 Scheduler stopped");
 }
@@ -98,11 +115,13 @@ export function getSchedulerStatus() {
     collectInterval: "10 minutes",
     analyzeInterval: "5 minutes",
     draftInterval: "5 minutes",
+    reportInterval: "1 minute (profile-based)",
     dailyBriefSchedule: process.env.DAILY_BRIEF_CRON || "0 22 * * * (KST)",
     lastCollect: lastCollect?.toISOString(),
     lastAnalyze: lastAnalyze?.toISOString(),
     lastDraft: lastDraft?.toISOString(),
     lastDailyBrief: lastDailyBrief?.toISOString(),
+    lastReportRun: lastReportRun?.toISOString(),
   };
 }
 
@@ -137,4 +156,17 @@ export async function runDailyBriefNow(topic: string = "ai_art", lookbackHours: 
   });
   lastDailyBrief = new Date();
   return result;
+}
+
+export async function runReportNow(profileId?: number) {
+  console.log(`📊 Manual Report generation triggered${profileId ? ` for profile ${profileId}` : " for all due profiles"}...`);
+  if (profileId) {
+    const result = await generateReportForProfile(profileId);
+    lastReportRun = new Date();
+    return result;
+  } else {
+    const results = await generateReportsForDueProfiles();
+    lastReportRun = new Date();
+    return results;
+  }
 }

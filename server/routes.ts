@@ -2,7 +2,7 @@ import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { collectFromSource, collectAllSources } from "./services/rss";
-import { startScheduler, stopScheduler, getSchedulerStatus, runCollectNow, runAnalyzeNow, runDraftNow, runDailyBriefNow } from "./jobs/scheduler";
+import { startScheduler, stopScheduler, getSchedulerStatus, runCollectNow, runAnalyzeNow, runDraftNow, runDailyBriefNow, runReportNow } from "./jobs/scheduler";
 import { parseCommand } from "./chat/command-parser";
 import { executeCommand } from "./chat/executor";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
@@ -266,8 +266,45 @@ export async function registerRoutes(
 
   app.get("/api/reports", isAuthenticated, async (req, res) => {
     try {
-      const reports = await storage.getReports(20);
-      res.json(reports);
+      const userId = (req as any).user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const profileIdParam = req.query.profileId;
+      const fromParam = req.query.from;
+      const toParam = req.query.to;
+
+      if (profileIdParam) {
+        const profileId = parseInt(profileIdParam as string);
+        
+        const profile = await storage.getProfile(profileId, userId);
+        if (!profile) {
+          return res.status(404).json({ error: "Profile not found" });
+        }
+
+        const from = fromParam ? new Date(fromParam as string) : undefined;
+        const to = toParam ? new Date(toParam as string) : undefined;
+        
+        const reports = await storage.listReportsByProfile(profileId, from, to);
+        return res.json(reports);
+      }
+
+      const userProfiles = await storage.listProfiles(userId);
+      const profileIds = userProfiles.map(p => p.id);
+      
+      if (profileIds.length === 0) {
+        return res.json([]);
+      }
+
+      const allReports: any[] = [];
+      for (const pid of profileIds) {
+        const profileReports = await storage.listReportsByProfile(pid);
+        allReports.push(...profileReports);
+      }
+      allReports.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      
+      res.json(allReports.slice(0, 20));
     } catch (error) {
       console.error("Error getting reports:", error);
       res.status(500).json({ error: "Failed to get reports" });
@@ -276,11 +313,26 @@ export async function registerRoutes(
 
   app.get("/api/reports/:id", isAuthenticated, async (req, res) => {
     try {
+      const userId = (req as any).user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
       const id = parseInt(req.params.id);
       const report = await storage.getReport(id);
       if (!report) {
         return res.status(404).json({ error: "Report not found" });
       }
+
+      if (!report.profileId) {
+        return res.status(404).json({ error: "Report not found" });
+      }
+
+      const profile = await storage.getProfile(report.profileId, userId);
+      if (!profile) {
+        return res.status(404).json({ error: "Report not found" });
+      }
+
       res.json(report);
     } catch (error) {
       console.error("Error getting report:", error);
@@ -295,6 +347,32 @@ export async function registerRoutes(
       res.json({ ok: true, reportId: result.id, itemsCount: result.itemsCount, topic });
     } catch (error: any) {
       console.error("Error generating daily brief:", error);
+      res.status(500).json({ ok: false, error: error?.message ?? String(error) });
+    }
+  });
+
+  app.post("/api/reports/generate", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req as any).user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ ok: false, error: "Unauthorized" });
+      }
+
+      const profileId = req.body?.profileId ? parseInt(req.body.profileId) : undefined;
+      
+      if (!profileId) {
+        return res.status(400).json({ ok: false, error: "profileId is required" });
+      }
+
+      const profile = await storage.getProfile(profileId, userId);
+      if (!profile) {
+        return res.status(404).json({ ok: false, error: "Profile not found" });
+      }
+
+      const result = await runReportNow(profileId);
+      res.json({ ok: true, result });
+    } catch (error: any) {
+      console.error("Error generating report:", error);
       res.status(500).json({ ok: false, error: error?.message ?? String(error) });
     }
   });

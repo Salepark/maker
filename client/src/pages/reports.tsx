@@ -6,18 +6,29 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileText, Plus, Loader2, Calendar, Hash, Eye } from "lucide-react";
+import { FileText, Plus, Loader2, Calendar, Hash, Eye, Bot } from "lucide-react";
 import { format } from "date-fns";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 interface Report {
   id: number;
+  profileId: number | null;
   topic: string;
   title: string;
   content: string;
   itemsCount: number;
+  periodStart: string | null;
+  periodEnd: string | null;
   createdAt: string;
+}
+
+interface Profile {
+  id: number;
+  name: string;
+  topic: string;
+  isActive: boolean;
+  presetName: string;
 }
 
 function ReportContent({ content }: { content: string }) {
@@ -33,22 +44,34 @@ function ReportContent({ content }: { content: string }) {
 export default function Reports() {
   const { toast } = useToast();
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
-  const [selectedTopic, setSelectedTopic] = useState<string>("ai_art");
+  const [selectedProfileId, setSelectedProfileId] = useState<string>("all");
+
+  const { data: profiles = [] } = useQuery<Profile[]>({
+    queryKey: ["/api/profiles"],
+  });
 
   const { data: reports, isLoading } = useQuery<Report[]>({
-    queryKey: ["/api/reports"],
+    queryKey: ["/api/reports", selectedProfileId === "all" ? "" : `profileId=${selectedProfileId}`],
+    queryFn: async () => {
+      const url = selectedProfileId === "all" 
+        ? "/api/reports" 
+        : `/api/reports?profileId=${selectedProfileId}`;
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch reports");
+      return res.json();
+    },
   });
 
   const generateMutation = useMutation({
-    mutationFn: async (topic: string) => {
-      const res = await apiRequest("POST", "/api/debug/generate-daily-brief", { topic });
+    mutationFn: async (profileId?: number) => {
+      const res = await apiRequest("POST", "/api/reports/generate", { profileId });
       return res.json();
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/reports"] });
       toast({
         title: "Report Generated",
-        description: `${data.topic === "ai_art" ? "AI Art" : "Investing"} Brief created with ${data.itemsCount} items`,
+        description: data.result ? `Report created for profile` : "Reports generated for due profiles",
       });
     },
     onError: (error: any) => {
@@ -60,31 +83,54 @@ export default function Reports() {
     },
   });
 
+  const getTopicColor = (topic: string) => {
+    const colors: Record<string, string> = {
+      investing: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+      ai_art: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
+      tech: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+      crypto: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
+    };
+    return colors[topic] || "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200";
+  };
+
+  const activeProfiles = profiles.filter(p => p.isActive);
+
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2" data-testid="text-reports-title">
             <FileText className="h-6 w-6" />
-            Daily Reports
+            Reports
           </h1>
           <p className="text-muted-foreground">
-            AI-generated market briefs from analyzed content (22:00 KST daily)
+            Bot-generated reports from analyzed content
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Select value={selectedTopic} onValueChange={setSelectedTopic}>
-            <SelectTrigger className="w-32" data-testid="select-topic">
-              <SelectValue />
+        <div className="flex items-center gap-2 flex-wrap">
+          <Select value={selectedProfileId} onValueChange={setSelectedProfileId}>
+            <SelectTrigger className="w-48" data-testid="select-profile">
+              <SelectValue placeholder="Select profile" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="ai_art">AI Art</SelectItem>
-              <SelectItem value="investing">Investing</SelectItem>
+              <SelectItem value="all">All Reports</SelectItem>
+              {activeProfiles.map((profile) => (
+                <SelectItem key={profile.id} value={String(profile.id)}>
+                  <div className="flex items-center gap-2">
+                    <Bot className="h-3 w-3" />
+                    {profile.name}
+                  </div>
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <Button
-            onClick={() => generateMutation.mutate(selectedTopic)}
-            disabled={generateMutation.isPending}
+            onClick={() => {
+              if (selectedProfileId !== "all") {
+                generateMutation.mutate(parseInt(selectedProfileId));
+              }
+            }}
+            disabled={generateMutation.isPending || selectedProfileId === "all"}
             data-testid="button-generate-report"
           >
             {generateMutation.isPending ? (
@@ -109,11 +155,17 @@ export default function Reports() {
             <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <h3 className="text-lg font-medium">No reports yet</h3>
             <p className="text-muted-foreground mt-1 mb-4">
-              Reports are generated daily at 22:00 KST, or click the button above to generate now
+              {selectedProfileId !== "all" 
+                ? "No reports for this profile yet. Click generate to create one."
+                : "Select a bot profile above to generate a report, or reports are created automatically for active bots."}
             </p>
             <Button
-              onClick={() => generateMutation.mutate(selectedTopic)}
-              disabled={generateMutation.isPending}
+              onClick={() => {
+                if (selectedProfileId !== "all") {
+                  generateMutation.mutate(parseInt(selectedProfileId));
+                }
+              }}
+              disabled={generateMutation.isPending || selectedProfileId === "all"}
               data-testid="button-generate-first-report"
             >
               {generateMutation.isPending ? (
@@ -121,62 +173,72 @@ export default function Reports() {
               ) : (
                 <Plus className="h-4 w-4 mr-2" />
               )}
-              Generate First Report
+              Generate Report
             </Button>
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-4">
-          {reports.map((report) => (
-            <Card key={report.id} className="hover-elevate" data-testid={`card-report-${report.id}`}>
-              <CardHeader className="pb-2">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <CardTitle className="text-base line-clamp-1">
-                      {report.title}
-                    </CardTitle>
-                    <CardDescription className="flex items-center gap-3 mt-1">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        {format(new Date(report.createdAt), "yyyy-MM-dd HH:mm")}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Hash className="h-3 w-3" />
-                        {report.itemsCount} items
-                      </span>
-                    </CardDescription>
+          {reports.map((report) => {
+            const profile = profiles.find(p => p.id === report.profileId);
+            
+            return (
+              <Card key={report.id} className="hover-elevate" data-testid={`card-report-${report.id}`}>
+                <CardHeader className="pb-2">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <CardTitle className="text-base line-clamp-1">
+                        {report.title}
+                      </CardTitle>
+                      <CardDescription className="flex items-center gap-3 mt-1 flex-wrap">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          {format(new Date(report.createdAt), "yyyy-MM-dd HH:mm")}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Hash className="h-3 w-3" />
+                          {report.itemsCount} items
+                        </span>
+                        {profile && (
+                          <span className="flex items-center gap-1">
+                            <Bot className="h-3 w-3" />
+                            {profile.name}
+                          </span>
+                        )}
+                      </CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge className={getTopicColor(report.topic)}>{report.topic}</Badge>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => setSelectedReport(report)}
+                            data-testid={`button-view-report-${report.id}`}
+                          >
+                            <Eye className="h-3 w-3 mr-1" />
+                            View
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-4xl max-h-[90vh]">
+                          <DialogHeader>
+                            <DialogTitle>{report.title}</DialogTitle>
+                          </DialogHeader>
+                          <ReportContent content={report.content} />
+                        </DialogContent>
+                      </Dialog>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline">{report.topic}</Badge>
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => setSelectedReport(report)}
-                          data-testid={`button-view-report-${report.id}`}
-                        >
-                          <Eye className="h-3 w-3 mr-1" />
-                          View
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-4xl max-h-[90vh]">
-                        <DialogHeader>
-                          <DialogTitle>{report.title}</DialogTitle>
-                        </DialogHeader>
-                        <ReportContent content={report.content} />
-                      </DialogContent>
-                    </Dialog>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground line-clamp-2">
-                  {report.content.substring(0, 200)}...
-                </p>
-              </CardContent>
-            </Card>
-          ))}
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground line-clamp-2">
+                    {report.content.substring(0, 200)}...
+                  </p>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>
