@@ -23,7 +23,33 @@ Preferred communication style: Simple, everyday language.
 - **Styling**: Tailwind CSS with CSS variables for theming
 - **Build Tool**: Vite with HMR support
 
-The frontend is a single-page application with pages for Dashboard, Items, Drafts, Observe, Reports, Sources, Settings, and Chat. Theme switching (light/dark) is supported via CSS custom properties.
+The frontend is a single-page application with pages for Dashboard, My Bots (Profiles), Items, Drafts, Observe, Reports, Sources, Settings, and Chat. Theme switching (light/dark) is supported via CSS custom properties.
+
+### Multi-User Profile System (Phase 1)
+
+The application now supports multi-user bot management with:
+
+**Core Concepts:**
+- **Topic**: Data separation layer (ai_art, investing, tech, crypto) - each source and profile is tied to a topic
+- **Preset**: Bot template defining default configuration and variants (daily_market_brief, community_engagement_helper, competitor_watch)
+- **Profile**: User's personalized bot instance created from a preset
+- **Variant**: Sub-type within a preset (e.g., crypto vs equity for daily_market_brief)
+
+**Database Tables:**
+- `presets` - Bot templates with default configs
+- `profiles` - User-specific bot instances with custom settings
+- `profile_sources` - Many-to-many linking profiles to sources
+
+**API Routes:**
+- `GET /api/presets` - List available bot templates
+- `GET/POST /api/profiles` - List user's bots or create new one
+- `GET/PUT/DELETE /api/profiles/:id` - Manage specific profile
+- `GET/PUT /api/profiles/:id/sources` - Manage sources linked to a profile
+- `GET/POST /api/user-sources` - User's sources (includes defaults)
+
+**Frontend Pages:**
+- `/profiles` - My Bots list with Create Bot wizard
+- `/profiles/:id` - Profile detail/edit page with schedule, config, and source selection
 
 ### Backend Architecture
 - **Runtime**: Node.js with TypeScript (tsx for development)
