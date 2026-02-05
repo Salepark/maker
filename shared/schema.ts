@@ -42,6 +42,7 @@ export const profiles = pgTable("profiles", {
   scheduleCron: text("schedule_cron").notNull().default("0 7 * * *"),
   configJson: jsonb("config_json").notNull().default({}),
   isActive: boolean("is_active").notNull().default(true),
+  lastRunAt: timestamp("last_run_at"), // Last report generation time
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -208,6 +209,20 @@ export const insertReportSchema = createInsertSchema(reports).omit({
 
 export type Report = typeof reports.$inferSelect;
 export type InsertReport = z.infer<typeof insertReportSchema>;
+
+// ============================================
+// OUTPUT_ITEMS - Report ↔ Item link (for precise tracking)
+// ============================================
+export const outputItems = pgTable("output_items", {
+  reportId: integer("report_id").notNull().references(() => reports.id, { onDelete: "cascade" }),
+  itemId: integer("item_id").notNull().references(() => items.id, { onDelete: "cascade" }),
+  rank: integer("rank").notNull().default(0), // Order in report
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  primaryKey({ columns: [table.reportId, table.itemId] })
+]);
+
+export type OutputItem = typeof outputItems.$inferSelect;
 
 export const conversations = pgTable("conversations", {
   id: serial("id").primaryKey(),
