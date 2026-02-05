@@ -25,9 +25,9 @@ Preferred communication style: Simple, everyday language.
 
 The frontend is a single-page application with pages for Dashboard, My Bots (Profiles), Items, Drafts, Observe, Reports, Sources, Settings, and Chat. Theme switching (light/dark) is supported via CSS custom properties.
 
-### Multi-User Profile System (Phase 1)
+### Multi-User Profile System (Phase 1 + Phase 2)
 
-The application now supports multi-user bot management with:
+The application now supports multi-user bot management with profile-based report generation:
 
 **Core Concepts:**
 - **Topic**: Data separation layer (ai_art, investing, tech, crypto) - each source and profile is tied to a topic
@@ -37,8 +37,15 @@ The application now supports multi-user bot management with:
 
 **Database Tables:**
 - `presets` - Bot templates with default configs
-- `profiles` - User-specific bot instances with custom settings
+- `profiles` - User-specific bot instances with custom settings (includes lastRunAt for scheduler)
 - `profile_sources` - Many-to-many linking profiles to sources
+- `output_items` - Links reports to the items they were generated from
+
+**Phase 2: Profile-Based Report Generation**
+- Reports are now generated per-profile with strict topic isolation
+- Topic mixing prevention: items.topic must match profile.topic
+- Source filtering: only items from profile's linked sources are included
+- Security: All report endpoints verify user ownership before access/generation
 
 **API Routes:**
 - `GET /api/presets` - List available bot templates
@@ -46,10 +53,13 @@ The application now supports multi-user bot management with:
 - `GET/PUT/DELETE /api/profiles/:id` - Manage specific profile
 - `GET/PUT /api/profiles/:id/sources` - Manage sources linked to a profile
 - `GET/POST /api/user-sources` - User's sources (includes defaults)
+- `GET /api/reports?profileId=X` - List reports (filtered by profile, user-scoped)
+- `POST /api/reports/generate` - Generate report for specific profile (requires profileId)
 
 **Frontend Pages:**
 - `/profiles` - My Bots list with Create Bot wizard
 - `/profiles/:id` - Profile detail/edit page with schedule, config, and source selection
+- `/reports` - Reports page with profile dropdown filter and per-profile generation
 
 ### Backend Architecture
 - **Runtime**: Node.js with TypeScript (tsx for development)
