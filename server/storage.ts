@@ -1,13 +1,13 @@
 import { db } from "./db";
 import { 
   sources, items, analysis, drafts, posts, reports, chatMessages, settings,
-  presets, profiles, profileSources,
+  presets, profiles, profileSources, outputItems,
   type Source, type Item, type Analysis, type Draft, type Post, type Report, 
   type InsertSource, type InsertItem, type InsertAnalysis, type InsertDraft, type InsertReport, 
   type ChatMessage, type InsertChatMessage, type Setting,
-  type Preset, type InsertPreset, type Profile, type InsertProfile
+  type Preset, type InsertPreset, type Profile, type InsertProfile, type OutputItem
 } from "@shared/schema";
-import { eq, desc, sql, and, count, gte, lt, or, isNull, inArray } from "drizzle-orm";
+import { eq, desc, sql, and, count, gte, lt, lte, or, isNull, inArray } from "drizzle-orm";
 
 export interface IStorage {
   getStats(): Promise<{
@@ -77,6 +77,18 @@ export interface IStorage {
   // Profile-Sources
   getProfileSources(profileId: number, userId: string): Promise<Source[]>;
   setProfileSources(profileId: number, userId: string, sourceIds: number[]): Promise<void>;
+
+  // Report Job helpers
+  getActiveReportProfiles(): Promise<(Profile & { presetOutputType: string })[]>;
+  getProfileSourceIds(profileId: number): Promise<number[]>;
+  getItemsForReport(topic: string, sourceIds: number[], lookbackHours: number, limit: number): Promise<(Item & { importanceScore: number; sourceName: string })[]>;
+  
+  // Outputs (reports) management
+  createOutput(data: InsertReport): Promise<Report>;
+  outputExists(profileId: number, periodStart: Date, periodEnd: Date): Promise<boolean>;
+  linkOutputItems(reportId: number, itemIds: number[]): Promise<void>;
+  listReportsByProfile(profileId: number, from?: Date, to?: Date): Promise<Report[]>;
+  updateProfileLastRunAt(profileId: number, runAt: Date): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -619,6 +631,130 @@ export class DatabaseStorage implements IStorage {
         sourceIds.map(sourceId => ({ profileId, sourceId }))
       );
     }
+  }
+
+  // ============================================
+  // REPORT JOB HELPERS
+  // ============================================
+  async getActiveReportProfiles(): Promise<(Profile & { presetOutputType: string })[]> {
+    const result = await db
+      .select({
+        profile: profiles,
+        presetOutputType: presets.outputType,
+      })
+      .from(profiles)
+      .innerJoin(presets, eq(profiles.presetId, presets.id))
+      .where(and(
+        eq(profiles.isActive, true),
+        eq(presets.outputType, "report")
+      ));
+
+    return result.map((r) => ({
+      ...r.profile,
+      presetOutputType: r.presetOutputType,
+    }));
+  }
+
+  async getProfileSourceIds(profileId: number): Promise<number[]> {
+    const result = await db
+      .select({ sourceId: profileSources.sourceId })
+      .from(profileSources)
+      .where(eq(profileSources.profileId, profileId));
+
+    return result.map((r) => r.sourceId);
+  }
+
+  async getItemsForReport(
+    topic: string,
+    sourceIds: number[],
+    lookbackHours: number,
+    limit: number
+  ): Promise<(Item & { importanceScore: number; sourceName: string })[]> {
+    if (sourceIds.length === 0) return [];
+
+    const cutoff = new Date(Date.now() - lookbackHours * 60 * 60 * 1000);
+
+    const result = await db
+      .select({
+        item: items,
+        importanceScore: analysis.importanceScore,
+        sourceName: sources.name,
+      })
+      .from(items)
+      .innerJoin(analysis, eq(items.id, analysis.itemId))
+      .innerJoin(sources, eq(items.sourceId, sources.id))
+      .where(and(
+        eq(items.topic, topic),
+        eq(items.status, "analyzed"),
+        inArray(items.sourceId, sourceIds),
+        gte(items.publishedAt, cutoff)
+      ))
+      .orderBy(desc(analysis.importanceScore))
+      .limit(limit);
+
+    return result.map((r) => ({
+      ...r.item,
+      importanceScore: r.importanceScore,
+      sourceName: r.sourceName,
+    }));
+  }
+
+  // ============================================
+  // OUTPUTS (REPORTS) MANAGEMENT
+  // ============================================
+  async createOutput(data: InsertReport): Promise<Report> {
+    const [report] = await db.insert(reports).values(data).returning();
+    return report;
+  }
+
+  async outputExists(profileId: number, periodStart: Date, periodEnd: Date): Promise<boolean> {
+    const [existing] = await db
+      .select({ id: reports.id })
+      .from(reports)
+      .where(and(
+        eq(reports.profileId, profileId),
+        gte(reports.periodStart, periodStart),
+        lte(reports.periodEnd, periodEnd)
+      ))
+      .limit(1);
+
+    return !!existing;
+  }
+
+  async linkOutputItems(reportId: number, itemIds: number[]): Promise<void> {
+    if (itemIds.length === 0) return;
+
+    await db.insert(outputItems).values(
+      itemIds.map((itemId, index) => ({
+        reportId,
+        itemId,
+        rank: index + 1,
+      }))
+    );
+  }
+
+  async listReportsByProfile(profileId: number, from?: Date, to?: Date): Promise<Report[]> {
+    const conditions = [eq(reports.profileId, profileId)];
+
+    if (from) {
+      conditions.push(gte(reports.createdAt, from));
+    }
+    if (to) {
+      conditions.push(lte(reports.createdAt, to));
+    }
+
+    return db
+      .select()
+      .from(reports)
+      .where(and(...conditions))
+      .orderBy(desc(reports.createdAt));
+  }
+
+  async updateProfileLastRunAt(profileId: number, runAt: Date): Promise<void> {
+    await db
+      .update(profiles)
+      .set({ lastRunAt: runAt })
+      .where(eq(profiles.id, profileId));
   }
 }
 
