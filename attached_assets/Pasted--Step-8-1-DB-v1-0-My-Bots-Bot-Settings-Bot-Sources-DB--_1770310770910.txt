@@ -1,0 +1,143 @@
+좋습니다. 그럼 Step 8-1 (DB/스키마 변경안) v1.0로 바로 갑니다.
+목표는 **“My Bots + Bot Settings + Bot↔Sources 연결”**을 DB에서 먼저 딱 잡는 겁니다.
+
+Step 8-1 (DB/스키마 변경안) v1.0
+1) 새 테이블 3개
+A. bots (사용자별 봇)
+
+한 사용자가 여러 봇을 가질 수 있게
+
+필드(추천):
+
+id (serial / uuid)
+
+profileId (FK, profiles/users와 연결)
+
+key (text) : 예) ai_art, investing
+
+name (text) : 표시명
+
+isEnabled (boolean, default true)
+
+createdAt
+
+B. bot_settings (봇 설정 1:1)
+
+봇 하나당 설정 1개 (현재는 1:1로 시작)
+
+필드(추천):
+
+id
+
+botId (FK, unique) ← 1:1 강제
+
+timezone (text, default "Asia/Seoul")
+
+scheduleRule (text, default "DAILY") // DAILY, WEEKDAYS 등
+
+scheduleTimeLocal (text, default "07:00") // “미국장 개장 전”은 추후 프리셋으로 변환
+
+format (text, default "clean")
+
+markdownLevel (text, default "minimal") // 지금 원하시는: 기호 최소화
+
+verbosity (text, default "normal")
+
+sectionsJson (json) // {tldr:true, drivers:true, ...}
+
+filtersJson (json) // minRelevance, riskMax 등
+
+updatedAt, createdAt
+
+C. source_bot_links (소스 ↔ 봇 연결)
+
+소스를 봇에 “연결/해제/우선순위” 주기 위한 링크 테이블
+
+필드(추천):
+
+sourceId (FK)
+
+botId (FK)
+
+isEnabled (boolean, default true)
+
+weight (int, default 3) // 1~5
+
+createdAt
+
+복합 PK 또는 unique:
+
+(sourceId, botId) unique
+
+2) 기존 sources 테이블 처리 전략 (중요)
+
+지금 sources에 topic 컬럼이 있는 구조죠.
+
+Step 8-1에서는 “topic 컬럼 유지”를 권장합니다.
+이유: 기존 파이프라인(collect/analyze)이 덜 흔들립니다.
+
+대신,
+
+새 UI/리포트/스케줄은 bot 중심으로 가되,
+
+수집/분석은 기존 topic 기반을 당분간 유지해도 됩니다.
+
+즉 “병행 운영”:
+
+기존: sources.topic → item.topic
+
+신규: source_bot_links → bot별 리포트/스케줄/필터
+
+나중에 안정되면 sources.topic 의존도를 줄이고 botId로 완전 전환.
+
+3) 마이그레이션 순서 (안전 루트)
+
+bots 생성
+
+bot_settings 생성
+
+source_bot_links 생성
+
+(선택) 기존 profile.topic 기반으로 기본 봇 2개 자동 생성
+
+ai_art, investing
+
+settings 기본값 채우기
+
+4) “기본 봇 자동 생성” 규칙 (초기 UX 필수)
+
+사용자 첫 로그인 시:
+
+ai_art 봇 자동 생성
+
+bot_settings도 자동 생성
+
+(선택) investing도 생성
+
+이렇게 해야 “아무것도 없어서 막막” 상황이 줄어듭니다.
+
+5) Drizzle 구현 위치 가이드
+
+shared/schema.ts
+
+bots, botSettings, sourceBotLinks 테이블 정의 추가
+
+drizzle-kit push
+
+마이그레이션 반영
+
+server/storage.ts
+
+createBot, getBotsByProfile, updateBotSettings, setBotSources 같은 repository 함수 추가
+
+6) 완료 체크(DB 단계)
+
+ bots 테이블 생성됨
+
+ bot_settings 테이블 생성됨(봇당 1개 강제)
+
+ source_bot_links 테이블 생성됨(소스-봇 연결)
+
+ 기존 sources.topic 구조는 유지됨(안정성 확보)
+
+다음 Step 8-2 v1.0는 API 설계/엔드포인트 + storage 함수 목록으로 가겠습니다.

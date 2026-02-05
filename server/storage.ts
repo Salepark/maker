@@ -2,11 +2,13 @@ import { db } from "./db";
 import { 
   sources, items, analysis, drafts, posts, reports, chatMessages, settings,
   presets, profiles, profileSources, outputs, outputItems,
+  bots, botSettings, sourceBotLinks,
   type Source, type Item, type Analysis, type Draft, type Post, type Report, 
   type InsertSource, type InsertItem, type InsertAnalysis, type InsertDraft, type InsertReport, 
   type ChatMessage, type InsertChatMessage, type Setting,
   type Preset, type InsertPreset, type Profile, type InsertProfile, 
-  type Output, type InsertOutput, type OutputItem
+  type Output, type InsertOutput, type OutputItem,
+  type Bot, type InsertBot, type BotSettings, type InsertBotSettings, type SourceBotLink
 } from "@shared/schema";
 import { eq, desc, sql, and, count, gte, lt, lte, or, isNull, inArray } from "drizzle-orm";
 
@@ -110,6 +112,28 @@ export interface IStorage {
   listOutputs(params: { userId: string; profileId?: number; from?: Date; to?: Date }): Promise<Output[]>;
   getOutputById(params: { userId: string; outputId: number }): Promise<Output | null>;
   updateProfileLastRunAt(profileId: number, runAt: Date): Promise<void>;
+
+  // ============================================
+  // BOTS - Step 8-1 Bot Management
+  // ============================================
+  listBots(userId: string): Promise<(Bot & { settings: BotSettings | null })[]>;
+  getBot(id: number, userId: string): Promise<(Bot & { settings: BotSettings | null }) | undefined>;
+  getBotByKey(userId: string, key: string): Promise<Bot | undefined>;
+  createBot(data: InsertBot): Promise<Bot>;
+  updateBot(id: number, userId: string, patch: Partial<InsertBot>): Promise<Bot | undefined>;
+  deleteBot(id: number, userId: string): Promise<void>;
+
+  // Bot Settings
+  getBotSettings(botId: number): Promise<BotSettings | undefined>;
+  createBotSettings(data: InsertBotSettings): Promise<BotSettings>;
+  updateBotSettings(botId: number, patch: Partial<Omit<InsertBotSettings, 'botId'>>): Promise<BotSettings | undefined>;
+
+  // Source-Bot Links
+  getBotSources(botId: number): Promise<(Source & { weight: number; isEnabled: boolean })[]>;
+  setBotSources(botId: number, userId: string, sourceData: Array<{ sourceId: number; weight?: number; isEnabled?: boolean }>): Promise<void>;
+
+  // Default bot creation on first login
+  ensureDefaultBots(userId: string): Promise<Bot[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -913,6 +937,196 @@ export class DatabaseStorage implements IStorage {
       .update(profiles)
       .set({ lastRunAt: runAt })
       .where(eq(profiles.id, profileId));
+  }
+
+  // ============================================
+  // BOTS - Step 8-1 Bot Management
+  // ============================================
+
+  async listBots(userId: string): Promise<(Bot & { settings: BotSettings | null })[]> {
+    const botsData = await db
+      .select()
+      .from(bots)
+      .where(eq(bots.userId, userId))
+      .orderBy(desc(bots.createdAt));
+
+    const result: (Bot & { settings: BotSettings | null })[] = [];
+    for (const bot of botsData) {
+      const [settings] = await db
+        .select()
+        .from(botSettings)
+        .where(eq(botSettings.botId, bot.id))
+        .limit(1);
+      result.push({ ...bot, settings: settings ?? null });
+    }
+    return result;
+  }
+
+  async getBot(id: number, userId: string): Promise<(Bot & { settings: BotSettings | null }) | undefined> {
+    const [bot] = await db
+      .select()
+      .from(bots)
+      .where(and(eq(bots.id, id), eq(bots.userId, userId)))
+      .limit(1);
+
+    if (!bot) return undefined;
+
+    const [settings] = await db
+      .select()
+      .from(botSettings)
+      .where(eq(botSettings.botId, bot.id))
+      .limit(1);
+
+    return { ...bot, settings: settings ?? null };
+  }
+
+  async getBotByKey(userId: string, key: string): Promise<Bot | undefined> {
+    const [bot] = await db
+      .select()
+      .from(bots)
+      .where(and(eq(bots.userId, userId), eq(bots.key, key)))
+      .limit(1);
+    return bot;
+  }
+
+  async createBot(data: InsertBot): Promise<Bot> {
+    const [bot] = await db.insert(bots).values(data).returning();
+    return bot;
+  }
+
+  async updateBot(id: number, userId: string, patch: Partial<InsertBot>): Promise<Bot | undefined> {
+    const [updated] = await db
+      .update(bots)
+      .set(patch)
+      .where(and(eq(bots.id, id), eq(bots.userId, userId)))
+      .returning();
+    return updated;
+  }
+
+  async deleteBot(id: number, userId: string): Promise<void> {
+    await db.delete(bots).where(and(eq(bots.id, id), eq(bots.userId, userId)));
+  }
+
+  // Bot Settings
+  async getBotSettings(botId: number): Promise<BotSettings | undefined> {
+    const [settings] = await db
+      .select()
+      .from(botSettings)
+      .where(eq(botSettings.botId, botId))
+      .limit(1);
+    return settings;
+  }
+
+  async createBotSettings(data: InsertBotSettings): Promise<BotSettings> {
+    const [settings] = await db.insert(botSettings).values(data).returning();
+    return settings;
+  }
+
+  async updateBotSettings(botId: number, patch: Partial<Omit<InsertBotSettings, 'botId'>>): Promise<BotSettings | undefined> {
+    const [updated] = await db
+      .update(botSettings)
+      .set({ ...patch, updatedAt: new Date() })
+      .where(eq(botSettings.botId, botId))
+      .returning();
+    return updated;
+  }
+
+  // Source-Bot Links
+  async getBotSources(botId: number): Promise<(Source & { weight: number; isEnabled: boolean })[]> {
+    const links = await db
+      .select({
+        source: sources,
+        weight: sourceBotLinks.weight,
+        isEnabled: sourceBotLinks.isEnabled,
+      })
+      .from(sourceBotLinks)
+      .innerJoin(sources, eq(sourceBotLinks.sourceId, sources.id))
+      .where(eq(sourceBotLinks.botId, botId));
+
+    return links.map(({ source, weight, isEnabled }) => ({
+      ...source,
+      weight,
+      isEnabled,
+    }));
+  }
+
+  async setBotSources(botId: number, userId: string, sourceData: Array<{ sourceId: number; weight?: number; isEnabled?: boolean }>): Promise<void> {
+    // Verify bot belongs to user
+    const [bot] = await db.select().from(bots).where(and(eq(bots.id, botId), eq(bots.userId, userId))).limit(1);
+    if (!bot) throw new Error("Bot not found or access denied");
+
+    // Delete existing links
+    await db.delete(sourceBotLinks).where(eq(sourceBotLinks.botId, botId));
+
+    // Insert new links
+    if (sourceData.length > 0) {
+      await db.insert(sourceBotLinks).values(
+        sourceData.map(({ sourceId, weight = 3, isEnabled = true }) => ({
+          botId,
+          sourceId,
+          weight,
+          isEnabled,
+        }))
+      );
+    }
+  }
+
+  // Default bot creation on first login
+  async ensureDefaultBots(userId: string): Promise<Bot[]> {
+    const existingBots = await db.select().from(bots).where(eq(bots.userId, userId));
+    if (existingBots.length > 0) {
+      return existingBots;
+    }
+
+    // Create default bots: ai_art and investing
+    const defaultBots = [
+      { key: "ai_art", name: "AI Art Monitor" },
+      { key: "investing", name: "Investing Brief" },
+    ];
+
+    const createdBots: Bot[] = [];
+    for (const botDef of defaultBots) {
+      const [bot] = await db.insert(bots).values({
+        userId,
+        key: botDef.key,
+        name: botDef.name,
+        isEnabled: true,
+      }).returning();
+
+      // Create default settings for this bot
+      await db.insert(botSettings).values({
+        botId: bot.id,
+        timezone: "Asia/Seoul",
+        scheduleRule: "DAILY",
+        scheduleTimeLocal: "07:00",
+        format: "clean",
+        markdownLevel: "minimal",
+        verbosity: "normal",
+        sectionsJson: { tldr: true, drivers: true, risk: true, checklist: true, sources: true },
+        filtersJson: { minImportanceScore: 0, maxRiskLevel: 100 },
+      });
+
+      // Link default sources for this topic
+      const defaultSources = await db
+        .select()
+        .from(sources)
+        .where(and(eq(sources.isDefault, true), eq(sources.topic, botDef.key)));
+
+      if (defaultSources.length > 0) {
+        await db.insert(sourceBotLinks).values(
+          defaultSources.map(s => ({
+            botId: bot.id,
+            sourceId: s.id,
+            weight: 3,
+            isEnabled: true,
+          }))
+        );
+      }
+
+      createdBots.push(bot);
+    }
+
+    return createdBots;
   }
 }
 

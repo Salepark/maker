@@ -100,7 +100,94 @@ export type Source = typeof sources.$inferSelect;
 export type InsertSource = z.infer<typeof insertSourceSchema>;
 
 // ============================================
-// PROFILE_SOURCES - Profile ↔ Source connection
+// BOTS - User's bot instances (Step 8-1)
+// ============================================
+export const bots = pgTable("bots", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  key: text("key").notNull(), // e.g., "ai_art", "investing"
+  name: text("name").notNull(),
+  isEnabled: boolean("is_enabled").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("bots_user_key_unique").on(table.userId, table.key)
+]);
+
+export const insertBotSchema = createInsertSchema(bots).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type Bot = typeof bots.$inferSelect;
+export type InsertBot = z.infer<typeof insertBotSchema>;
+
+// ============================================
+// BOT_SETTINGS - Bot settings 1:1 (Step 8-1)
+// ============================================
+export const botSettings = pgTable("bot_settings", {
+  id: serial("id").primaryKey(),
+  botId: integer("bot_id").notNull().references(() => bots.id, { onDelete: "cascade" }).unique(), // 1:1 enforced
+  timezone: text("timezone").notNull().default("Asia/Seoul"),
+  scheduleRule: text("schedule_rule").notNull().default("DAILY"), // DAILY, WEEKDAYS, WEEKENDS
+  scheduleTimeLocal: text("schedule_time_local").notNull().default("07:00"), // HH:MM format
+  format: text("format").notNull().default("clean"),
+  markdownLevel: text("markdown_level").notNull().default("minimal"),
+  verbosity: text("verbosity").notNull().default("normal"), // short, normal, detailed
+  sectionsJson: jsonb("sections_json").notNull().default({
+    tldr: true,
+    drivers: true,
+    risk: true,
+    checklist: true,
+    sources: true
+  }),
+  filtersJson: jsonb("filters_json").notNull().default({
+    minImportanceScore: 0,
+    maxRiskLevel: 100
+  }),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertBotSettingsSchema = createInsertSchema(botSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type BotSettings = typeof botSettings.$inferSelect;
+export type InsertBotSettings = z.infer<typeof insertBotSettingsSchema>;
+
+// BotSettingsConfig - typed structure for sectionsJson and filtersJson
+export interface BotSectionsConfig {
+  tldr?: boolean;
+  drivers?: boolean;
+  risk?: boolean;
+  checklist?: boolean;
+  sources?: boolean;
+}
+
+export interface BotFiltersConfig {
+  minImportanceScore?: number;
+  maxRiskLevel?: number;
+}
+
+// ============================================
+// SOURCE_BOT_LINKS - Source ↔ Bot connection (Step 8-1)
+// ============================================
+export const sourceBotLinks = pgTable("source_bot_links", {
+  sourceId: integer("source_id").notNull().references(() => sources.id, { onDelete: "cascade" }),
+  botId: integer("bot_id").notNull().references(() => bots.id, { onDelete: "cascade" }),
+  isEnabled: boolean("is_enabled").notNull().default(true),
+  weight: integer("weight").notNull().default(3), // 1-5
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  primaryKey({ columns: [table.sourceId, table.botId] })
+]);
+
+export type SourceBotLink = typeof sourceBotLinks.$inferSelect;
+
+// ============================================
+// PROFILE_SOURCES - Profile ↔ Source connection (legacy, kept for compatibility)
 // ============================================
 export const profileSources = pgTable("profile_sources", {
   profileId: integer("profile_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),

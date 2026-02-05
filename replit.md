@@ -41,6 +41,30 @@ The application now supports multi-user bot management with profile-based report
 - `profile_sources` - Many-to-many linking profiles to sources
 - `output_items` - Links reports to the items they were generated from
 
+**Step 8-1: New Bot Management Tables (병행 운영)**
+- `bots` - User's bot instances (userId, key, name, isEnabled)
+  - Unique constraint on (userId, key) to prevent duplicate bots per user
+- `bot_settings` - Bot settings 1:1 (botId unique FK)
+  - timezone, scheduleRule (DAILY/WEEKDAYS/WEEKENDS), scheduleTimeLocal
+  - format, markdownLevel (minimal/normal), verbosity (short/normal/detailed)
+  - sectionsJson: { tldr, drivers, risk, checklist, sources }
+  - filtersJson: { minImportanceScore, maxRiskLevel }
+- `source_bot_links` - Source ↔ Bot connection
+  - sourceId, botId (composite PK), isEnabled, weight (1-5)
+
+**Storage Functions (Step 8-1):**
+- `listBots(userId)` - Get all bots for a user with settings
+- `getBot(id, userId)` - Get single bot with settings
+- `createBot(data)` - Create new bot
+- `updateBot(id, userId, patch)` - Update bot
+- `deleteBot(id, userId)` - Delete bot
+- `getBotSettings(botId)` - Get bot's settings
+- `createBotSettings(data)` - Create settings for bot
+- `updateBotSettings(botId, patch)` - Update settings
+- `getBotSources(botId)` - Get sources linked to bot
+- `setBotSources(botId, userId, sourceData)` - Set bot's sources
+- `ensureDefaultBots(userId)` - Create default ai_art and investing bots on first login
+
 **Phase 2: Profile-Based Report Generation**
 - Reports are now generated per-profile with strict topic isolation
 - Topic mixing prevention: items.topic must match profile.topic
