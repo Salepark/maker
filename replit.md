@@ -84,8 +84,23 @@ Core tables:
 ### LLM Integration
 - **Provider**: Anthropic Claude API
 - **Model**: claude-sonnet-4-5-20250929 (configurable via CLAUDE_MODEL env)
-- **Prompts**: Korean-language prompts for community-appropriate responses
+- **Prompts**: Topic-based prompt routing (ai_art vs investing)
 - **Output**: Structured JSON for analysis and draft generation
+
+### AI Art Community Contribution Mode
+The ai_art topic operates in "community contribution mode" with zero promotional content:
+
+**Three-Layer Protection:**
+1. **Prompt Layer**: LLM instructed to never include links, brands, or promotional language
+2. **Validation Layer**: Server-side regex checks reject drafts with URLs, forbidden brands, or promo patterns
+3. **Storage Layer**: Forces `includesLink=false` for all ai_art drafts
+
+**Forbidden Content:**
+- URLs and links of any kind
+- Brand mentions: aiartmarket, civitai, promptbase, artstation, deviantart
+- Promotional phrases: "check out", "I recommend", "sign up", "free trial", etc.
+
+**Goal:** Build community reputation as a helpful, knowledgeable user — not a promotional bot
 
 ### Command Chat Feature
 Natural language interface for bot control using Claude to parse commands.
