@@ -7,6 +7,10 @@ import { ThemeProvider } from "@/lib/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+import { useAuth } from "@/hooks/use-auth";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Loader2 } from "lucide-react";
 
 import Dashboard from "@/pages/dashboard";
 import Items from "@/pages/items";
@@ -17,6 +21,7 @@ import Reports from "@/pages/reports";
 import Sources from "@/pages/sources";
 import Settings from "@/pages/settings";
 import Chat from "@/pages/chat";
+import Landing from "@/pages/landing";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -36,30 +41,70 @@ function Router() {
   );
 }
 
-function App() {
+function AuthenticatedApp() {
+  const { user } = useAuth();
   const style = {
     "--sidebar-width": "16rem",
     "--sidebar-width-icon": "3rem",
   };
 
+  const userInitials = user?.firstName && user?.lastName
+    ? `${user.firstName[0]}${user.lastName[0]}`
+    : user?.email?.[0]?.toUpperCase() || "U";
+
+  return (
+    <SidebarProvider style={style as React.CSSProperties}>
+      <div className="flex h-screen w-full">
+        <AppSidebar />
+        <div className="flex flex-col flex-1 overflow-hidden">
+          <header className="flex items-center justify-between p-3 border-b border-border bg-background shrink-0">
+            <SidebarTrigger data-testid="button-sidebar-toggle" />
+            <div className="flex items-center gap-3">
+              <ThemeToggle />
+              <div className="flex items-center gap-2">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={user?.profileImageUrl || undefined} />
+                  <AvatarFallback>{userInitials}</AvatarFallback>
+                </Avatar>
+                <Button variant="ghost" size="sm" asChild data-testid="button-logout">
+                  <a href="/api/logout">Logout</a>
+                </Button>
+              </div>
+            </div>
+          </header>
+          <main className="flex-1 overflow-auto bg-muted/30">
+            <Router />
+          </main>
+        </div>
+      </div>
+    </SidebarProvider>
+  );
+}
+
+function AppContent() {
+  const { isLoading, isAuthenticated } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Landing />;
+  }
+
+  return <AuthenticatedApp />;
+}
+
+function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="light">
         <TooltipProvider>
-          <SidebarProvider style={style as React.CSSProperties}>
-            <div className="flex h-screen w-full">
-              <AppSidebar />
-              <div className="flex flex-col flex-1 overflow-hidden">
-                <header className="flex items-center justify-between p-3 border-b border-border bg-background shrink-0">
-                  <SidebarTrigger data-testid="button-sidebar-toggle" />
-                  <ThemeToggle />
-                </header>
-                <main className="flex-1 overflow-auto bg-muted/30">
-                  <Router />
-                </main>
-              </div>
-            </div>
-          </SidebarProvider>
+          <AppContent />
           <Toaster />
         </TooltipProvider>
       </ThemeProvider>
