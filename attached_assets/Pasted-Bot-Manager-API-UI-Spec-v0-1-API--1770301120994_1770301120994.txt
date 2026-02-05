@@ -1,0 +1,351 @@
+Bot Manager – API & UI Spec v0.1
+
+이 문서는:
+
+어떤 화면이 필요하고
+
+각 화면이 어떤 기능을 가져야 하며
+
+이를 위해 어떤 API가 필요한지를 정의합니다.
+
+이 문서 이후부터는 순수 구현 단계로 들어갈 수 있습니다.
+
+1. 핵심 UX 철학 (v0.1)
+
+사용자는 Profile 단위로 봇을 다룬다
+
+사용자는:
+
+소스를 고르고
+
+스케줄을 정하고
+
+옵션을 조정하고
+
+결과(Report/Draft/Alert)를 본다
+
+Preset/Variant는 마법사(wizard)처럼 선택하고
+
+그 다음은 Profile 편집 화면에서 모든 걸 조정한다
+
+2. 필수 화면 목록
+
+v0.1에서 필요한 화면:
+
+Dashboard
+
+Profiles (봇 설정 관리)
+
+Sources (소스 관리)
+
+Reports (리포트 보기)
+
+Drafts (초안 보기, 커뮤니티용)
+
+Settings (계정/공통 설정, 최소)
+
+3. 화면별 상세 설계
+3.1 Dashboard
+
+목적:
+
+내 봇들이 지금 어떻게 돌고 있는지 한눈에 보기
+
+표시 요소:
+
+Active Profiles 목록
+
+이름
+
+Preset
+
+Topic
+
+다음 실행 시간
+
+최근 생성된 Outputs
+
+Report 3~5개
+
+Draft 3~5개
+
+필요 API:
+
+GET /api/dashboard/summary
+
+반환:
+
+profiles 요약
+
+recent outputs
+
+3.2 Profiles (핵심 화면)
+
+목적:
+
+“내 봇” 만들기 / 수정 / 복제 / 비활성화
+
+기능:
+
+Profile 목록 보기
+
+새 Profile 만들기 (Wizard)
+
+Preset 선택
+
+Variant 선택 (있으면)
+
+Topic 선택
+
+기본 이름 생성
+
+Profile 편집:
+
+이름
+
+활성/비활성
+
+Topic (v0.1에서는 생성 후 변경 비권장)
+
+Sources 선택 (체크박스)
+
+Schedule 설정 (시간 + timezone)
+
+옵션(config_json):
+
+중요도 가중치(슬라이더)
+
+리포트 길이(짧음/보통/김)
+
+포함 섹션 토글
+
+필요 API:
+
+GET /api/profiles
+
+POST /api/profiles
+
+GET /api/profiles/:id
+
+PUT /api/profiles/:id
+
+DELETE /api/profiles/:id
+
+POST /api/profiles/:id/clone
+
+3.3 Sources
+
+목적:
+
+어떤 재료로 요리할지 고르는 곳
+
+기능:
+
+Source 목록 보기 (topic별 필터)
+
+기본 추천 소스 표시 (is_default=true)
+
+Source on/off (프로필 단위는 Profiles 화면에서)
+
+사용자 Source 추가:
+
+name
+
+url
+
+type (rss)
+
+topic
+
+Source 수정/삭제 (자기 것만)
+
+필요 API:
+
+GET /api/sources
+
+POST /api/sources
+
+PUT /api/sources/:id
+
+DELETE /api/sources/:id
+
+추가:
+
+GET /api/source-bundles (추천 세트, v0.2 가능)
+
+3.4 Reports
+
+목적:
+
+리포트 결과 열람
+
+기능:
+
+Profile별 필터
+
+날짜별 필터
+
+Report 목록:
+
+title
+
+period
+
+created_at
+
+Report 상세 보기:
+
+content_text 그대로 표시
+
+필요 API:
+
+GET /api/reports?profile_id=&from=&to=
+
+GET /api/reports/:id
+
+3.5 Drafts (커뮤니티용)
+
+목적:
+
+생성된 댓글 초안 검토/승인/폐기
+
+기능:
+
+Profile별 필터
+
+상태별 필터 (pending / approved / rejected)
+
+Draft 상세 보기
+
+상태 변경:
+
+approve
+
+reject
+
+edit (간단 수정)
+
+필요 API:
+
+GET /api/drafts?profile_id=&status=
+
+GET /api/drafts/:id
+
+PUT /api/drafts/:id
+
+POST /api/drafts/:id/approve
+
+POST /api/drafts/:id/reject
+
+3.6 Settings
+
+목적:
+
+계정/공통 설정 (v0.1 최소)
+
+기능:
+
+내 계정 정보
+
+기본 timezone 설정
+
+기본 언어 (나중에 사용)
+
+필요 API:
+
+GET /api/me
+
+PUT /api/me
+
+4. Preset & Variant 제공 방식 (v0.1)
+
+Preset은 서버에 초기 데이터로 시드
+
+API:
+
+GET /api/presets
+
+각 Preset에는:
+
+key
+
+name
+
+output_type
+
+지원 Variant 목록
+
+UI:
+
+“새 Profile 만들기” Wizard에서:
+
+Preset 선택
+
+Variant 선택 (있으면)
+
+5. Job 관리 API (내부용, 최소)
+
+POST /api/jobs/run/collect
+
+POST /api/jobs/run/analyze
+
+POST /api/jobs/run/output
+
+(관리자 또는 개발용 트리거, v0.1에서는 UI 노출 안 해도 됨)
+
+6. 권한/보안 규칙 (v0.1)
+
+모든 Profile, Source, Output은:
+
+user_id 기준으로 접근 제한
+
+다른 사용자의 데이터 접근 불가
+
+Preset은 읽기 전용
+
+7. v0.1 구현 우선순위
+
+Profiles CRUD + UI
+
+Sources CRUD + Profile-Sources 연결 UI
+
+Collect / Analyze / Report Job 연결
+
+Reports 화면
+
+Dashboard 요약
+
+Drafts (후순위)
+
+8. 이 문서의 위치
+
+이 문서는:
+
+“무엇을 만들어야 하는지”를 정의하는 제작 설계도
+
+이제 이걸 기준으로:
+
+Replit Assistant에게
+
+“이 API부터 만들어라”
+
+“이 화면부터 만들어라”
+같은 작업 지시서를 쪼갤 수 있음
+
+9. 다음 단계
+
+다음 단계는 이제 진짜 제작 단계 문서입니다:
+
+Bot Manager – Implementation Plan v0.1
+
+1주차: 무엇부터
+
+2주차: 무엇까지
+
+어떤 순서로 PR/커밋/기능 추가할지
+
+또는, 바로:
+
+“Replit Assistant용 개발 지시서 v0.1 – Phase 1 (Profiles + Sources)”
+
+로 들어가도 됩니다.
