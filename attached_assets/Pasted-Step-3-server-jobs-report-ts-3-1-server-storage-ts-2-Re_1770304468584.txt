@@ -1,0 +1,281 @@
+Step 3: server/jobs/report.ts 만들기 (복붙용)
+3-1) 먼저, server/storage.ts에 “딱 2개” 함수 추가
+
+Report Job이 Profile 기준으로 아이템을 뽑으려면 아래 2개가 필요합니다.
+
+(1) Profile이 선택한 sourceId 목록 가져오기
+// server/storage.ts
+
+import { eq } from "drizzle-orm";
+import { profileSources } from "../shared/schema"; // ✅ 당신 schema 이름이 다르면 맞춰주세요
+
+export class Storage {
+  // ...
+
+  async getProfileSourceIds(params: { userId: number; profileId: number }): Promise<number[]> {
+    // ✅ userId 검증이 필요하면 profiles 테이블 조인해서 확인해도 되지만,
+    // v0.1에서는 단순 구현으로 진행합니다.
+    const rows = await this.db
+      .select({ sourceId: profileSources.sourceId })
+      .from(profileSources)
+      .where(eq(profileSources.profileId, params.profileId));
+
+    return rows.map((r) => r.sourceId);
+  }
+
+  // ...
+}
+
+(2) “topic + 선택된 sources + 최근 24h + analyzed” 조건으로 아이템 가져오기
+// server/storage.ts
+
+import { and, desc, eq, gte, inArray, lte } from "drizzle-orm";
+import { items, analysis } from "../shared/schema"; // ✅ 이름 맞춰주세요
+
+export class Storage {
+  // ...
+
+  async listAnalyzedItemsForReport(params: {
+    topic: string;
+    sourceIds: number[];
+    periodStart: Date;
+    periodEnd: Date;
+    limit?: number;
+  }): Promise<
+    Array<{
+      id: number;
+      title: string | null;
+      url: string | null;
+      sourceName: string | null;
+      publishedAt: Date | null;
+      relevanceScore: number | null;
+      replyWorthinessScore: number | null;
+      summaryShort: string | null;
+    }>
+  > {
+    if (!params.sourceIds.length) return [];
+
+    const limit = params.limit ?? 50;
+
+    const rows = await this.db
+      .select({
+        id: items.id,
+        title: items.title,
+        url: items.url,
+        sourceName: items.sourceName,
+        publishedAt: items.publishedAt,
+        relevanceScore: analysis.relevanceScore,
+        replyWorthinessScore: analysis.replyWorthinessScore,
+        summaryShort: analysis.summaryShort,
+      })
+      .from(items)
+      .innerJoin(analysis, eq(analysis.itemId, items.id))
+      .where(
+        and(
+          eq(items.topic, params.topic),
+          inArray(items.sourceId, params.sourceIds),
+          eq(items.status, "analyzed"),
+          gte(items.publishedAt, params.periodStart),
+          lte(items.publishedAt, params.periodEnd)
+        )
+      )
+      .orderBy(desc(analysis.relevanceScore))
+      .limit(limit);
+
+    return rows;
+  }
+
+  // ...
+}
+
+
+✅ 완료 체크: TypeScript 에러 없이 빌드가 된다.
+
+⚠️ 주의: 위에서 profileSources, items, analysis의 테이블 export 이름이 당신 프로젝트와 다르면 schema.ts의 실제 이름에 맞춰 바꾸기만 하면 됩니다. (로직은 그대로)
+
+3-2) 이제 server/jobs/report.ts 생성 (복붙용)
+// server/jobs/report.ts
+
+import { storage } from "../storage";
+
+// ✅ 필요하면 프로젝트에 있는 preset 조회 방식에 맞춰 바꾸세요.
+// v0.1에서는 preset을 "daily_market_brief" 하나로 고정해도 됩니다.
+const REPORT_OUTPUT_TYPE = "report";
+const DEFAULT_PICK = 12;
+
+function hoursAgo(h: number) {
+  const d = new Date();
+  d.setHours(d.getHours() - h);
+  return d;
+}
+
+// 아주 단순한 텍스트 리포트 생성(LLM 없이도 OK)
+function buildPlainReport(params: {
+  title: string;
+  periodStart: Date;
+  periodEnd: Date;
+  items: Array<{
+    title: string | null;
+    url: string | null;
+    sourceName: string | null;
+    relevanceScore: number | null;
+    replyWorthinessScore: number | null;
+    summaryShort: string | null;
+  }>;
+}) {
+  const lines: string[] = [];
+  lines.push(params.title);
+  lines.push(
+    `Period: ${params.periodStart.toISOString()} ~ ${params.periodEnd.toISOString()}`
+  );
+  lines.push("");
+
+  if (!params.items.length) {
+    lines.push("No analyzed items found for this period.");
+    return lines.join("\n");
+  }
+
+  lines.push("Top Items:");
+  params.items.forEach((it, idx) => {
+    const score =
+      (it.relevanceScore ?? 0) * 0.6 + (it.replyWorthinessScore ?? 0) * 0.4;
+    const head = `${idx + 1}) ${it.title ?? "(no title)"} — ${it.sourceName ?? "unknown"} (score ${Math.round(
+      score
+    )})`;
+    lines.push(head);
+    if (it.summaryShort) lines.push(`   - ${it.summaryShort}`);
+    if (it.url) lines.push(`   - ${it.url}`);
+  });
+
+  return lines.join("\n");
+}
+
+/**
+ * ✅ Phase 2 핵심: profile 기준으로 report 생성
+ *
+ * 동작:
+ * - 활성 profile 중 "report" outputType에 해당하는 것만 처리
+ * - profile.topic + profile_sources로 선택된 sourceIds만 사용
+ * - analyzed items(최근 24h)로 report 생성 → outputs 저장 → output_items 연결
+ */
+export async function generateReports(): Promise<number> {
+  console.log("[ReportJob] Starting report generation...");
+
+  // v0.1 단순 가정: userId=1
+  const userId = 1;
+
+  // 1) profiles 가져오기 (기존 함수가 있다면 그걸 쓰세요)
+  const profiles = await storage.listProfiles(userId);
+
+  // 2) preset 정보가 필요하면 여기서 조회 (프로젝트에 이미 있으면 사용)
+  const presets = await storage.listPresets();
+  const presetById = new Map(presets.map((p: any) => [p.id, p]));
+
+  const periodEnd = new Date();
+  const periodStart = hoursAgo(24);
+
+  let created = 0;
+
+  for (const profile of profiles) {
+    if (!profile.isActive) continue;
+
+    const preset = presetById.get(profile.presetId);
+    if (!preset) continue;
+
+    // ✅ report preset만
+    if (preset.outputType !== REPORT_OUTPUT_TYPE) continue;
+
+    const topic = profile.topic;
+
+    // 3) profile이 선택한 sources
+    const sourceIds = await storage.getProfileSourceIds({
+      userId,
+      profileId: profile.id,
+    });
+
+    if (!sourceIds.length) {
+      console.log(`[ReportJob] Skip profile #${profile.id} (no sources selected)`);
+      continue;
+    }
+
+    // 4) 기간 중 analyzed items만 가져오기 (topic + sourceIds 강제)
+    const candidates = await storage.listAnalyzedItemsForReport({
+      topic,
+      sourceIds,
+      periodStart,
+      periodEnd,
+      limit: 80,
+    });
+
+    // 5) 간단 스코어링 + URL 중복 제거 + 상위 N개
+    const seenUrl = new Set<string>();
+    const ranked = candidates
+      .map((it) => ({
+        ...it,
+        _score:
+          (it.relevanceScore ?? 0) * 0.6 + (it.replyWorthinessScore ?? 0) * 0.4,
+      }))
+      .sort((a, b) => b._score - a._score)
+      .filter((it) => {
+        if (!it.url) return true;
+        if (seenUrl.has(it.url)) return false;
+        seenUrl.add(it.url);
+        return true;
+      })
+      .slice(0, DEFAULT_PICK);
+
+    // 6) 중복 생성 방지 (같은 profile + 같은 기간)
+    const exists = await storage.outputExists(profile.id, periodStart, periodEnd);
+    if (exists) {
+      console.log(`[ReportJob] Skip profile #${profile.id} (already exists for period)`);
+      continue;
+    }
+
+    // 7) outputs 저장
+    const title = `Daily Brief — ${topic} — ${periodStart.toISOString().slice(0, 10)}`;
+    const contentText = buildPlainReport({
+      title,
+      periodStart,
+      periodEnd,
+      items: ranked,
+    });
+
+    const out = await storage.createOutput({
+      userId,
+      profileId: profile.id,
+      presetId: profile.presetId,
+      topic,
+      outputType: "report",
+      title,
+      contentText,
+      periodStart,
+      periodEnd,
+    });
+
+    // 8) output_items 연결
+    await storage.linkOutputItems(out.id, ranked.map((x) => x.id));
+
+    created++;
+    console.log(`✓ [ReportJob] Created report #${out.id} for profile #${profile.id} (${topic})`);
+  }
+
+  console.log(`[ReportJob] Done. Created ${created} reports.`);
+  return created;
+}
+
+3-3) 바로 테스트 (수동 1회 실행)
+
+어딘가(예: server/index.ts 또는 scheduler 시작 부분)에 임시로 한 줄 넣어서 실행 테스트하세요.
+
+import { generateReports } from "./jobs/report";
+
+generateReports().catch(console.error);
+
+
+✅ 완료 체크:
+
+서버 로그에 Created report #...가 뜨고
+
+DB outputs에 레코드가 1개 이상 생긴다.
+
+다음은 Step 4: scheduler에 report job을 1분마다 호출 + profile별 lastRunAt로 하루 1회만 생성으로 갑니다.

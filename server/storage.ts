@@ -83,6 +83,22 @@ export interface IStorage {
   getActiveReportProfiles(): Promise<(Profile & { presetOutputType: string })[]>;
   getProfileSourceIds(profileId: number): Promise<number[]>;
   getItemsForReport(topic: string, sourceIds: number[], lookbackHours: number, limit: number): Promise<(Item & { importanceScore: number; sourceName: string })[]>;
+  listAnalyzedItemsForReport(params: {
+    topic: string;
+    sourceIds: number[];
+    periodStart: Date;
+    periodEnd: Date;
+    limit?: number;
+  }): Promise<Array<{
+    id: number;
+    title: string | null;
+    url: string;
+    sourceName: string;
+    publishedAt: Date | null;
+    relevanceScore: number | null;
+    replyWorthinessScore: number | null;
+    summaryShort: string;
+  }>>;
   
   // Outputs (new unified table) management
   createOutputRecord(data: InsertOutput): Promise<Output>;
@@ -699,6 +715,55 @@ export class DatabaseStorage implements IStorage {
       importanceScore: r.importanceScore,
       sourceName: r.sourceName,
     }));
+  }
+
+  async listAnalyzedItemsForReport(params: {
+    topic: string;
+    sourceIds: number[];
+    periodStart: Date;
+    periodEnd: Date;
+    limit?: number;
+  }): Promise<Array<{
+    id: number;
+    title: string | null;
+    url: string;
+    sourceName: string;
+    publishedAt: Date | null;
+    relevanceScore: number | null;
+    replyWorthinessScore: number | null;
+    summaryShort: string;
+  }>> {
+    if (!params.sourceIds.length) return [];
+
+    const limit = params.limit ?? 50;
+
+    const rows = await db
+      .select({
+        id: items.id,
+        title: items.title,
+        url: items.url,
+        sourceName: sources.name,
+        publishedAt: items.publishedAt,
+        relevanceScore: analysis.relevanceScore,
+        replyWorthinessScore: analysis.replyWorthinessScore,
+        summaryShort: analysis.summaryShort,
+      })
+      .from(items)
+      .innerJoin(analysis, eq(analysis.itemId, items.id))
+      .innerJoin(sources, eq(sources.id, items.sourceId))
+      .where(
+        and(
+          eq(items.topic, params.topic),
+          inArray(items.sourceId, params.sourceIds),
+          eq(items.status, "analyzed"),
+          gte(items.publishedAt, params.periodStart),
+          lte(items.publishedAt, params.periodEnd)
+        )
+      )
+      .orderBy(desc(analysis.relevanceScore))
+      .limit(limit);
+
+    return rows;
   }
 
   // ============================================

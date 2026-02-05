@@ -57,13 +57,14 @@ export async function generateReportsForDueProfiles(): Promise<ReportJobResult[]
 
       if (items.length === 0) {
         console.log(`[ReportJob] No items found for profile ${profile.id}, creating empty report`);
-        const report = await storage.createOutput({
+        const report = await storage.createOutputRecord({
+          userId: profile.userId,
           profileId: profile.id,
+          presetId: profile.presetId,
           topic: profile.topic,
+          outputType: "report",
           title: `${profile.name} - No Data`,
-          content: `# ${profile.name}\n\n> 분석된 아이템이 없습니다.`,
-          itemsCount: 0,
-          itemIdsJson: [],
+          contentText: `# ${profile.name}\n\n> 분석된 아이템이 없습니다.`,
           periodStart,
           periodEnd,
         });
@@ -118,13 +119,14 @@ export async function generateReportsForDueProfiles(): Promise<ReportJobResult[]
       console.log(`[ReportJob] Calling LLM for profile ${profile.id}...`);
       const content = await callLLM(prompt, 3, 4000);
 
-      const report = await storage.createOutput({
+      const report = await storage.createOutputRecord({
+        userId: profile.userId,
         profileId: profile.id,
+        presetId: profile.presetId,
         topic: profile.topic,
+        outputType: "report",
         title: `${profile.name} - ${today}`,
-        content,
-        itemsCount: items.length,
-        itemIdsJson: items.map((i) => i.id),
+        contentText: content,
         periodStart,
         periodEnd,
       });
@@ -223,13 +225,14 @@ export async function generateReportForProfile(profileId: number): Promise<Repor
     content = await callLLM(prompt, 3, 4000);
   }
 
-  const report = await storage.createOutput({
+  const report = await storage.createOutputRecord({
+    userId: profile.userId,
     profileId: profile.id,
+    presetId: profile.presetId,
     topic: profile.topic,
+    outputType: "report",
     title: `${profile.name} - ${today}`,
-    content,
-    itemsCount: items.length,
-    itemIdsJson: items.map((i) => i.id),
+    contentText: content,
     periodStart,
     periodEnd,
   });

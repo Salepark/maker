@@ -275,6 +275,9 @@ export async function registerRoutes(
       const fromParam = req.query.from;
       const toParam = req.query.to;
 
+      const from = fromParam ? new Date(fromParam as string) : undefined;
+      const to = toParam ? new Date(toParam as string) : undefined;
+
       if (profileIdParam) {
         const profileId = parseInt(profileIdParam as string);
         
@@ -283,28 +286,12 @@ export async function registerRoutes(
           return res.status(404).json({ error: "Profile not found" });
         }
 
-        const from = fromParam ? new Date(fromParam as string) : undefined;
-        const to = toParam ? new Date(toParam as string) : undefined;
-        
-        const reports = await storage.listReportsByProfile(profileId, from, to);
-        return res.json(reports);
+        const outputs = await storage.listOutputs({ userId, profileId, from, to });
+        return res.json(outputs);
       }
 
-      const userProfiles = await storage.listProfiles(userId);
-      const profileIds = userProfiles.map(p => p.id);
-      
-      if (profileIds.length === 0) {
-        return res.json([]);
-      }
-
-      const allReports: any[] = [];
-      for (const pid of profileIds) {
-        const profileReports = await storage.listReportsByProfile(pid);
-        allReports.push(...profileReports);
-      }
-      allReports.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      
-      res.json(allReports.slice(0, 20));
+      const outputs = await storage.listOutputs({ userId, from, to });
+      res.json(outputs);
     } catch (error) {
       console.error("Error getting reports:", error);
       res.status(500).json({ error: "Failed to get reports" });
@@ -318,22 +305,14 @@ export async function registerRoutes(
         return res.status(401).json({ error: "Unauthorized" });
       }
 
-      const id = parseInt(req.params.id);
-      const report = await storage.getReport(id);
-      if (!report) {
+      const outputId = parseInt(req.params.id);
+      const output = await storage.getOutputById({ userId, outputId });
+      
+      if (!output) {
         return res.status(404).json({ error: "Report not found" });
       }
 
-      if (!report.profileId) {
-        return res.status(404).json({ error: "Report not found" });
-      }
-
-      const profile = await storage.getProfile(report.profileId, userId);
-      if (!profile) {
-        return res.status(404).json({ error: "Report not found" });
-      }
-
-      res.json(report);
+      res.json(output);
     } catch (error) {
       console.error("Error getting report:", error);
       res.status(500).json({ error: "Failed to get report" });

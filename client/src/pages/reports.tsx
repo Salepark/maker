@@ -6,20 +6,22 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileText, Plus, Loader2, Calendar, Hash, Eye, Bot } from "lucide-react";
+import { FileText, Plus, Loader2, Calendar, Eye, Bot } from "lucide-react";
 import { format } from "date-fns";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 interface Report {
   id: number;
-  profileId: number | null;
+  profileId: number;
+  userId: string;
+  presetId: number;
   topic: string;
+  outputType: string;
   title: string;
-  content: string;
-  itemsCount: number;
-  periodStart: string | null;
-  periodEnd: string | null;
+  contentText: string;
+  periodStart: string;
+  periodEnd: string;
   createdAt: string;
 }
 
@@ -195,10 +197,6 @@ export default function Reports() {
                           <Calendar className="h-3 w-3" />
                           {format(new Date(report.createdAt), "yyyy-MM-dd HH:mm")}
                         </span>
-                        <span className="flex items-center gap-1">
-                          <Hash className="h-3 w-3" />
-                          {report.itemsCount} items
-                        </span>
                         {profile && (
                           <span className="flex items-center gap-1">
                             <Bot className="h-3 w-3" />
@@ -225,7 +223,7 @@ export default function Reports() {
                           <DialogHeader>
                             <DialogTitle>{report.title}</DialogTitle>
                           </DialogHeader>
-                          <ReportContent content={report.content} />
+                          <ReportContent content={report.contentText} />
                         </DialogContent>
                       </Dialog>
                     </div>
@@ -233,7 +231,7 @@ export default function Reports() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground line-clamp-2">
-                    {report.content.substring(0, 200)}...
+                    {report.contentText?.substring(0, 200) || ""}...
                   </p>
                 </CardContent>
               </Card>
