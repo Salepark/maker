@@ -1,0 +1,278 @@
+Phase 2 Implementation Checklist v0.1 (Commit 단위)
+Commit 01 — Schema 보강: outputs + output_items (+ items.topic 확인)
+
+목표: 리포트 저장/추적 구조를 DB에 고정
+
+shared/schema.ts
+
+outputs 테이블 추가(또는 기존 reports 테이블을 outputs로 통합)
+
+output_items 테이블 추가
+
+items에 topic, status, externalId, sourceId가 이미 있는지 확인
+
+없으면 추가
+
+drizzle-kit push 적용
+
+✅ 완료 기준
+
+DB에 outputs, output_items 생성됨
+
+items가 topic/status/externalId/sourceId로 topic 분리 가능한 상태
+
+Commit 02 — Storage 확장: outputs / output_items / source list helpers
+
+목표: Jobs가 쓸 저장소 API를 완비
+
+server/storage.ts
+
+Sources
+
+listEnabledSources() (enabled=true)
+
+sourceExistsByExternalId(sourceId, externalId) 또는 findItemByExternalId(...)
+
+Items
+
+createItem(...)
+
+getItemsByStatus(status, limit)
+
+Analysis
+
+createAnalysis(...)
+
+Outputs
+
+createOutput(...)
+
+outputExists(profileId, periodStart, periodEnd) (중복 방지)
+
+linkOutputItems(outputId, itemIds[])
+
+listOutputs({ profileId, from, to })
+
+getOutput(id)
+
+(옵션) getOutputItems(outputId)
+
+✅ 완료 기준
+
+Job 코드에서 DB 직접 접근 없이 storage.*로 다 처리 가능
+
+Commit 03 — Collect Job: RSS → items (topic 강제 + 중복 방지)
+
+목표: Sources에서 items가 쌓이기 시작
+
+server/jobs/collect.ts (신규 또는 수정)
+
+흐름:
+
+const sources = await storage.listEnabledSources()
+
+rss-parser로 각 source.url fetch
+
+entry마다 externalId = guid || link || hash(...)
+
+존재하면 skip
+
+item.topic = source.topic 강제
+
+status="new" 저장
+
+server/services/rss.ts 같은 유틸이 있으면 거기에 파싱/정규화 분리(선택)
+
+✅ 완료 기준
+
+서버 로그에 “Collected N items” 찍힘
+
+DB items에 topic이 source.topic으로 정확히 들어감
+
+같은 글이 반복 저장되지 않음
+
+Commit 04 — Analyze Job: new → analysis → analyzed (topic 섞임 방지 강화)
+
+목표: new 아이템이 analyzed로 넘어감
+
+server/jobs/analyze.ts (현재 있는 코드 수정)
+
+필수 수정 포인트
+
+프롬프트 입력에 topic을 포함
+
+저장 시 analysis.topic = item.topic 강제
+
+sourceRules는 source.rulesJson이 아니라면 제거/기본값 처리
+
+결과에 따라 status:
+
+성공: analyzed
+
+spam/irrelevant 강한 경우: skipped
+
+실패: error 또는 new 유지 + errorCount (간단히 error 권장)
+
+server/llm/prompts.ts (또는 buildAnalyzePrompt 위치)
+
+topic 필드 추가해서 모델이 “지금 무엇을 분석 중인지” 확실히 알게 하기
+
+✅ 완료 기준
+
+/api/items에서 new가 줄고 analyzed가 늘어남
+
+analysis 테이블에 itemId별 레코드 생성
+
+topic 불일치가 발생하면 분석이 멈추고 로그로 잡힘
+
+Commit 05 — Report Job(핵심): profile 기준 outputs 생성 + output_items 연결
+
+목표: “투자 리포트에 AI Art 섞임” 재발 방지
+
+server/jobs/report.ts (신규)
+
+함수: generateReportsForDueProfiles()
+
+처리:
+
+profiles 중 preset.outputType="report" & isActive=true 가져오기
+
+각 profile에 대해:
+
+profile.topic = T
+
+selectedSourceIds = await storage.getProfileSourceIds(profileId)
+
+items 조회 조건:
+
+items.topic = T
+
+items.sourceId in selectedSourceIds
+
+items.status = analyzed
+
+publishedAt within 24h(또는 period)
+
+상위 N개 선정(importance_score/relevance 기준)
+
+outputExists면 스킵
+
+outputs 생성
+
+output_items로 item 연결
+
+선정 로직(v0.1 단순)
+
+importanceScore(없으면 relevanceScore) 내림차순
+
+url 중복 제거
+
+N=12 정도
+
+✅ 완료 기준
+
+outputs에 report 생성됨
+
+output_items에 포함 itemId들이 매핑됨
+
+profile/topic 다른 데이터가 섞여 들어갈 수 없는 조회 조건을 사용함
+
+Commit 06 — Scheduler 연결: Collect/Analyze/Report 자동 실행
+
+목표: 버튼 안 눌러도 시스템이 돈다
+
+server/jobs/scheduler.ts (또는 기존 cron 위치)
+
+Collect: 10분마다
+
+Analyze: 5분마다
+
+Report: 매 분 실행하되 “지금 실행할 profile만” 수행(간단 구현)
+
+v0.1 “지금 실행할 profile” 간단 판별(추천)
+
+profiles에 lastRunAt(report용) 필드 하나 추가하고,
+
+매 분:
+
+shouldRun(profile.scheduleCron, profile.timezone, lastRunAt)이면 실행
+
+실행 후 lastRunAt 업데이트
+
+✅ 완료 기준
+
+서버 띄워두면 자동으로:
+
+items 늘고
+
+analyzed 늘고
+
+report 생김
+
+Commit 07 — Reports API: outputs 조회/상세
+
+목표: UI가 데이터 읽을 수 있게
+
+server/routes.ts
+
+GET /api/reports?profileId=&from=&to=
+
+GET /api/reports/:id
+
+(선택) GET /api/reports/:id/items
+
+server/storage.ts에 이미 만든 함수 호출
+
+✅ 완료 기준
+
+Postman/브라우저에서 reports 목록/상세 JSON 확인 가능
+
+Commit 08 — Reports UI 연결
+
+목표: 사람이 읽을 수 있게
+
+client/pages/Reports.tsx (또는 현재 Reports 페이지)
+
+profile 선택 드롭다운 (GET /api/profiles)
+
+reports 리스트 (GET /api/reports?profileId=)
+
+상세 보기 모달/페이지 (GET /api/reports/:id)
+
+마크다운 렌더링은 Phase 3, 지금은 plain text로도 OK
+
+✅ 완료 기준
+
+profile별로 보고서가 분리되어 보임
+
+report 클릭하면 본문이 뜸
+
+Commit 09 — 섞임 방지 “회귀 테스트” 체크 (수동 테스트라도 문서화)
+
+목표: 다시 섞이면 바로 잡히게
+
+테스트 절차(수동):
+
+topic=ai_art profile 만들고 ai_art sources만 연결
+
+topic=investing profile 만들고 investing sources만 연결
+
+Collect/Analyze 기다린 뒤 Report 생성 확인
+
+investing report에 ai_art sourceName/url이 단 1개라도 들어가면 실패
+
+가능하면 간단한 내부 검증 로그도 추가:
+
+Report 생성 직전, 포함될 item들의 source.topic을 검사해서 profile.topic과 다르면 throw
+
+✅ 완료 기준
+
+investing 리포트는 investing 소스만
+
+ai_art 리포트는 ai_art 소스만
+
+“지금 당신 코드 상태” 기준으로 우선순위 한 줄 정리
+
+이미 Collect/Analyze 일부가 돌아가고 있으니(로그도 있음):
+Commit 05(Report Job) + Commit 06(Scheduler/lastRunAt) + Commit 07~08(Reports API/UI)
+이 4개가 가장 먼저 체감됩니다.
