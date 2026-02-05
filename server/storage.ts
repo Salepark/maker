@@ -78,7 +78,9 @@ export interface IStorage {
 
   // Profile-Sources
   getProfileSources(profileId: number, userId: string): Promise<Source[]>;
-  setProfileSources(profileId: number, userId: string, sourceIds: number[]): Promise<void>;
+  getProfileSourcesWithWeight(profileId: number, userId: string): Promise<(Source & { weight: number; isEnabled: boolean })[]>;
+  setProfileSources(profileId: number, userId: string, sourceData: Array<{ sourceId: number; weight?: number; isEnabled?: boolean }>): Promise<void>;
+  updateProfileSourceWeight(profileId: number, userId: string, sourceId: number, weight: number): Promise<void>;
 
   // Report Job helpers
   getActiveReportProfiles(): Promise<(Profile & { presetOutputType: string })[]>;
@@ -572,10 +574,14 @@ export class DatabaseStorage implements IStorage {
       isActive: existing.isActive,
     });
     
-    // Also clone profile sources
-    const existingSources = await this.getProfileSources(id, userId);
+    // Also clone profile sources with weights
+    const existingSources = await this.getProfileSourcesWithWeight(id, userId);
     if (existingSources.length > 0) {
-      await this.setProfileSources(newProfile.id, userId, existingSources.map(s => s.id));
+      await this.setProfileSources(
+        newProfile.id, 
+        userId, 
+        existingSources.map(s => ({ sourceId: s.id, weight: s.weight, isEnabled: s.isEnabled }))
+      );
     }
 
     return newProfile;
@@ -631,7 +637,6 @@ export class DatabaseStorage implements IStorage {
   // PROFILE-SOURCES
   // ============================================
   async getProfileSources(profileId: number, userId: string): Promise<Source[]> {
-    // First verify profile belongs to user
     const profile = await this.getProfile(profileId, userId);
     if (!profile) return [];
 
@@ -644,17 +649,37 @@ export class DatabaseStorage implements IStorage {
     return result.map(r => r.source);
   }
 
-  async setProfileSources(profileId: number, userId: string, sourceIds: number[]): Promise<void> {
-    // First verify profile belongs to user
+  async getProfileSourcesWithWeight(profileId: number, userId: string): Promise<(Source & { weight: number; isEnabled: boolean })[]> {
+    const profile = await this.getProfile(profileId, userId);
+    if (!profile) return [];
+
+    const result = await db
+      .select({ 
+        source: sources, 
+        weight: profileSources.weight,
+        isEnabled: profileSources.isEnabled
+      })
+      .from(profileSources)
+      .innerJoin(sources, eq(profileSources.sourceId, sources.id))
+      .where(eq(profileSources.profileId, profileId))
+      .orderBy(desc(profileSources.weight));
+
+    return result.map(r => ({ ...r.source, weight: r.weight, isEnabled: r.isEnabled }));
+  }
+
+  async setProfileSources(
+    profileId: number, 
+    userId: string, 
+    sourceData: Array<{ sourceId: number; weight?: number; isEnabled?: boolean }>
+  ): Promise<void> {
     const profile = await this.getProfile(profileId, userId);
     if (!profile) return;
 
-    // Delete existing connections
     await db.delete(profileSources).where(eq(profileSources.profileId, profileId));
 
-    // Insert new connections (with topic validation)
-    if (sourceIds.length > 0) {
-      // Fetch sources and filter only those matching profile's topic
+    if (sourceData.length > 0) {
+      const sourceIds = sourceData.map(s => s.sourceId);
+      
       const validSources = await db
         .select({ id: sources.id })
         .from(sources)
@@ -663,18 +688,37 @@ export class DatabaseStorage implements IStorage {
           eq(sources.topic, profile.topic)
         ));
 
-      const validSourceIds = validSources.map(s => s.id);
+      const validSourceIds = new Set(validSources.map(s => s.id));
 
-      if (validSourceIds.length !== sourceIds.length) {
-        console.warn(`[setProfileSources] Topic mismatch: ${sourceIds.length - validSourceIds.length} sources filtered out for profile ${profileId} (topic: ${profile.topic})`);
+      if (validSourceIds.size !== sourceIds.length) {
+        console.warn(`[setProfileSources] Topic mismatch: ${sourceIds.length - validSourceIds.size} sources filtered out for profile ${profileId} (topic: ${profile.topic})`);
       }
 
-      if (validSourceIds.length > 0) {
+      const validData = sourceData.filter(s => validSourceIds.has(s.sourceId));
+
+      if (validData.length > 0) {
         await db.insert(profileSources).values(
-          validSourceIds.map(sourceId => ({ profileId, sourceId }))
+          validData.map(s => ({ 
+            profileId, 
+            sourceId: s.sourceId,
+            weight: s.weight ?? 3,
+            isEnabled: s.isEnabled ?? true
+          }))
         );
       }
     }
+  }
+  
+  async updateProfileSourceWeight(profileId: number, userId: string, sourceId: number, weight: number): Promise<void> {
+    const profile = await this.getProfile(profileId, userId);
+    if (!profile) return;
+    
+    await db.update(profileSources)
+      .set({ weight: Math.min(5, Math.max(1, weight)) })
+      .where(and(
+        eq(profileSources.profileId, profileId),
+        eq(profileSources.sourceId, sourceId)
+      ));
   }
 
   // ============================================

@@ -562,13 +562,22 @@ export async function registerRoutes(
       if (!userId) return res.status(401).json({ error: "Unauthorized" });
       
       const profileId = parseInt(req.params.id);
-      const { sourceIds } = req.body;
+      const { sourceIds, sources: sourcesWithWeight } = req.body;
       
-      if (!Array.isArray(sourceIds)) {
-        return res.status(400).json({ error: "sourceIds must be an array" });
+      // Support both formats: simple sourceIds array or sources with weight
+      let sourceData: Array<{ sourceId: number; weight?: number; isEnabled?: boolean }>;
+      
+      if (sourcesWithWeight && Array.isArray(sourcesWithWeight)) {
+        // New format: [{ sourceId, weight, isEnabled }]
+        sourceData = sourcesWithWeight;
+      } else if (sourceIds && Array.isArray(sourceIds)) {
+        // Legacy format: [1, 2, 3] - convert to new format with default weight
+        sourceData = sourceIds.map((id: number) => ({ sourceId: id }));
+      } else {
+        return res.status(400).json({ error: "sourceIds or sources must be an array" });
       }
       
-      await storage.setProfileSources(profileId, userId, sourceIds);
+      await storage.setProfileSources(profileId, userId, sourceData);
       res.json({ ok: true });
     } catch (error) {
       console.error("Error setting profile sources:", error);
