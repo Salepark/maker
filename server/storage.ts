@@ -1,11 +1,12 @@
 import { db } from "./db";
 import { 
   sources, items, analysis, drafts, posts, reports, chatMessages, settings,
-  presets, profiles, profileSources, outputItems,
+  presets, profiles, profileSources, outputs, outputItems,
   type Source, type Item, type Analysis, type Draft, type Post, type Report, 
   type InsertSource, type InsertItem, type InsertAnalysis, type InsertDraft, type InsertReport, 
   type ChatMessage, type InsertChatMessage, type Setting,
-  type Preset, type InsertPreset, type Profile, type InsertProfile, type OutputItem
+  type Preset, type InsertPreset, type Profile, type InsertProfile, 
+  type Output, type InsertOutput, type OutputItem
 } from "@shared/schema";
 import { eq, desc, sql, and, count, gte, lt, lte, or, isNull, inArray } from "drizzle-orm";
 
@@ -83,11 +84,12 @@ export interface IStorage {
   getProfileSourceIds(profileId: number): Promise<number[]>;
   getItemsForReport(topic: string, sourceIds: number[], lookbackHours: number, limit: number): Promise<(Item & { importanceScore: number; sourceName: string })[]>;
   
-  // Outputs (reports) management
-  createOutput(data: InsertReport): Promise<Report>;
+  // Outputs (new unified table) management
+  createOutputRecord(data: InsertOutput): Promise<Output>;
   outputExists(profileId: number, periodStart: Date, periodEnd: Date): Promise<boolean>;
-  linkOutputItems(reportId: number, itemIds: number[]): Promise<void>;
-  listReportsByProfile(profileId: number, from?: Date, to?: Date): Promise<Report[]>;
+  linkOutputItems(outputId: number, itemIds: number[]): Promise<void>;
+  listOutputs(params: { userId: string; profileId?: number; from?: Date; to?: Date }): Promise<Output[]>;
+  getOutputById(params: { userId: string; outputId: number }): Promise<Output | null>;
   updateProfileLastRunAt(profileId: number, runAt: Date): Promise<void>;
 }
 
@@ -700,54 +702,75 @@ export class DatabaseStorage implements IStorage {
   }
 
   // ============================================
-  // OUTPUTS (REPORTS) MANAGEMENT
+  // OUTPUTS (NEW UNIFIED TABLE) MANAGEMENT
   // ============================================
-  async createOutput(data: InsertReport): Promise<Report> {
-    const [report] = await db.insert(reports).values(data).returning();
-    return report;
-  }
-
+  
   async outputExists(profileId: number, periodStart: Date, periodEnd: Date): Promise<boolean> {
-    const [existing] = await db
-      .select({ id: reports.id })
-      .from(reports)
+    const rows = await db
+      .select({ id: outputs.id })
+      .from(outputs)
       .where(and(
-        eq(reports.profileId, profileId),
-        gte(reports.periodStart, periodStart),
-        lte(reports.periodEnd, periodEnd)
+        eq(outputs.profileId, profileId),
+        eq(outputs.periodStart, periodStart),
+        eq(outputs.periodEnd, periodEnd)
       ))
       .limit(1);
 
-    return !!existing;
+    return rows.length > 0;
   }
 
-  async linkOutputItems(reportId: number, itemIds: number[]): Promise<void> {
+  async createOutputRecord(data: InsertOutput): Promise<Output> {
+    const [output] = await db.insert(outputs).values(data).returning();
+    return output;
+  }
+
+  async linkOutputItems(outputId: number, itemIds: number[]): Promise<void> {
     if (itemIds.length === 0) return;
 
     await db.insert(outputItems).values(
-      itemIds.map((itemId, index) => ({
-        reportId,
+      itemIds.map((itemId) => ({
+        outputId,
         itemId,
-        rank: index + 1,
       }))
     );
   }
 
-  async listReportsByProfile(profileId: number, from?: Date, to?: Date): Promise<Report[]> {
-    const conditions = [eq(reports.profileId, profileId)];
+  async listOutputs(params: { userId: string; profileId?: number; from?: Date; to?: Date }): Promise<Output[]> {
+    const conditions = [
+      eq(outputs.userId, params.userId),
+      eq(outputs.outputType, "report")
+    ];
 
-    if (from) {
-      conditions.push(gte(reports.createdAt, from));
+    if (params.profileId) {
+      conditions.push(eq(outputs.profileId, params.profileId));
     }
-    if (to) {
-      conditions.push(lte(reports.createdAt, to));
+    if (params.from) {
+      conditions.push(gte(outputs.createdAt, params.from));
+    }
+    if (params.to) {
+      conditions.push(lte(outputs.createdAt, params.to));
     }
 
     return db
       .select()
-      .from(reports)
+      .from(outputs)
       .where(and(...conditions))
-      .orderBy(desc(reports.createdAt));
+      .orderBy(desc(outputs.createdAt))
+      .limit(50);
+  }
+
+  async getOutputById(params: { userId: string; outputId: number }): Promise<Output | null> {
+    const rows = await db
+      .select()
+      .from(outputs)
+      .where(and(
+        eq(outputs.id, params.outputId),
+        eq(outputs.userId, params.userId),
+        eq(outputs.outputType, "report")
+      ))
+      .limit(1);
+
+    return rows[0] ?? null;
   }
 
   async updateProfileLastRunAt(profileId: number, runAt: Date): Promise<void> {
