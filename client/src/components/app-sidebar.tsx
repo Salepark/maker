@@ -1,4 +1,4 @@
-import { LayoutDashboard, FileText, Rss, CheckCircle, Settings, Eye, FileBarChart, MessageCircle } from "lucide-react";
+import { LayoutDashboard, FileText, Rss, CheckCircle, Settings, Eye, FileBarChart, MessageCircle, Bot } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -15,12 +15,13 @@ import {
 
 const menuItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Items", url: "/items", icon: FileText },
-  { title: "Drafts", url: "/drafts", icon: CheckCircle },
-  { title: "Observe", url: "/observe", icon: Eye },
-  { title: "Reports", url: "/reports", icon: FileBarChart },
-  { title: "Chat", url: "/chat", icon: MessageCircle },
+  { title: "My Bots", url: "/profiles", icon: Bot },
   { title: "Sources", url: "/sources", icon: Rss },
+  { title: "Reports", url: "/reports", icon: FileBarChart },
+  { title: "Drafts", url: "/drafts", icon: CheckCircle },
+  { title: "Items", url: "/items", icon: FileText },
+  { title: "Observe", url: "/observe", icon: Eye },
+  { title: "Chat", url: "/chat", icon: MessageCircle },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 

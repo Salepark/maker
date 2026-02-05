@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { collectFromSource, collectAllSources } from "./services/rss";
@@ -6,11 +6,20 @@ import { startScheduler, stopScheduler, getSchedulerStatus, runCollectNow, runAn
 import { parseCommand } from "./chat/command-parser";
 import { executeCommand } from "./chat/executor";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
+import { runAllSeeds } from "./seed";
+
+function getUserId(req: Request): string | undefined {
+  const user = req.user as any;
+  return user?.claims?.sub;
+}
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  
+  // Run seeds on startup
+  await runAllSeeds();
   
   // Setup auth BEFORE registering other routes
   await setupAuth(app);
@@ -333,6 +342,265 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("Error processing chat command:", error);
       res.status(500).json({ ok: false, error: error?.message ?? String(error) });
+    }
+  });
+
+  // ============================================
+  // PRESETS API
+  // ============================================
+  app.get("/api/presets", isAuthenticated, async (_req, res) => {
+    try {
+      const presetList = await storage.listPresets();
+      res.json(presetList);
+    } catch (error) {
+      console.error("Error getting presets:", error);
+      res.status(500).json({ error: "Failed to get presets" });
+    }
+  });
+
+  // ============================================
+  // PROFILES API
+  // ============================================
+  app.get("/api/profiles", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const profileList = await storage.listProfiles(userId);
+      res.json(profileList);
+    } catch (error) {
+      console.error("Error getting profiles:", error);
+      res.status(500).json({ error: "Failed to get profiles" });
+    }
+  });
+
+  app.post("/api/profiles", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const { presetId, name, topic, variantKey, timezone, scheduleCron, configJson, isActive } = req.body;
+      
+      if (!presetId || !name || !topic) {
+        return res.status(400).json({ error: "presetId, name, and topic are required" });
+      }
+
+      const profile = await storage.createProfile({
+        userId,
+        presetId,
+        name,
+        topic,
+        variantKey: variantKey || null,
+        timezone: timezone || "Asia/Seoul",
+        scheduleCron: scheduleCron || "0 7 * * *",
+        configJson: configJson || {},
+        isActive: isActive ?? true,
+      });
+      res.json(profile);
+    } catch (error) {
+      console.error("Error creating profile:", error);
+      res.status(500).json({ error: "Failed to create profile" });
+    }
+  });
+
+  app.get("/api/profiles/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const id = parseInt(req.params.id);
+      const profile = await storage.getProfile(id, userId);
+      
+      if (!profile) {
+        return res.status(404).json({ error: "Profile not found" });
+      }
+      
+      res.json(profile);
+    } catch (error) {
+      console.error("Error getting profile:", error);
+      res.status(500).json({ error: "Failed to get profile" });
+    }
+  });
+
+  app.put("/api/profiles/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const id = parseInt(req.params.id);
+      const { name, isActive, timezone, scheduleCron, configJson } = req.body;
+      
+      const profile = await storage.updateProfile(id, userId, {
+        name,
+        isActive,
+        timezone,
+        scheduleCron,
+        configJson,
+      });
+      
+      if (!profile) {
+        return res.status(404).json({ error: "Profile not found" });
+      }
+      
+      res.json(profile);
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      res.status(500).json({ error: "Failed to update profile" });
+    }
+  });
+
+  app.delete("/api/profiles/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const id = parseInt(req.params.id);
+      await storage.deleteProfile(id, userId);
+      res.json({ ok: true });
+    } catch (error) {
+      console.error("Error deleting profile:", error);
+      res.status(500).json({ error: "Failed to delete profile" });
+    }
+  });
+
+  app.post("/api/profiles/:id/clone", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const id = parseInt(req.params.id);
+      const cloned = await storage.cloneProfile(id, userId);
+      
+      if (!cloned) {
+        return res.status(404).json({ error: "Profile not found" });
+      }
+      
+      res.json(cloned);
+    } catch (error) {
+      console.error("Error cloning profile:", error);
+      res.status(500).json({ error: "Failed to clone profile" });
+    }
+  });
+
+  // ============================================
+  // PROFILE-SOURCES API
+  // ============================================
+  app.get("/api/profiles/:id/sources", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const profileId = parseInt(req.params.id);
+      const sources = await storage.getProfileSources(profileId, userId);
+      res.json(sources);
+    } catch (error) {
+      console.error("Error getting profile sources:", error);
+      res.status(500).json({ error: "Failed to get profile sources" });
+    }
+  });
+
+  app.put("/api/profiles/:id/sources", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const profileId = parseInt(req.params.id);
+      const { sourceIds } = req.body;
+      
+      if (!Array.isArray(sourceIds)) {
+        return res.status(400).json({ error: "sourceIds must be an array" });
+      }
+      
+      await storage.setProfileSources(profileId, userId, sourceIds);
+      res.json({ ok: true });
+    } catch (error) {
+      console.error("Error setting profile sources:", error);
+      res.status(500).json({ error: "Failed to set profile sources" });
+    }
+  });
+
+  // ============================================
+  // SOURCES API (with userId support)
+  // ============================================
+  app.get("/api/user-sources", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const topic = req.query.topic as string | undefined;
+      const sourceList = await storage.listSources(userId, topic);
+      res.json(sourceList);
+    } catch (error) {
+      console.error("Error getting sources:", error);
+      res.status(500).json({ error: "Failed to get sources" });
+    }
+  });
+
+  app.post("/api/user-sources", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const { name, url, type, topic, enabled } = req.body;
+      
+      if (!name || !url || !topic) {
+        return res.status(400).json({ error: "name, url, and topic are required" });
+      }
+
+      const source = await storage.createUserSource(userId, {
+        name,
+        url,
+        type: type || "rss",
+        topic,
+        enabled: enabled ?? true,
+      });
+      res.json(source);
+    } catch (error: any) {
+      console.error("Error creating source:", error);
+      if (error.code === "23505") {
+        return res.status(400).json({ error: "Source with this URL already exists" });
+      }
+      res.status(500).json({ error: "Failed to create source" });
+    }
+  });
+
+  app.put("/api/user-sources/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const sourceId = parseInt(req.params.id);
+      const { name, url, topic, enabled } = req.body;
+      
+      const source = await storage.updateUserSource(userId, sourceId, {
+        name,
+        url,
+        topic,
+        enabled,
+      });
+      
+      if (!source) {
+        return res.status(404).json({ error: "Source not found or not owned by user" });
+      }
+      
+      res.json(source);
+    } catch (error) {
+      console.error("Error updating source:", error);
+      res.status(500).json({ error: "Failed to update source" });
+    }
+  });
+
+  app.delete("/api/user-sources/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const sourceId = parseInt(req.params.id);
+      await storage.deleteUserSource(userId, sourceId);
+      res.json({ ok: true });
+    } catch (error) {
+      console.error("Error deleting source:", error);
+      res.status(500).json({ error: "Failed to delete source" });
     }
   });
 

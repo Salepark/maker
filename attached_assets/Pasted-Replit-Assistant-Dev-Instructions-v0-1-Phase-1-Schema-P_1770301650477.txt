@@ -1,0 +1,376 @@
+Replit Assistant Dev Instructions v0.1 — Phase 1
+
+(Schema + Presets + Profiles/Sources UI/API)
+
+목표 (Definition of Done)
+
+사용자가 아래를 할 수 있어야 한다.
+
+Preset 목록을 보고 새 Profile(봇 설정)을 만든다
+
+Profile에서 Topic/Variant/스케줄/옵션을 설정한다
+
+Sources를 추가/수정/삭제한다
+
+Profile 편집 화면에서 Sources를 체크박스로 선택해 연결한다
+
+Reports/Drafts는 아직 “빈 화면이어도” 괜찮다 (Phase 2에서 채움)
+
+A. DB 스키마 변경 (shared/schema.ts)
+A1) 신규/수정 테이블
+
+아래 테이블(또는 동등 구조)을 구현해라.
+
+presets
+
+id (serial PK)
+
+key (text unique, not null) 예: "daily_market_brief"
+
+name (text not null)
+
+outputType (text not null) 예: "report" | "draft" | "alert"
+
+description (text, nullable)
+
+variantsJson (jsonb, not null default '[]') 예: ["investing", "ai_art"]
+
+createdAt (timestamp default now)
+
+profiles
+
+id (serial PK)
+
+userId (int FK users.id)
+
+presetId (int FK presets.id)
+
+name (text not null)
+
+topic (text not null) 예: "investing" | "ai_art"
+
+variantKey (text nullable)
+
+timezone (text not null default "Asia/Seoul")
+
+scheduleCron (text not null) 예: "0 7 * * *"
+
+configJson (jsonb not null default '{}')
+
+isActive (boolean not null default true)
+
+createdAt (timestamp default now)
+
+sources
+
+id (serial PK)
+
+userId (int nullable)
+
+null이면 시스템 기본 소스
+
+값이 있으면 사용자 소스
+
+name (text not null)
+
+type (text not null default "rss")
+
+url (text not null)
+
+topic (text not null)
+
+enabled (boolean not null default true)
+
+isDefault (boolean not null default false)
+
+createdAt (timestamp default now)
+
+profile_sources (연결 테이블)
+
+profileId (int FK profiles.id)
+
+sourceId (int FK sources.id)
+
+createdAt (timestamp default now)
+
+primary key(profileId, sourceId)
+
+주의: users 테이블이 이미 있으면 그대로 사용하고, 없으면 최소 users를 만들어라.
+Phase 1에서는 인증이 단순해도 된다(단일 admin 유저 가정 가능).
+
+A2) 마이그레이션 적용
+
+drizzle-kit push로 DB 반영
+
+(선택) seed 스크립트 추가 (B 단계에서)
+
+B. Presets 시드 데이터
+B1) 서버 시작 시 presets 없으면 삽입하는 seed 구현
+
+최소 2개 preset을 넣어라.
+
+daily_market_brief
+
+key: "daily_market_brief"
+
+name: "Daily Market Brief"
+
+outputType: "report"
+
+variantsJson: ["investing"]
+
+description: "Daily report from selected sources"
+
+community_engagement_helper
+
+key: "community_engagement_helper"
+
+name: "Community Engagement Helper"
+
+outputType: "draft"
+
+variantsJson: ["ai_art"]
+
+description: "Draft replies for community posts"
+
+C. Storage 레이어 (server/storage.ts)
+C1) Presets
+
+listPresets(): Preset[]
+
+getPresetById(id)
+
+C2) Profiles
+
+listProfiles(userId)
+
+getProfile(id, userId)
+
+createProfile(data, userId)
+
+updateProfile(id, userId, patch)
+
+deleteProfile(id, userId)
+
+cloneProfile(id, userId)
+
+C3) Sources
+
+listSources(userId, optionalTopic)
+
+반환: 시스템 기본 소스 + user 소스
+
+createSource(userId, data)
+
+updateSource(userId, sourceId, patch)
+
+deleteSource(userId, sourceId)
+
+C4) Profile-Sources 연결
+
+getProfileSources(profileId, userId)
+
+setProfileSources(profileId, userId, sourceIds[])
+
+기존 연결 전체 삭제 후 재삽입(단순 구현)
+
+D. API 라우트 (server/routes.ts)
+D1) Presets
+
+GET /api/presets
+
+반환: presets 목록
+
+D2) Profiles
+
+GET /api/profiles
+
+POST /api/profiles
+
+GET /api/profiles/:id
+
+PUT /api/profiles/:id
+
+DELETE /api/profiles/:id
+
+POST /api/profiles/:id/clone
+
+요청/응답 형태(예시):
+
+POST /api/profiles body:
+
+presetId, name, topic, variantKey, timezone, scheduleCron, configJson, isActive
+
+D3) Sources
+
+GET /api/sources?topic=
+
+POST /api/sources
+
+PUT /api/sources/:id
+
+DELETE /api/sources/:id
+
+D4) Profile-Sources
+
+GET /api/profiles/:id/sources
+
+PUT /api/profiles/:id/sources
+
+body: { sourceIds: number[] }
+
+E. 프론트엔드 UI (React)
+E1) 라우팅
+
+페이지 추가/정리:
+
+/dashboard
+
+/profiles
+
+/profiles/:id
+
+/sources
+
+/reports (빈 화면 가능)
+
+/drafts (빈 화면 가능)
+
+E2) Profiles 목록 페이지 (/profiles)
+
+표시:
+
+Profile 카드 리스트
+
+name
+
+preset name
+
+topic
+
+isActive 토글
+
+편집 버튼
+
+기능:
+
+“새 Profile 만들기” 버튼 → Wizard 모달
+
+Wizard 단계:
+
+Preset 선택 (GET /api/presets)
+
+Variant 선택 (preset.variantsJson)
+
+Topic 입력/선택 (variant에 따라 자동 제안 가능)
+
+이름 자동 생성 + 수정 가능
+
+생성(POST /api/profiles)
+
+기본값:
+
+timezone: "Asia/Seoul"
+
+scheduleCron: "0 7 * * *" (미국장 개장 전 브리핑 가정, 추후 수정 가능)
+
+configJson: {}
+
+E3) Profile 상세/편집 페이지 (/profiles/:id)
+
+섹션 구성:
+
+기본 정보
+
+name (텍스트)
+
+isActive (토글)
+
+preset(읽기 전용)
+
+topic(읽기 전용 v0.1)
+
+스케줄
+
+timezone
+
+scheduleCron
+
+옵션(configJson)
+
+importanceWeight (0~100)
+
+riskWeight (0~100)
+
+length ("short"|"standard"|"long")
+
+sections { risk: true/false, checklist: true/false, sources: true/false }
+
+Sources 선택
+
+GET /api/sources?topic=profile.topic
+
+GET /api/profiles/:id/sources
+
+체크박스 리스트
+
+저장 버튼 → PUT /api/profiles/:id/sources
+
+E4) Sources 페이지 (/sources)
+
+표시:
+
+topic 필터 드롭다운(전체/ai_art/investing…)
+
+리스트:
+
+name, url, topic, enabled, isDefault
+
+내 소스 추가 버튼
+
+name, url, topic, enabled
+
+수정/삭제:
+
+userId가 있는 소스만 수정/삭제 가능
+
+기본 소스(isDefault)는 읽기 전용
+
+F. 품질/안전 장치 (Phase 1 필수)
+
+topic 섞임 방지(최소)
+
+sources 생성 시 topic 필수
+
+profile 생성 시 topic 필수
+
+profile 편집 화면에서 sources 목록은 profile.topic으로 필터링
+
+기본 인증 가정
+
+v0.1: 단일 admin 유저 가정 가능
+
+모든 API는 userId=1로 동작하게 해도 됨(단, 나중에 확장 가능하게 userId 필드를 유지)
+
+오류 처리
+
+API 실패 시 토스트/에러 메시지 표시
+
+빈 상태 UI 제공(“아직 소스가 없습니다”)
+
+G. 완료 체크
+
+Phase 1 완료 기준:
+
+presets 2개 이상 존재
+
+profiles 생성/수정/복제/삭제 가능
+
+sources 생성/수정/삭제 가능
+
+profile에서 sources 선택 저장/로드 정상
+
+모든 화면이 라우팅되어 접근 가능
+
+다음 단계(Phase 2)는 Jobs(Collect/Analyze/Report) 붙이는 단계입니다.
+지금은 Phase 1만 끝내면 됩니다.

@@ -1,6 +1,13 @@
 import { db } from "./db";
-import { sources, items, analysis, drafts, posts, reports, chatMessages, settings, type Source, type Item, type Analysis, type Draft, type Post, type Report, type InsertSource, type InsertItem, type InsertAnalysis, type InsertDraft, type InsertReport, type ChatMessage, type InsertChatMessage, type Setting } from "@shared/schema";
-import { eq, desc, sql, and, count, gte, lt } from "drizzle-orm";
+import { 
+  sources, items, analysis, drafts, posts, reports, chatMessages, settings,
+  presets, profiles, profileSources,
+  type Source, type Item, type Analysis, type Draft, type Post, type Report, 
+  type InsertSource, type InsertItem, type InsertAnalysis, type InsertDraft, type InsertReport, 
+  type ChatMessage, type InsertChatMessage, type Setting,
+  type Preset, type InsertPreset, type Profile, type InsertProfile
+} from "@shared/schema";
+import { eq, desc, sql, and, count, gte, lt, or, isNull, inArray } from "drizzle-orm";
 
 export interface IStorage {
   getStats(): Promise<{
@@ -47,6 +54,29 @@ export interface IStorage {
 
   getSetting(key: string): Promise<string | undefined>;
   setSetting(key: string, value: string): Promise<void>;
+
+  // Presets
+  listPresets(): Promise<Preset[]>;
+  getPresetById(id: number): Promise<Preset | undefined>;
+
+  // Profiles
+  listProfiles(userId: string): Promise<(Profile & { presetName: string })[]>;
+  getProfile(id: number, userId: string): Promise<(Profile & { presetName: string }) | undefined>;
+  createProfile(data: InsertProfile): Promise<Profile>;
+  updateProfile(id: number, userId: string, patch: Partial<InsertProfile>): Promise<Profile | undefined>;
+  deleteProfile(id: number, userId: string): Promise<void>;
+  cloneProfile(id: number, userId: string): Promise<Profile | undefined>;
+
+  // Sources (updated for userId support)
+  listSources(userId: string, topic?: string): Promise<Source[]>;
+  getUserSource(id: number, userId: string): Promise<Source | undefined>;
+  createUserSource(userId: string, data: Omit<InsertSource, 'userId'>): Promise<Source>;
+  updateUserSource(userId: string, sourceId: number, patch: Partial<InsertSource>): Promise<Source | undefined>;
+  deleteUserSource(userId: string, sourceId: number): Promise<void>;
+
+  // Profile-Sources
+  getProfileSources(profileId: number, userId: string): Promise<Source[]>;
+  setProfileSources(profileId: number, userId: string, sourceIds: number[]): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -417,6 +447,178 @@ export class DatabaseStorage implements IStorage {
       target: settings.key,
       set: { value, updatedAt: new Date() }
     });
+  }
+
+  // ============================================
+  // PRESETS
+  // ============================================
+  async listPresets(): Promise<Preset[]> {
+    return db.select().from(presets).orderBy(presets.name);
+  }
+
+  async getPresetById(id: number): Promise<Preset | undefined> {
+    const [preset] = await db.select().from(presets).where(eq(presets.id, id));
+    return preset;
+  }
+
+  // ============================================
+  // PROFILES
+  // ============================================
+  async listProfiles(userId: string): Promise<(Profile & { presetName: string })[]> {
+    const result = await db
+      .select({
+        profile: profiles,
+        presetName: presets.name,
+      })
+      .from(profiles)
+      .leftJoin(presets, eq(profiles.presetId, presets.id))
+      .where(eq(profiles.userId, userId))
+      .orderBy(desc(profiles.createdAt));
+
+    return result.map((r) => ({
+      ...r.profile,
+      presetName: r.presetName || "Unknown",
+    }));
+  }
+
+  async getProfile(id: number, userId: string): Promise<(Profile & { presetName: string }) | undefined> {
+    const [result] = await db
+      .select({
+        profile: profiles,
+        presetName: presets.name,
+      })
+      .from(profiles)
+      .leftJoin(presets, eq(profiles.presetId, presets.id))
+      .where(and(eq(profiles.id, id), eq(profiles.userId, userId)));
+
+    if (!result) return undefined;
+
+    return {
+      ...result.profile,
+      presetName: result.presetName || "Unknown",
+    };
+  }
+
+  async createProfile(data: InsertProfile): Promise<Profile> {
+    const [profile] = await db.insert(profiles).values(data).returning();
+    return profile;
+  }
+
+  async updateProfile(id: number, userId: string, patch: Partial<InsertProfile>): Promise<Profile | undefined> {
+    const [profile] = await db
+      .update(profiles)
+      .set(patch)
+      .where(and(eq(profiles.id, id), eq(profiles.userId, userId)))
+      .returning();
+    return profile;
+  }
+
+  async deleteProfile(id: number, userId: string): Promise<void> {
+    await db.delete(profiles).where(and(eq(profiles.id, id), eq(profiles.userId, userId)));
+  }
+
+  async cloneProfile(id: number, userId: string): Promise<Profile | undefined> {
+    const existing = await this.getProfile(id, userId);
+    if (!existing) return undefined;
+
+    const newProfile = await this.createProfile({
+      userId: existing.userId,
+      presetId: existing.presetId,
+      name: `${existing.name} (Copy)`,
+      topic: existing.topic,
+      variantKey: existing.variantKey,
+      timezone: existing.timezone,
+      scheduleCron: existing.scheduleCron,
+      configJson: existing.configJson as Record<string, unknown>,
+      isActive: existing.isActive,
+    });
+    
+    // Also clone profile sources
+    const existingSources = await this.getProfileSources(id, userId);
+    if (existingSources.length > 0) {
+      await this.setProfileSources(newProfile.id, userId, existingSources.map(s => s.id));
+    }
+
+    return newProfile;
+  }
+
+  // ============================================
+  // SOURCES (with userId support)
+  // ============================================
+  async listSources(userId: string, topic?: string): Promise<Source[]> {
+    // Return: system default sources (userId is null) + user's sources
+    const conditions = [
+      or(isNull(sources.userId), eq(sources.userId, userId))
+    ];
+    
+    if (topic) {
+      conditions.push(eq(sources.topic, topic));
+    }
+
+    return db
+      .select()
+      .from(sources)
+      .where(and(...conditions))
+      .orderBy(desc(sources.isDefault), sources.name);
+  }
+
+  async getUserSource(id: number, userId: string): Promise<Source | undefined> {
+    const [source] = await db
+      .select()
+      .from(sources)
+      .where(and(eq(sources.id, id), eq(sources.userId, userId)));
+    return source;
+  }
+
+  async createUserSource(userId: string, data: Omit<InsertSource, 'userId'>): Promise<Source> {
+    const [source] = await db.insert(sources).values({ ...data, userId }).returning();
+    return source;
+  }
+
+  async updateUserSource(userId: string, sourceId: number, patch: Partial<InsertSource>): Promise<Source | undefined> {
+    const [source] = await db
+      .update(sources)
+      .set(patch)
+      .where(and(eq(sources.id, sourceId), eq(sources.userId, userId)))
+      .returning();
+    return source;
+  }
+
+  async deleteUserSource(userId: string, sourceId: number): Promise<void> {
+    await db.delete(sources).where(and(eq(sources.id, sourceId), eq(sources.userId, userId)));
+  }
+
+  // ============================================
+  // PROFILE-SOURCES
+  // ============================================
+  async getProfileSources(profileId: number, userId: string): Promise<Source[]> {
+    // First verify profile belongs to user
+    const profile = await this.getProfile(profileId, userId);
+    if (!profile) return [];
+
+    const result = await db
+      .select({ source: sources })
+      .from(profileSources)
+      .innerJoin(sources, eq(profileSources.sourceId, sources.id))
+      .where(eq(profileSources.profileId, profileId));
+
+    return result.map(r => r.source);
+  }
+
+  async setProfileSources(profileId: number, userId: string, sourceIds: number[]): Promise<void> {
+    // First verify profile belongs to user
+    const profile = await this.getProfile(profileId, userId);
+    if (!profile) return;
+
+    // Delete existing connections
+    await db.delete(profileSources).where(eq(profileSources.profileId, profileId));
+
+    // Insert new connections
+    if (sourceIds.length > 0) {
+      await db.insert(profileSources).values(
+        sourceIds.map(sourceId => ({ profileId, sourceId }))
+      );
+    }
   }
 }
 

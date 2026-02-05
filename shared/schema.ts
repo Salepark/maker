@@ -1,13 +1,64 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, serial, integer, timestamp, boolean, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, serial, integer, timestamp, boolean, jsonb, primaryKey } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 // Re-export auth schema (users and sessions tables)
 export * from "./models/auth";
+import { users } from "./models/auth";
 
+// ============================================
+// PRESETS - Bot type templates
+// ============================================
+export const presets = pgTable("presets", {
+  id: serial("id").primaryKey(),
+  key: text("key").notNull().unique(),
+  name: text("name").notNull(),
+  outputType: text("output_type").notNull(), // "report" | "draft" | "alert"
+  description: text("description"),
+  variantsJson: jsonb("variants_json").notNull().default([]),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertPresetSchema = createInsertSchema(presets).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type Preset = typeof presets.$inferSelect;
+export type InsertPreset = z.infer<typeof insertPresetSchema>;
+
+// ============================================
+// PROFILES - User's bot settings (핵심 테이블)
+// ============================================
+export const profiles = pgTable("profiles", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  presetId: integer("preset_id").notNull().references(() => presets.id),
+  name: text("name").notNull(),
+  topic: text("topic").notNull(), // "investing" | "ai_art" | "tech"
+  variantKey: text("variant_key"),
+  timezone: text("timezone").notNull().default("Asia/Seoul"),
+  scheduleCron: text("schedule_cron").notNull().default("0 7 * * *"),
+  configJson: jsonb("config_json").notNull().default({}),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertProfileSchema = createInsertSchema(profiles).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type Profile = typeof profiles.$inferSelect;
+export type InsertProfile = z.infer<typeof insertProfileSchema>;
+
+// ============================================
+// SOURCES - Content input sources
+// ============================================
 export const sources = pgTable("sources", {
   id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id), // null = system default source
   name: text("name").notNull(),
   type: text("type").notNull().default("rss"),
   url: text("url").notNull().unique(),
@@ -16,6 +67,7 @@ export const sources = pgTable("sources", {
   region: text("region").notNull().default("global"),
   rulesJson: jsonb("rules_json").notNull().default({}),
   enabled: boolean("enabled").notNull().default(true),
+  isDefault: boolean("is_default").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -27,33 +79,58 @@ export const insertSourceSchema = createInsertSchema(sources).omit({
 export type Source = typeof sources.$inferSelect;
 export type InsertSource = z.infer<typeof insertSourceSchema>;
 
+// ============================================
+// PROFILE_SOURCES - Profile ↔ Source connection
+// ============================================
+export const profileSources = pgTable("profile_sources", {
+  profileId: integer("profile_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+  sourceId: integer("source_id").notNull().references(() => sources.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  primaryKey({ columns: [table.profileId, table.sourceId] })
+]);
+
+export type ProfileSource = typeof profileSources.$inferSelect;
+
+// ============================================
+// ITEMS - Collected content
+// ============================================
 export const items = pgTable("items", {
   id: serial("id").primaryKey(),
   sourceId: integer("source_id").references(() => sources.id),
+  topic: text("topic").notNull().default("ai_art"), // Must match source.topic
   externalId: text("external_id"),
   url: text("url").notNull().unique(),
   title: text("title"),
   author: text("author"),
   contentText: text("content_text").notNull(),
   tagsJson: jsonb("tags_json").notNull().default([]),
-  status: text("status").notNull().default("new"),
+  status: text("status").notNull().default("new"), // new | analyzed | processed
   publishedAt: timestamp("published_at"),
-  insertedAt: timestamp("inserted_at").notNull().defaultNow(),
+  collectedAt: timestamp("collected_at").notNull().defaultNow(), // renamed from insertedAt
+  insertedAt: timestamp("inserted_at").notNull().defaultNow(), // keeping for backward compat
 });
 
 export const insertItemSchema = createInsertSchema(items).omit({
   id: true,
+  collectedAt: true,
   insertedAt: true,
 });
 
 export type Item = typeof items.$inferSelect;
 export type InsertItem = z.infer<typeof insertItemSchema>;
 
+// ============================================
+// ANALYSIS - LLM analysis results
+// ============================================
 export const analysis = pgTable("analysis", {
   id: serial("id").primaryKey(),
   itemId: integer("item_id").notNull().references(() => items.id).unique(),
+  topic: text("topic").notNull().default("ai_art"), // Must match item.topic
   category: text("category").notNull(),
   relevanceScore: integer("relevance_score").notNull(),
+  importanceScore: integer("importance_score").notNull().default(50), // Market/business impact
+  riskScore: integer("risk_score").notNull().default(0),
   replyWorthinessScore: integer("reply_worthiness_score").notNull(),
   linkFitScore: integer("link_fit_score").notNull(),
   riskFlagsJson: jsonb("risk_flags_json").notNull().default([]),
@@ -108,13 +185,19 @@ export const insertPostSchema = createInsertSchema(posts).omit({
 export type Post = typeof posts.$inferSelect;
 export type InsertPost = z.infer<typeof insertPostSchema>;
 
+// ============================================
+// REPORTS - Generated reports (outputs)
+// ============================================
 export const reports = pgTable("reports", {
   id: serial("id").primaryKey(),
+  profileId: integer("profile_id").references(() => profiles.id), // nullable for backward compat
   topic: text("topic").notNull().default("ai_art"),
   title: text("title").notNull(),
   content: text("content").notNull(),
   itemsCount: integer("items_count").notNull().default(0),
   itemIdsJson: jsonb("item_ids_json").notNull().default([]),
+  periodStart: timestamp("period_start"),
+  periodEnd: timestamp("period_end"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

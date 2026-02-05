@@ -21,6 +21,8 @@ import Reports from "@/pages/reports";
 import Sources from "@/pages/sources";
 import Settings from "@/pages/settings";
 import Chat from "@/pages/chat";
+import Profiles from "@/pages/profiles";
+import ProfileDetail from "@/pages/profile-detail";
 import Landing from "@/pages/landing";
 import NotFound from "@/pages/not-found";
 
@@ -28,6 +30,8 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Dashboard} />
+      <Route path="/profiles" component={Profiles} />
+      <Route path="/profiles/:id" component={ProfileDetail} />
       <Route path="/items" component={Items} />
       <Route path="/items/:id" component={ItemDetail} />
       <Route path="/drafts" component={Drafts} />
