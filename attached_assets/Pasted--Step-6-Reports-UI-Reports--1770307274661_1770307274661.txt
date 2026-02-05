@@ -1,0 +1,204 @@
+좋습니다. Step 6만 갑니다. (Reports UI 연결: 목록 + 상세 보기)
+
+아래는 “지금 화면 구조(Reports 페이지가 이미 있음)” 기준으로 최소 수정 버전입니다.
+
+Step 6: Reports UI 연결 (React Query)
+6-1) API 함수 추가: client/src/lib/api.ts (없으면 적당한 곳)
+// client/src/lib/api.ts
+
+export type ReportListItem = {
+  id: number;
+  title: string;
+  createdAt: string;
+  periodStart: string;
+  periodEnd: string;
+  profileId: number;
+  topic: string;
+};
+
+export type ReportDetail = {
+  id: number;
+  title: string;
+  contentText: string;
+  createdAt: string;
+  periodStart: string;
+  periodEnd: string;
+  profileId: number;
+  topic: string;
+};
+
+export async function fetchReports(profileId?: number): Promise<ReportListItem[]> {
+  const qs = profileId ? `?profileId=${profileId}` : "";
+  const res = await fetch(`/api/reports${qs}`);
+  if (!res.ok) throw new Error("Failed to load reports");
+  return res.json();
+}
+
+export async function fetchReport(reportId: number): Promise<ReportDetail> {
+  const res = await fetch(`/api/reports/${reportId}`);
+  if (!res.ok) throw new Error("Failed to load report");
+  return res.json();
+}
+
+6-2) Reports 페이지 구현: client/src/pages/reports.tsx (또는 기존 파일 수정)
+
+아래는 왼쪽 목록 / 오른쪽 본문 2패널입니다.
+
+// client/src/pages/reports.tsx
+
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { fetchReport, fetchReports, type ReportDetail, type ReportListItem } from "@/lib/api";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+
+function formatKST(iso: string) {
+  try {
+    return new Intl.DateTimeFormat("ko-KR", {
+      timeZone: "Asia/Seoul",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(new Date(iso));
+  } catch {
+    return iso;
+  }
+}
+
+export default function ReportsPage() {
+  const [selectedReportId, setSelectedReportId] = useState<number | null>(null);
+
+  const { data: list, isLoading: listLoading, error: listError, refetch } = useQuery<ReportListItem[]>({
+    queryKey: ["reports"],
+    queryFn: () => fetchReports(),
+  });
+
+  const selected = useMemo(() => {
+    if (!list || selectedReportId == null) return null;
+    return list.find((r) => r.id === selectedReportId) ?? null;
+  }, [list, selectedReportId]);
+
+  const {
+    data: report,
+    isLoading: detailLoading,
+    error: detailError,
+  } = useQuery<ReportDetail>({
+    queryKey: ["report", selectedReportId],
+    queryFn: () => fetchReport(selectedReportId as number),
+    enabled: selectedReportId != null,
+  });
+
+  return (
+    <div className="p-4 md:p-6 space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="text-xl font-semibold">Reports</div>
+          <div className="text-sm text-muted-foreground">Saved daily briefs</div>
+        </div>
+        <Button variant="outline" onClick={() => refetch()}>
+          Refresh
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-[380px_1fr] gap-4">
+        {/* LEFT: list */}
+        <Card className="h-[70vh] overflow-hidden">
+          <CardHeader>
+            <CardTitle className="text-base">Recent</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="h-[62vh] overflow-auto">
+              {listLoading && <div className="p-4 text-sm text-muted-foreground">Loading…</div>}
+              {listError && <div className="p-4 text-sm text-red-600">Failed to load list</div>}
+
+              {!listLoading && list?.length === 0 && (
+                <div className="p-4 text-sm text-muted-foreground">No reports yet.</div>
+              )}
+
+              {list?.map((r) => {
+                const active = r.id === selectedReportId;
+                return (
+                  <button
+                    key={r.id}
+                    className={[
+                      "w-full text-left px-4 py-3 border-t hover:bg-muted/50",
+                      active ? "bg-muted" : "",
+                    ].join(" ")}
+                    onClick={() => setSelectedReportId(r.id)}
+                  >
+                    <div className="text-sm font-medium line-clamp-2">{r.title}</div>
+                    <div className="mt-1 text-xs text-muted-foreground flex gap-2 flex-wrap">
+                      <span>{formatKST(r.createdAt)}</span>
+                      <span>•</span>
+                      <span>{r.topic}</span>
+                      <span>•</span>
+                      <span>Profile #{r.profileId}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* RIGHT: detail */}
+        <Card className="h-[70vh] overflow-hidden">
+          <CardHeader>
+            <CardTitle className="text-base">
+              {selected ? selected.title : "Select a report"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="h-[62vh] overflow-auto">
+            {selectedReportId == null && (
+              <div className="text-sm text-muted-foreground">
+                Pick a report from the left.
+              </div>
+            )}
+
+            {detailLoading && <div className="text-sm text-muted-foreground">Loading…</div>}
+            {detailError && <div className="text-sm text-red-600">Failed to load report</div>}
+
+            {report && (
+              <pre className="whitespace-pre-wrap text-sm leading-6 font-sans">
+                {report.contentText}
+              </pre>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+6-3) 라우팅에 Reports 연결 (Wouter)
+
+client/src/App.tsx 또는 라우터 설정 파일에:
+
+import ReportsPage from "@/pages/reports";
+
+// ...
+<Route path="/reports" component={ReportsPage} />
+
+
+그리고 사이드바 메뉴가 /reports로 가는지 확인.
+
+✅ Step 6 완료 체크
+
+Reports 페이지 들어가면 왼쪽에 목록이 뜸
+
+클릭하면 오른쪽에 contentText가 그대로 표시됨
+
+새 report 생성 후 Refresh 누르면 목록 업데이트됨
+
+다음(Phase 2 마무리 체크)
+
+이제 남은 건 “섞임 방지” 최종 점검입니다:
+
+profile.topic + profile_sources + items.topic 강제
+
+report가 topic별로 정확히 생성되는지
+
+원하시면 제가 **Step 7(섞임 방지 체크리스트 + 반드시 고쳐야 하는 흔한 원인 3개)**만 짧게 정리해 드릴게요.

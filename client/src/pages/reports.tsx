@@ -1,13 +1,11 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileText, Plus, Loader2, Calendar, Eye, Bot } from "lucide-react";
-import { format } from "date-fns";
+import { FileText, Plus, Loader2, Bot, RefreshCw } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -33,27 +31,43 @@ interface Profile {
   presetName: string;
 }
 
-function ReportContent({ content }: { content: string }) {
-  return (
-    <div className="prose prose-sm dark:prose-invert max-w-none max-h-[70vh] overflow-y-auto">
-      <div className="whitespace-pre-wrap font-mono text-xs leading-relaxed">
-        {content}
-      </div>
-    </div>
-  );
+function formatKST(iso: string) {
+  try {
+    return new Intl.DateTimeFormat("ko-KR", {
+      timeZone: "Asia/Seoul",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(new Date(iso));
+  } catch {
+    return iso;
+  }
+}
+
+function getTopicColor(topic: string) {
+  const colors: Record<string, string> = {
+    investing: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+    ai_art: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
+    tech: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+    crypto: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
+  };
+  return colors[topic] || "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200";
 }
 
 export default function Reports() {
   const { toast } = useToast();
-  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  const [selectedReportId, setSelectedReportId] = useState<number | null>(null);
   const [selectedProfileId, setSelectedProfileId] = useState<string>("all");
 
   const { data: profiles = [] } = useQuery<Profile[]>({
     queryKey: ["/api/profiles"],
   });
 
-  const { data: reports, isLoading } = useQuery<Report[]>({
-    queryKey: ["/api/reports", selectedProfileId === "all" ? "" : `profileId=${selectedProfileId}`],
+  const { data: reports, isLoading, refetch } = useQuery<Report[]>({
+    queryKey: ["/api/reports", selectedProfileId],
     queryFn: async () => {
       const url = selectedProfileId === "all" 
         ? "/api/reports" 
@@ -64,6 +78,11 @@ export default function Reports() {
     },
   });
 
+  const selectedReport = useMemo(() => {
+    if (!reports || selectedReportId == null) return null;
+    return reports.find((r) => r.id === selectedReportId) ?? null;
+  }, [reports, selectedReportId]);
+
   const generateMutation = useMutation({
     mutationFn: async (profileId?: number) => {
       const res = await apiRequest("POST", "/api/reports/generate", { profileId });
@@ -73,7 +92,7 @@ export default function Reports() {
       queryClient.invalidateQueries({ queryKey: ["/api/reports"] });
       toast({
         title: "Report Generated",
-        description: data.result ? `Report created for profile` : "Reports generated for due profiles",
+        description: data.result ? `Report created successfully` : "Reports generated for due profiles",
       });
     },
     onError: (error: any) => {
@@ -85,27 +104,22 @@ export default function Reports() {
     },
   });
 
-  const getTopicColor = (topic: string) => {
-    const colors: Record<string, string> = {
-      investing: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-      ai_art: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
-      tech: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-      crypto: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
-    };
-    return colors[topic] || "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200";
-  };
-
   const activeProfiles = profiles.filter(p => p.isActive);
 
+  const getProfileName = (profileId: number) => {
+    const profile = profiles.find(p => p.id === profileId);
+    return profile?.name || `Profile #${profileId}`;
+  };
+
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4">
+    <div className="p-4 md:p-6 space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2" data-testid="text-reports-title">
-            <FileText className="h-6 w-6" />
+          <h1 className="text-xl font-semibold flex items-center gap-2" data-testid="text-reports-title">
+            <FileText className="h-5 w-5" />
             Reports
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             Bot-generated reports from analyzed content
           </p>
         </div>
@@ -127,6 +141,14 @@ export default function Reports() {
             </SelectContent>
           </Select>
           <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            data-testid="button-refresh-reports"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+          <Button
             onClick={() => {
               if (selectedProfileId !== "all") {
                 generateMutation.mutate(parseInt(selectedProfileId));
@@ -145,100 +167,109 @@ export default function Reports() {
         </div>
       </div>
 
-      {isLoading ? (
-        <div className="space-y-4">
-          {[...Array(3)].map((_, i) => (
-            <Skeleton key={i} className="h-24 w-full" />
-          ))}
-        </div>
-      ) : !reports?.length ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium">No reports yet</h3>
-            <p className="text-muted-foreground mt-1 mb-4">
-              {selectedProfileId !== "all" 
-                ? "No reports for this profile yet. Click generate to create one."
-                : "Select a bot profile above to generate a report, or reports are created automatically for active bots."}
-            </p>
-            <Button
-              onClick={() => {
-                if (selectedProfileId !== "all") {
-                  generateMutation.mutate(parseInt(selectedProfileId));
-                }
-              }}
-              disabled={generateMutation.isPending || selectedProfileId === "all"}
-              data-testid="button-generate-first-report"
-            >
-              {generateMutation.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Plus className="h-4 w-4 mr-2" />
+      <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-4">
+        <Card className="h-[70vh] overflow-hidden">
+          <CardHeader className="py-3 px-4 border-b">
+            <CardTitle className="text-sm font-medium">Recent Reports</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="h-[calc(70vh-52px)] overflow-auto">
+              {isLoading && (
+                <div className="p-4 space-y-3">
+                  {[...Array(5)].map((_, i) => (
+                    <Skeleton key={i} className="h-16 w-full" />
+                  ))}
+                </div>
               )}
-              Generate Report
-            </Button>
+
+              {!isLoading && (!reports || reports.length === 0) && (
+                <div className="p-6 text-center">
+                  <FileText className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+                  <p className="text-sm text-muted-foreground">No reports yet.</p>
+                  {selectedProfileId !== "all" && (
+                    <Button
+                      size="sm"
+                      className="mt-3"
+                      onClick={() => generateMutation.mutate(parseInt(selectedProfileId))}
+                      disabled={generateMutation.isPending}
+                      data-testid="button-generate-first-report"
+                    >
+                      {generateMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                      ) : (
+                        <Plus className="h-4 w-4 mr-1" />
+                      )}
+                      Generate Report
+                    </Button>
+                  )}
+                </div>
+              )}
+
+              {reports?.map((report) => {
+                const isActive = report.id === selectedReportId;
+                return (
+                  <button
+                    key={report.id}
+                    className={`w-full text-left px-4 py-3 border-b hover:bg-muted/50 transition-colors ${
+                      isActive ? "bg-muted" : ""
+                    }`}
+                    onClick={() => setSelectedReportId(report.id)}
+                    data-testid={`button-select-report-${report.id}`}
+                  >
+                    <div className="text-sm font-medium line-clamp-2">{report.title}</div>
+                    <div className="mt-1 flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
+                      <span>{formatKST(report.createdAt)}</span>
+                      <span>·</span>
+                      <Badge variant="secondary" className={`text-xs px-1.5 py-0 ${getTopicColor(report.topic)}`}>
+                        {report.topic}
+                      </Badge>
+                      <span>·</span>
+                      <span className="flex items-center gap-1">
+                        <Bot className="h-3 w-3" />
+                        {getProfileName(report.profileId)}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </CardContent>
         </Card>
-      ) : (
-        <div className="space-y-4">
-          {reports.map((report) => {
-            const profile = profiles.find(p => p.id === report.profileId);
-            
-            return (
-              <Card key={report.id} className="hover-elevate" data-testid={`card-report-${report.id}`}>
-                <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <CardTitle className="text-base line-clamp-1">
-                        {report.title}
-                      </CardTitle>
-                      <CardDescription className="flex items-center gap-3 mt-1 flex-wrap">
-                        <span className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          {format(new Date(report.createdAt), "yyyy-MM-dd HH:mm")}
-                        </span>
-                        {profile && (
-                          <span className="flex items-center gap-1">
-                            <Bot className="h-3 w-3" />
-                            {profile.name}
-                          </span>
-                        )}
-                      </CardDescription>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge className={getTopicColor(report.topic)}>{report.topic}</Badge>
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => setSelectedReport(report)}
-                            data-testid={`button-view-report-${report.id}`}
-                          >
-                            <Eye className="h-3 w-3 mr-1" />
-                            View
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-4xl max-h-[90vh]">
-                          <DialogHeader>
-                            <DialogTitle>{report.title}</DialogTitle>
-                          </DialogHeader>
-                          <ReportContent content={report.contentText} />
-                        </DialogContent>
-                      </Dialog>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground line-clamp-2">
-                    {report.contentText?.substring(0, 200) || ""}...
-                  </p>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      )}
+
+        <Card className="h-[70vh] overflow-hidden">
+          <CardHeader className="py-3 px-4 border-b">
+            <CardTitle className="text-sm font-medium line-clamp-1">
+              {selectedReport ? selectedReport.title : "Select a report"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="h-[calc(70vh-52px)] overflow-auto p-4">
+            {selectedReportId == null && (
+              <div className="h-full flex flex-col items-center justify-center text-center">
+                <FileText className="h-12 w-12 text-muted-foreground mb-3" />
+                <p className="text-sm text-muted-foreground">
+                  Pick a report from the left to view its contents.
+                </p>
+              </div>
+            )}
+
+            {selectedReport && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span>Created: {formatKST(selectedReport.createdAt)}</span>
+                  <span>·</span>
+                  <span>Period: {formatKST(selectedReport.periodStart)} ~ {formatKST(selectedReport.periodEnd)}</span>
+                </div>
+                <pre 
+                  className="whitespace-pre-wrap text-sm leading-6 font-sans"
+                  data-testid="text-report-content"
+                >
+                  {selectedReport.contentText}
+                </pre>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
