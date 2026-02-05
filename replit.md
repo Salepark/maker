@@ -39,18 +39,30 @@ Key server modules:
 - `server/services/` - Business logic (RSS parsing, deduplication)
 - `server/chat/` - Command Chat system (parser, executor)
 
+### Authentication
+- **Provider**: Replit Auth (OpenID Connect)
+- **Session Storage**: PostgreSQL via connect-pg-simple
+- **Protected Routes**: All `/api/*` routes require authentication
+- **Auth Routes**:
+  - `/api/login` - Initiates Replit OIDC login flow
+  - `/api/logout` - Ends session and redirects to Replit logout
+  - `/api/callback` - OIDC callback handler
+  - `/api/auth/user` - Returns current authenticated user
+- **Frontend**: Landing page shown when not authenticated, dashboard accessible after login
+
 ### Data Storage
 - **Database**: PostgreSQL via Drizzle ORM
 - **Schema Location**: `shared/schema.ts`
 - **Migrations**: Drizzle Kit (`drizzle-kit push`)
 
 Core tables:
+- `users` - Authenticated users (Replit Auth, stores profile info)
+- `sessions` - Session storage for authentication
 - `sources` - RSS feed configurations with custom rules
 - `items` - Collected posts with status workflow (new → analyzed → drafted → approved → posted)
 - `analysis` - LLM analysis results (scores, categories, risk flags)
 - `drafts` - Generated reply drafts awaiting review
 - `reports` - Daily market briefs generated from analyzed content
-- `users` - Admin authentication
 - `chat_messages` - Chat history with parsed commands and results
 - `settings` - Persistent configuration key-value store
 
@@ -100,6 +112,7 @@ Natural language interface for bot control using Claude to parse commands.
 ### Required Environment Variables
 - `DATABASE_URL` - PostgreSQL connection string
 - `LLM_API_KEY` - Anthropic API key for Claude
+- `SESSION_SECRET` - Secret for session encryption (auto-provided by Replit)
 - `CLAUDE_MODEL` - (Optional) Override default Claude model
 - `APP_BASE_URL` - Base URL for promotional links in drafts
 
