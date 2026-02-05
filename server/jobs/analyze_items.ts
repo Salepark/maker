@@ -2,7 +2,7 @@ import { storage } from "../storage";
 import { callLLMWithJsonParsing } from "../llm/client";
 import { 
   buildAnalyzePrompt, 
-  buildAiArtPromoAnalyzePrompt,
+  buildAiArtCommunityAnalyzePrompt,
   type AnalysisResult 
 } from "../llm/prompts";
 
@@ -15,9 +15,9 @@ export async function analyzeNewItems(): Promise<number> {
   for (const item of items) {
     console.log(`[AnalyzeJob] Analyzing item #${item.id} (topic: ${item.sourceTopic}): ${item.title?.slice(0, 50)}...`);
 
-    // Use AI Art promo prompt for ai_art topic, investing prompt for others
+    // Use AI Art community prompt for ai_art topic (0% promo, pure helpful replies)
     const prompt = item.sourceTopic === "ai_art"
-      ? buildAiArtPromoAnalyzePrompt({
+      ? buildAiArtCommunityAnalyzePrompt({
           title: item.title ?? "",
           body: item.contentText ?? "",
           sourceName: item.sourceName ?? "unknown",

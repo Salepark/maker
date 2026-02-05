@@ -143,36 +143,42 @@ ${input.text}
 }
 
 // ============================================
-// AI Art 홍보용 프롬프트 (aiartmarket.io 마케팅)
+// AI Art 커뮤니티 기여 모드 (홍보 0% - 순수 도움만)
 // ============================================
 
-export function buildAiArtPromoAnalyzePrompt(input: {
+export function buildAiArtCommunityAnalyzePrompt(input: {
   title: string;
   body: string;
   sourceName: string;
 }) {
   return `
-너는 AI 아트 커뮤니티 마케팅 보조 분석가다.
-아래 게시글이 "자연스럽게 대화에 참여하며 aiartmarket.io를 언급할 수 있는지" 평가하라.
+너는 AI 아트 커뮤니티의 중립적인 모더레이터다.
+아래 글이 "도움 되는 답변으로 대화에 참여할 가치가 있는지" 평가하라.
 
-다음 기준으로 판단하라:
-- 논쟁/저작권/혐오/정치/분쟁 가능성이 크면: 리스크 높음
-- 질문형, 도구 공유, 워크플로우 토론, 팁 요청 글이면: 답변 가치 높음
-- 명백한 광고/스팸 글이면: 답변 가치 낮음
-- 커뮤니티 톤에 맞게 "도움되는 댓글"을 달 수 있으면: 긍정
+기준:
+- 질문, 워크플로우, 툴 비교, 팁 요청, 경험 공유 글 → 답변 가치 높음
+- 논쟁(저작권, 윤리, 정치, 혐오, 싸움 유발) → 리스크 높음
+- 명백한 광고/스팸 → 답변 가치 낮음
+
+중요 규칙:
+- 홍보 가능성, 링크 삽입 가능성은 평가하지 마라.
+- 오직 "커뮤니티 기여 관점"에서만 판단하라.
 
 JSON으로만 출력:
 {
-  "category": "tool|workflow|prompt|discussion|news|showcase|other",
+  "category": "tool|workflow|prompt|question|discussion|news|other",
   "relevance_score": 0-100,
   "reply_worthiness_score": 0-100,
-  "link_fit_score": 0-100,
+  "link_fit_score": 0,
   "risk_flags": ["copyright","toxic","politics","spam","drama"] 중 해당되는 것들,
-  "recommended_action": "reply|observe|skip",
-  "suggested_angle": "어떤 관점으로 댓글을 달면 좋을지 한 줄",
+  "recommended_action": "draft|observe|skip",
+  "suggested_angle": "어떤 관점으로 답변하면 도움이 될지 한 줄",
   "summary_short": "한 줄 요약",
   "summary_long": "3~4줄 요약"
 }
+
+참고: link_fit_score는 커뮤니티 기여 모드에서 항상 0이다. 링크는 포함하지 않는다.
+recommended_action이 "draft"이면 답변할 가치가 있음, "observe"면 지켜보기, "skip"이면 무시.
 
 [제목]
 ${input.title}
@@ -185,26 +191,28 @@ ${input.sourceName}
 `.trim();
 }
 
-export function buildAiArtPromoDraftPrompt(input: {
+export function buildAiArtCommunityDraftPrompt(input: {
   title: string;
   body: string;
   suggestedAngle: string;
-  baseUrl?: string;
 }) {
-  const url = input.baseUrl || "https://aiartmarket.io";
-  
   return `
-너는 AI 아트 커뮤니티에서 활동하는 친절한 사용자다.
-아래 게시글에 달 "자연스럽고 도움 되는 댓글 초안"을 작성하라.
+너는 AI 아트 커뮤니티에서 활동하는 일반 사용자다.
+아래 글에 대해 "도움이 되는 답변"을 작성하라.
 
-규칙:
-- 공격적 홍보 금지
-- 판매/마케팅 톤 금지
-- 공감 + 정보 + 경험 공유 톤
-- 필요할 때만 ${url}을 "도움되는 리소스"로 가볍게 언급
-- 링크는 최대 1번만
-- 댓글 길이는 4~8문장 정도
-- 영어로 작성 (HN/Reddit 기준)
+절대 규칙:
+- 링크를 포함하지 마라.
+- 어떤 서비스, 웹사이트, 제품, 브랜드도 언급하지 마라.
+- 홍보, 마케팅, 추천 톤을 사용하지 마라.
+- 그냥 커뮤니티 유저 1명처럼 경험/지식/팁을 공유하라.
+
+작성 가이드:
+- 공감 또는 문제 요약 1문장
+- 구체적인 팁/방법/관점 2~4문장
+- 가능하면 주의점이나 대안 1~2문장
+- 길이: 4~8문장
+- 톤: 친절, 차분, 실무적
+- 영어로 작성 (HN/Reddit/Moltbook 기준)
 
 [게시글 제목]
 ${input.title}
@@ -212,19 +220,21 @@ ${input.title}
 [게시글 내용]
 ${input.body}
 
-[추천 관점]
+[답변 방향 힌트]
 ${input.suggestedAngle}
 
 [출력 형식]
 JSON으로만 출력:
 {
   "drafts": [
-    {"variant":"A","tone":"helpful","includes_link":false,"text":"링크 없이 순수 도움형"},
-    {"variant":"B","tone":"engaging","includes_link":true,"text":"자연스럽게 링크 포함"},
-    {"variant":"C","tone":"curious","includes_link":false,"text":"질문형/대화 유도"}
+    {"variant":"A","tone":"helpful","includes_link":false,"text":"경험 기반 도움형 답변"},
+    {"variant":"B","tone":"analytical","includes_link":false,"text":"기술적 분석/비교형 답변"},
+    {"variant":"C","tone":"supportive","includes_link":false,"text":"공감+격려형 답변"}
   ],
-  "notes": "이 글에 댓글 달 때 주의할 점 1~2줄"
+  "notes": "이 글에 답변할 때 주의할 점 1~2줄"
 }
+
+이 규칙을 반드시 지켜서 답변 초안을 작성하라.
 `.trim();
 }
 
