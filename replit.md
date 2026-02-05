@@ -59,7 +59,16 @@ The application now supports multi-user bot management with profile-based report
 **Frontend Pages:**
 - `/profiles` - My Bots list with Create Bot wizard
 - `/profiles/:id` - Profile detail/edit page with schedule, config, and source selection
-- `/reports` - Reports page with profile dropdown filter and per-profile generation
+- `/reports` - Reports page with 2-panel layout (list on left, content on right)
+
+### Topic Isolation (Mixing Prevention)
+The system enforces strict topic separation to prevent data mixing across different topics (ai_art, investing, tech, crypto):
+
+**4-Layer Protection:**
+1. **Source Linking (`setProfileSources`)**: Only sources matching `profile.topic` can be linked
+2. **Item Query (`getItemsForReport`)**: SQL filters by `items.topic = profile.topic`
+3. **Report Generation**: Explicit topic mismatch check throws error if any item.topic ≠ profile.topic
+4. **UI Filtering**: Profile detail page shows only sources matching profile's topic
 
 ### Backend Architecture
 - **Runtime**: Node.js with TypeScript (tsx for development)

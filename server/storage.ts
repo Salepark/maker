@@ -652,11 +652,28 @@ export class DatabaseStorage implements IStorage {
     // Delete existing connections
     await db.delete(profileSources).where(eq(profileSources.profileId, profileId));
 
-    // Insert new connections
+    // Insert new connections (with topic validation)
     if (sourceIds.length > 0) {
-      await db.insert(profileSources).values(
-        sourceIds.map(sourceId => ({ profileId, sourceId }))
-      );
+      // Fetch sources and filter only those matching profile's topic
+      const validSources = await db
+        .select({ id: sources.id })
+        .from(sources)
+        .where(and(
+          inArray(sources.id, sourceIds),
+          eq(sources.topic, profile.topic)
+        ));
+
+      const validSourceIds = validSources.map(s => s.id);
+
+      if (validSourceIds.length !== sourceIds.length) {
+        console.warn(`[setProfileSources] Topic mismatch: ${sourceIds.length - validSourceIds.length} sources filtered out for profile ${profileId} (topic: ${profile.topic})`);
+      }
+
+      if (validSourceIds.length > 0) {
+        await db.insert(profileSources).values(
+          validSourceIds.map(sourceId => ({ profileId, sourceId }))
+        );
+      }
     }
   }
 
