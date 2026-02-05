@@ -1,6 +1,6 @@
 import { storage } from "../storage";
 import { callLLM } from "../llm/client";
-import { buildDailyBriefPrompt } from "../llm/prompts";
+import { buildDailyBriefPrompt, ReportConfig } from "../llm/prompts";
 
 interface ReportJobResult {
   profileId: number;
@@ -46,14 +46,21 @@ export async function generateReportsForDueProfiles(): Promise<ReportJobResult[]
         continue;
       }
 
-      const items = await storage.getItemsForReport(
+      let items = await storage.getItemsForReport(
         profile.topic,
         sourceIds,
         lookbackHours,
         maxItems
       );
 
-      console.log(`[ReportJob] Found ${items.length} items for profile ${profile.id}`);
+      // Apply minRelevanceScore filter from configJson
+      const config = (profile.configJson || {}) as ReportConfig;
+      const minScore = config.filters?.minRelevanceScore ?? 0;
+      if (minScore > 0) {
+        items = items.filter(item => (item.importanceScore || 0) >= minScore);
+      }
+
+      console.log(`[ReportJob] Found ${items.length} items for profile ${profile.id} (after relevance filter: minScore=${minScore})`);
 
       if (items.length === 0) {
         console.log(`[ReportJob] No items found for profile ${profile.id}, creating empty report`);
@@ -114,7 +121,7 @@ export async function generateReportsForDueProfiles(): Promise<ReportJobResult[]
         category: "general",
       }));
 
-      const prompt = buildDailyBriefPrompt(briefItems, today, profile.topic);
+      const prompt = buildDailyBriefPrompt(briefItems, today, profile.topic, config);
       
       console.log(`[ReportJob] Calling LLM for profile ${profile.id}...`);
       const content = await callLLM(prompt, 3, 4000);
@@ -180,12 +187,19 @@ export async function generateReportForProfile(profileId: number, userId?: strin
   const periodStart = new Date(now.getTime() - lookbackHours * 60 * 60 * 1000);
   const periodEnd = now;
 
-  const items = await storage.getItemsForReport(
+  let items = await storage.getItemsForReport(
     profile.topic,
     sourceIds,
     lookbackHours,
     maxItems
   );
+
+  // Apply minRelevanceScore filter from configJson
+  const config = (profile.configJson || {}) as ReportConfig;
+  const minScore = config.filters?.minRelevanceScore ?? 0;
+  if (minScore > 0) {
+    items = items.filter(item => (item.importanceScore || 0) >= minScore);
+  }
 
   for (const item of items) {
     if (item.topic !== profile.topic) {
@@ -225,7 +239,7 @@ export async function generateReportForProfile(profileId: number, userId?: strin
       category: "general",
     }));
 
-    const prompt = buildDailyBriefPrompt(briefItems, today, profile.topic);
+    const prompt = buildDailyBriefPrompt(briefItems, today, profile.topic, config);
     content = await callLLM(prompt, 3, 4000);
   }
 

@@ -429,9 +429,205 @@ ${JSON.stringify(itemsData, null, 2)}
 * 단기 가격 예측 중심 기사보다 **원인과 영향 설명이 있는 기사**를 우선 채택`;
 }
 
-export function buildDailyBriefPrompt(items: any[], date: string, topic: string): string {
-  if (topic === "investing") {
-    return buildInvestingBriefPrompt(items, date);
+export interface ReportConfig {
+  scheduleRule?: "DAILY" | "WEEKDAYS" | "WEEKENDS";
+  sections?: {
+    tldr?: boolean;
+    drivers?: boolean;
+    risk?: boolean;
+    checklist?: boolean;
+    sources?: boolean;
+  };
+  verbosity?: "short" | "normal" | "detailed";
+  markdownLevel?: "minimal" | "normal";
+  filters?: {
+    minRelevanceScore?: number;
+    maxRiskLevelAllowed?: number;
+    allowPromotionLinks?: boolean;
+  };
+}
+
+function getVerbosityInstructions(verbosity: string): string {
+  switch (verbosity) {
+    case "short":
+      return "간결하게 작성하라. 각 섹션은 2~3줄 이내로. 핵심만 전달하라.";
+    case "detailed":
+      return "상세하게 작성하라. 배경 설명, 분석, 맥락을 풍부하게 포함하라.";
+    default:
+      return "적정 길이로 작성하라. 중요한 내용은 상세히, 부가 내용은 간략히.";
   }
-  return buildAIArtBriefPrompt(items, date);
+}
+
+function getMarkdownInstructions(level: string): string {
+  switch (level) {
+    case "minimal":
+      return "마크다운 최소화: 제목(#, ##)과 기본 리스트(-)만 사용. 볼드/이탤릭/테이블 자제.";
+    default:
+      return "표준 마크다운 사용: 제목, 볼드, 리스트 등 자유롭게 활용.";
+  }
+}
+
+function getSectionInstructions(sections: ReportConfig["sections"], topic: string): string {
+  const defaultSections = { tldr: true, drivers: true, risk: true, checklist: true, sources: true };
+  const s = { ...defaultSections, ...sections };
+  
+  const sectionMap = topic === "investing" ? {
+    tldr: "TL;DR (오늘의 한 줄 요약)",
+    drivers: "Market Drivers (핵심 이슈 3~5개) + Cross-Market View",
+    risk: "Risk Radar (주요 리스크)",
+    checklist: "Checklist (오늘/이번 주 체크 포인트)",
+    sources: "Sources (출처 목록)",
+  } : {
+    tldr: "TL;DR (오늘의 한 줄 요약)",
+    drivers: "주요 트렌드 (3~5개) + 도구/기술 업데이트 + 커뮤니티 화제",
+    risk: "주의할 점/리스크",
+    checklist: "이번 주 체크포인트",
+    sources: "Sources (출처 목록)",
+  };
+
+  const includedSections = Object.entries(sectionMap)
+    .filter(([key]) => s[key as keyof typeof s])
+    .map(([, label]) => `- ${label}`)
+    .join("\n");
+
+  const excludedSections = Object.entries(sectionMap)
+    .filter(([key]) => !s[key as keyof typeof s])
+    .map(([, label]) => label);
+
+  let instructions = `포함할 섹션:\n${includedSections}`;
+  if (excludedSections.length > 0) {
+    instructions += `\n\n제외할 섹션 (작성하지 마라):\n${excludedSections.map(s => `- ${s}`).join("\n")}`;
+  }
+  
+  return instructions;
+}
+
+export function buildDailyBriefPrompt(items: any[], date: string, topic: string, config?: ReportConfig): string {
+  if (topic === "investing") {
+    return buildInvestingBriefPromptWithConfig(items, date, config);
+  }
+  return buildAIArtBriefPromptWithConfig(items, date, config);
+}
+
+function buildInvestingBriefPromptWithConfig(items: any[], date: string, config?: ReportConfig): string {
+  const verbosity = config?.verbosity || "normal";
+  const markdownLevel = config?.markdownLevel || "minimal";
+  const sections = config?.sections;
+
+  const itemsData = items.map((item) => ({
+    title: item.title,
+    source: item.source,
+    url: item.url,
+    key_takeaway: item.key_takeaway,
+    why_it_matters: item.why_it_matters,
+    impact_scope: item.impact_scope,
+    risk_flags: item.risk_flags,
+    confidence: item.confidence,
+  }));
+
+  return `You are a senior macro & markets research analyst.
+Write a daily market brief for investors based only on the provided analyzed items.
+Prioritize credibility, macro context, policy impact, and cross-market linkages.
+Avoid hype, price predictions, and trading advice.
+Use neutral, analytical tone.
+
+## 📋 사용자 설정
+
+${getVerbosityInstructions(verbosity)}
+${getMarkdownInstructions(markdownLevel)}
+
+${getSectionInstructions(sections, "investing")}
+
+## ⚠️ 중요: 데이터 필터링
+
+입력 데이터 중 아래 내용은 반드시 제외하라:
+- AI 아트, 이미지 생성, 크리에이티브 도구 관련 내용
+- Reddit 커뮤니티 토론, Show HN 프로젝트 소개
+- 투자/금융/거시경제와 직접 관련 없는 기술 뉴스
+
+주식, 금리, 환율, 크립토, 원자재, 거시경제와 직접 관련된 내용만 다뤄라.
+
+## 📥 입력 데이터
+
+다음은 지난 24~48시간 동안 수집·분석된 투자 관련 기사 목록이다:
+
+${JSON.stringify(itemsData, null, 2)}
+
+오늘 날짜: ${date}
+
+## 📝 출력 형식 (반드시 한국어, Markdown)
+
+# Daily Market Brief — ${date}
+
+> ⚠️ 본 리포트는 정보 제공 목적이며 투자 조언이 아닙니다.
+
+(설정된 섹션만 출력하라)
+
+---
+
+## 📏 작성 규칙 (가드레일)
+
+* ❌ "사라", "팔아라", "오를 것 같다", "내릴 것 같다" 같은 **투자 지시/확정적 표현 금지**
+* ✔️ "~일 수 있다", "~가능성이 있다" 같은 **조건부/시나리오 표현 사용**
+* ✔️ "왜 시장이 이 뉴스에 반응하는가" 중심으로 설명
+* ✔️ **정책/금리/자금흐름/리스크** 우선
+* ✔️ **사실 / 해석 / 리스크**를 명확히 구분
+* ✔️ risk_flags에 rumor, low_credibility, opinion_only 등이 있으면 비중 축소
+* ✔️ confidence가 낮은 항목은 핵심 이슈로 올리지 말 것
+* ✔️ 과장된 표현, 감정적 표현, 클릭베이트 톤 금지`;
+}
+
+function buildAIArtBriefPromptWithConfig(items: any[], date: string, config?: ReportConfig): string {
+  const verbosity = config?.verbosity || "normal";
+  const markdownLevel = config?.markdownLevel || "minimal";
+  const sections = config?.sections;
+
+  const itemsData = items.map((item) => ({
+    title: item.title,
+    source: item.source,
+    url: item.url,
+    key_takeaway: item.key_takeaway,
+    why_it_matters: item.why_it_matters,
+    category: item.category,
+    risk_flags: item.risk_flags,
+    confidence: item.confidence,
+  }));
+
+  return `너는 AI Art 마켓플레이스와 크리에이터 커뮤니티를 분석하는 리서처다.
+목표는 AI 아트 생태계의 **트렌드, 도구, 커뮤니티 동향**을 정리한 Daily Brief를 작성하는 것이다.
+기술적 발전, 새로운 도구, 커뮤니티 반응, 시장 기회 등을 중심으로 분석한다.
+출처(URL)를 포함하고, 과장/추측/확정적 표현을 피한다.
+
+## 📋 사용자 설정
+
+${getVerbosityInstructions(verbosity)}
+${getMarkdownInstructions(markdownLevel)}
+
+${getSectionInstructions(sections, "ai_art")}
+
+## 📥 입력 데이터
+
+다음은 지난 24시간 동안 수집·분석된 AI Art 관련 게시물 목록이다:
+
+${JSON.stringify(itemsData, null, 2)}
+
+오늘 날짜: ${date}
+
+## 📝 출력 형식 (반드시 Markdown)
+
+# AI Art Daily Brief — ${date}
+
+> 본 리포트는 AI 아트 생태계 동향 정보 제공 목적입니다.
+
+(설정된 섹션만 출력하라)
+
+---
+
+## 📏 작성 규칙
+
+* ✔️ AI Art 생성, 편집, 워크플로우 관련 내용 중심
+* ✔️ 크리에이터 관점에서 실용적인 인사이트 제공
+* ✔️ 기술적 발전과 커뮤니티 반응을 균형있게 다룰 것
+* ✔️ 투자/금융 관련 내용은 제외할 것
+* ✔️ 과장 없이 사실 중심으로 작성`;
 }
