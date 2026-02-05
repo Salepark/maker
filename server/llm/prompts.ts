@@ -429,6 +429,8 @@ ${JSON.stringify(itemsData, null, 2)}
 * 단기 가격 예측 중심 기사보다 **원인과 영향 설명이 있는 기사**를 우선 채택`;
 }
 
+// Import ProfileConfig from schema - define locally for compatibility
+// Note: Using local definition to avoid module resolution issues with tsx
 export interface ReportConfig {
   scheduleRule?: "DAILY" | "WEEKDAYS" | "WEEKENDS";
   sections?: {
@@ -441,7 +443,7 @@ export interface ReportConfig {
   verbosity?: "short" | "normal" | "detailed";
   markdownLevel?: "minimal" | "normal";
   filters?: {
-    minRelevanceScore?: number;
+    minImportanceScore?: number;
     maxRiskLevelAllowed?: number;
     allowPromotionLinks?: boolean;
   };

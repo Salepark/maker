@@ -47,6 +47,17 @@ The application now supports multi-user bot management with profile-based report
 - Source filtering: only items from profile's linked sources are included
 - Security: All report endpoints verify user ownership before access/generation
 
+**Step 8: User Customization Layer**
+- **ProfileConfig Type** (defined in `shared/schema.ts`): Stored in `profiles.configJson`
+  - `scheduleRule`: "DAILY" | "WEEKDAYS" | "WEEKENDS" - controls which days the bot runs
+  - `sections`: Toggle individual report sections (tldr, drivers, risk, checklist, sources)
+  - `verbosity`: "short" | "normal" | "detailed" - controls report length
+  - `markdownLevel`: "minimal" | "normal" - controls markdown formatting
+  - `filters.minImportanceScore`: Filter out items below this threshold
+- **Profile Detail UI**: Full settings editor with schedule, format, filter options
+- **Report Generation**: Applies configJson settings to prompt builder and filters items
+- **Scheduler Logic**: Checks `scheduleCron` against current time/day before generating reports
+
 **API Routes:**
 - `GET /api/presets` - List available bot templates
 - `GET/POST /api/profiles` - List user's bots or create new one

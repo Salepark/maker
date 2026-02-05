@@ -54,6 +54,25 @@ export const insertProfileSchema = createInsertSchema(profiles).omit({
 export type Profile = typeof profiles.$inferSelect;
 export type InsertProfile = z.infer<typeof insertProfileSchema>;
 
+// ProfileConfig - configuration stored in profile.configJson
+export interface ProfileConfig {
+  scheduleRule?: "DAILY" | "WEEKDAYS" | "WEEKENDS";
+  sections?: {
+    tldr?: boolean;
+    drivers?: boolean;
+    risk?: boolean;
+    checklist?: boolean;
+    sources?: boolean;
+  };
+  verbosity?: "short" | "normal" | "detailed";
+  markdownLevel?: "minimal" | "normal";
+  filters?: {
+    minImportanceScore?: number;
+    maxRiskLevelAllowed?: number;
+    allowPromotionLinks?: boolean;
+  };
+}
+
 // ============================================
 // SOURCES - Content input sources
 // ============================================
@@ -95,26 +114,7 @@ export const profileSources = pgTable("profile_sources", {
 
 export type ProfileSource = typeof profileSources.$inferSelect;
 
-// ============================================
-// PROFILE CONFIG JSON TYPE (for configJson column)
-// ============================================
-export type ProfileConfig = {
-  scheduleRule?: "DAILY" | "WEEKDAYS" | "WEEKENDS";
-  sections?: {
-    tldr?: boolean;
-    drivers?: boolean;
-    risk?: boolean;
-    checklist?: boolean;
-    sources?: boolean;
-  };
-  verbosity?: "short" | "normal" | "detailed";
-  markdownLevel?: "minimal" | "normal";
-  filters?: {
-    minRelevanceScore?: number;
-    maxRiskLevelAllowed?: number;
-    allowPromotionLinks?: boolean;
-  };
-};
+// Note: ProfileConfig is defined above after Profile type
 
 // ============================================
 // ITEMS - Collected content

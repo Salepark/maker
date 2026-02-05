@@ -26,7 +26,7 @@ interface ProfileConfig {
   verbosity?: "short" | "normal" | "detailed";
   markdownLevel?: "minimal" | "normal";
   filters?: {
-    minRelevanceScore?: number;
+    minImportanceScore?: number;
     maxRiskLevelAllowed?: number;
     allowPromotionLinks?: boolean;
   };
@@ -97,7 +97,7 @@ export default function ProfileDetail() {
   const [verbosity, setVerbosity] = useState<"short" | "normal" | "detailed">("normal");
   const [markdownLevel, setMarkdownLevel] = useState<"minimal" | "normal">("minimal");
   const [sections, setSections] = useState(defaultSections);
-  const [minRelevanceScore, setMinRelevanceScore] = useState(30);
+  const [minImportanceScore, setMinImportanceScore] = useState(30);
   const [selectedSourceIds, setSelectedSourceIds] = useState<number[]>([]);
 
   const { data: profile, isLoading: profileLoading } = useQuery<Profile>({
@@ -138,7 +138,7 @@ export default function ProfileDetail() {
       setVerbosity(config.verbosity || "normal");
       setMarkdownLevel(config.markdownLevel || "minimal");
       setSections({ ...defaultSections, ...config.sections });
-      setMinRelevanceScore(config.filters?.minRelevanceScore ?? 30);
+      setMinImportanceScore(config.filters?.minImportanceScore ?? 30);
     }
   }, [profile]);
 
@@ -169,7 +169,7 @@ export default function ProfileDetail() {
         verbosity,
         markdownLevel,
         filters: {
-          minRelevanceScore,
+          minImportanceScore,
         },
       };
       
@@ -408,14 +408,14 @@ export default function ProfileDetail() {
           </CardHeader>
           <CardContent className="grid gap-4">
             <div className="grid gap-2">
-              <Label>Minimum Relevance Score: {minRelevanceScore}%</Label>
+              <Label>Minimum Importance Score: {minImportanceScore}%</Label>
               <Slider
-                value={[minRelevanceScore]}
-                onValueChange={([v]) => setMinRelevanceScore(v)}
+                value={[minImportanceScore]}
+                onValueChange={([v]) => setMinImportanceScore(v)}
                 min={0}
                 max={100}
                 step={10}
-                data-testid="slider-relevance"
+                data-testid="slider-importance"
               />
               <p className="text-xs text-muted-foreground">
                 Items scoring below this threshold will be excluded from reports

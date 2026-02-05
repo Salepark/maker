@@ -9,6 +9,66 @@ interface ReportJobResult {
   topic: string;
 }
 
+// Check if current time matches the profile's scheduleCron
+function shouldRunNow(scheduleCron: string, timezone: string): boolean {
+  try {
+    const now = new Date();
+    
+    // Get current time in the profile's timezone
+    const options = { timeZone: timezone, hour12: false } as const;
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      ...options,
+      hour: 'numeric',
+      minute: 'numeric',
+      weekday: 'short',
+    });
+    const parts = formatter.formatToParts(now);
+    
+    const currentHour = parseInt(parts.find(p => p.type === 'hour')?.value || '0');
+    const currentMinute = parseInt(parts.find(p => p.type === 'minute')?.value || '0');
+    const weekdayStr = parts.find(p => p.type === 'weekday')?.value || 'Mon';
+    
+    // Map weekday string to number (0=Sun, 1=Mon, ..., 6=Sat)
+    const weekdayMap: Record<string, number> = {
+      'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6
+    };
+    const currentDow = weekdayMap[weekdayStr] ?? 1;
+
+    // Parse cron: "minute hour dayOfMonth month dayOfWeek"
+    const cronParts = scheduleCron.trim().split(/\s+/);
+    if (cronParts.length < 5) return false;
+
+    const [cronMinute, cronHour, , , cronDow] = cronParts;
+
+    // Check minute (allow 0-1 minute tolerance for scheduler timing)
+    const targetMinute = cronMinute === '*' ? currentMinute : parseInt(cronMinute);
+    if (Math.abs(currentMinute - targetMinute) > 1) return false;
+
+    // Check hour
+    const targetHour = cronHour === '*' ? currentHour : parseInt(cronHour);
+    if (currentHour !== targetHour) return false;
+
+    // Check day of week
+    if (cronDow !== '*') {
+      // Handle formats like "1-5" (Mon-Fri) or "0,6" (Sat,Sun)
+      if (cronDow.includes('-')) {
+        const [start, end] = cronDow.split('-').map(Number);
+        if (currentDow < start || currentDow > end) return false;
+      } else if (cronDow.includes(',')) {
+        const allowedDays = cronDow.split(',').map(Number);
+        if (!allowedDays.includes(currentDow)) return false;
+      } else {
+        if (currentDow !== parseInt(cronDow)) return false;
+      }
+    }
+
+    return true;
+  } catch (error) {
+    console.error('[ReportJob] Error parsing scheduleCron:', error);
+    return false;
+  }
+}
+
 export async function generateReportsForDueProfiles(): Promise<ReportJobResult[]> {
   console.log("[ReportJob] Starting report generation for due profiles...");
   
@@ -28,6 +88,11 @@ export async function generateReportsForDueProfiles(): Promise<ReportJobResult[]
 
   for (const profile of activeProfiles) {
     try {
+      // Check if profile should run now based on its scheduleCron
+      if (!shouldRunNow(profile.scheduleCron, profile.timezone)) {
+        continue; // Not time to run this profile yet
+      }
+
       console.log(`[ReportJob] Processing profile: ${profile.name} (id=${profile.id}, topic=${profile.topic})`);
 
       const sourceIds = await storage.getProfileSourceIds(profile.id);
@@ -53,14 +118,14 @@ export async function generateReportsForDueProfiles(): Promise<ReportJobResult[]
         maxItems
       );
 
-      // Apply minRelevanceScore filter from configJson
+      // Apply minImportanceScore filter from configJson
       const config = (profile.configJson || {}) as ReportConfig;
-      const minScore = config.filters?.minRelevanceScore ?? 0;
+      const minScore = config.filters?.minImportanceScore ?? 0;
       if (minScore > 0) {
         items = items.filter(item => (item.importanceScore || 0) >= minScore);
       }
 
-      console.log(`[ReportJob] Found ${items.length} items for profile ${profile.id} (after relevance filter: minScore=${minScore})`);
+      console.log(`[ReportJob] Found ${items.length} items for profile ${profile.id} (after importance filter: minScore=${minScore})`);
 
       if (items.length === 0) {
         console.log(`[ReportJob] No items found for profile ${profile.id}, creating empty report`);
@@ -194,9 +259,9 @@ export async function generateReportForProfile(profileId: number, userId?: strin
     maxItems
   );
 
-  // Apply minRelevanceScore filter from configJson
+  // Apply minImportanceScore filter from configJson
   const config = (profile.configJson || {}) as ReportConfig;
-  const minScore = config.filters?.minRelevanceScore ?? 0;
+  const minScore = config.filters?.minImportanceScore ?? 0;
   if (minScore > 0) {
     items = items.filter(item => (item.importanceScore || 0) >= minScore);
   }
