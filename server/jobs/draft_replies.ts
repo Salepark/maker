@@ -59,9 +59,9 @@ function validateCommunityDraft(text: string): { valid: boolean; reason?: string
     return { valid: false, reason: "Contains URL/link" };
   }
 
-  // Strictly forbidden brand mentions (our service and competitors)
+  // Strictly forbidden brand mentions (old branding and competitors)
   const forbiddenBrands = [
-    /makelr/i,
+    /aiartmarket/i,
     /civitai/i,
     /promptbase/i,
     /artstation/i,
