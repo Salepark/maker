@@ -5,13 +5,19 @@ import { collectFromSource, collectAllSources } from "./services/rss";
 import { startScheduler, stopScheduler, getSchedulerStatus, runCollectNow, runAnalyzeNow, runDraftNow, runDailyBriefNow } from "./jobs/scheduler";
 import { parseCommand } from "./chat/command-parser";
 import { executeCommand } from "./chat/executor";
+import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
   
-  app.get("/api/stats", async (req, res) => {
+  // Setup auth BEFORE registering other routes
+  await setupAuth(app);
+  registerAuthRoutes(app);
+  
+  // All API routes below require authentication
+  app.get("/api/stats", isAuthenticated, async (req, res) => {
     try {
       const stats = await storage.getStats();
       res.json(stats);
@@ -21,7 +27,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/items/recent", async (req, res) => {
+  app.get("/api/items/recent", isAuthenticated, async (req, res) => {
     try {
       const items = await storage.getRecentItems(10);
       res.json(items);
@@ -31,7 +37,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/items/observe", async (req, res) => {
+  app.get("/api/items/observe", isAuthenticated, async (req, res) => {
     try {
       const items = await storage.getObserveItems(50);
       res.json(items);
@@ -41,7 +47,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/items", async (req, res) => {
+  app.get("/api/items", isAuthenticated, async (req, res) => {
     try {
       const status = req.query.status as string | undefined;
       const items = await storage.getItems(status);
@@ -52,7 +58,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/items/:id", async (req, res) => {
+  app.get("/api/items/:id", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const item = await storage.getItem(id);
@@ -66,7 +72,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/items/:id/skip", async (req, res) => {
+  app.post("/api/items/:id/skip", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       await storage.updateItemStatus(id, "skipped");
@@ -77,7 +83,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/items/:id/reanalyze", async (req, res) => {
+  app.post("/api/items/:id/reanalyze", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       await storage.updateItemStatus(id, "new");
@@ -88,7 +94,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/sources", async (req, res) => {
+  app.get("/api/sources", isAuthenticated, async (req, res) => {
     try {
       const sources = await storage.getSources();
       res.json(sources);
@@ -98,7 +104,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/sources", async (req, res) => {
+  app.post("/api/sources", isAuthenticated, async (req, res) => {
     try {
       const { name, url, type = "rss", topic = "ai_art", trustLevel = "medium", region = "global" } = req.body;
       if (!name || !url) {
@@ -115,7 +121,7 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/sources/:id", async (req, res) => {
+  app.patch("/api/sources/:id", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const source = await storage.updateSource(id, req.body);
@@ -129,7 +135,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/sources/:id", async (req, res) => {
+  app.delete("/api/sources/:id", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       await storage.deleteSource(id);
@@ -140,7 +146,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/sources/:id/collect", async (req, res) => {
+  app.post("/api/sources/:id/collect", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const source = await storage.getSource(id);
@@ -155,7 +161,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/drafts", async (req, res) => {
+  app.get("/api/drafts", isAuthenticated, async (req, res) => {
     try {
       const decision = req.query.decision as string | undefined;
       const drafts = await storage.getDrafts(decision);
@@ -166,7 +172,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/drafts/:id/approve", async (req, res) => {
+  app.post("/api/drafts/:id/approve", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const { finalText } = req.body;
@@ -178,7 +184,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/drafts/:id/reject", async (req, res) => {
+  app.post("/api/drafts/:id/reject", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       await storage.updateDraftDecision(id, "rejected");
@@ -189,7 +195,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/scheduler/status", async (req, res) => {
+  app.get("/api/scheduler/status", isAuthenticated, async (req, res) => {
     try {
       const status = getSchedulerStatus();
       res.json(status);
@@ -199,7 +205,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/scheduler/start", async (req, res) => {
+  app.post("/api/scheduler/start", isAuthenticated, async (req, res) => {
     try {
       startScheduler();
       res.json({ success: true, isRunning: true });
@@ -209,7 +215,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/scheduler/stop", async (req, res) => {
+  app.post("/api/scheduler/stop", isAuthenticated, async (req, res) => {
     try {
       stopScheduler();
       res.json({ success: true, isRunning: false });
@@ -219,7 +225,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/scheduler/run/collect", async (req, res) => {
+  app.post("/api/scheduler/run/collect", isAuthenticated, async (req, res) => {
     try {
       const result = await runCollectNow();
       res.json(result);
@@ -229,7 +235,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/scheduler/run/analyze", async (req, res) => {
+  app.post("/api/scheduler/run/analyze", isAuthenticated, async (req, res) => {
     try {
       const count = await runAnalyzeNow();
       res.json({ analyzed: count });
@@ -239,7 +245,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/scheduler/run/draft", async (req, res) => {
+  app.post("/api/scheduler/run/draft", isAuthenticated, async (req, res) => {
     try {
       const count = await runDraftNow();
       res.json({ drafted: count });
@@ -249,7 +255,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/reports", async (req, res) => {
+  app.get("/api/reports", isAuthenticated, async (req, res) => {
     try {
       const reports = await storage.getReports(20);
       res.json(reports);
@@ -259,7 +265,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/reports/:id", async (req, res) => {
+  app.get("/api/reports/:id", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const report = await storage.getReport(id);
@@ -273,7 +279,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/debug/generate-daily-brief", async (req, res) => {
+  app.post("/api/debug/generate-daily-brief", isAuthenticated, async (req, res) => {
     try {
       const topic = req.body?.topic || "ai_art";
       const result = await runDailyBriefNow(topic);
@@ -284,7 +290,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/chat/messages", async (req, res) => {
+  app.get("/api/chat/messages", isAuthenticated, async (req, res) => {
     try {
       const messages = await storage.getChatMessages(100);
       res.json(messages.reverse());
@@ -294,7 +300,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/chat/command", async (req, res) => {
+  app.post("/api/chat/command", isAuthenticated, async (req, res) => {
     try {
       const { message } = req.body;
       if (!message || typeof message !== "string") {
