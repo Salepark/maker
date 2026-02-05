@@ -86,12 +86,35 @@ export type InsertSource = z.infer<typeof insertSourceSchema>;
 export const profileSources = pgTable("profile_sources", {
   profileId: integer("profile_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
   sourceId: integer("source_id").notNull().references(() => sources.id, { onDelete: "cascade" }),
+  weight: integer("weight").notNull().default(3), // 1-5, higher = more priority
+  isEnabled: boolean("is_enabled").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (table) => [
   primaryKey({ columns: [table.profileId, table.sourceId] })
 ]);
 
 export type ProfileSource = typeof profileSources.$inferSelect;
+
+// ============================================
+// PROFILE CONFIG JSON TYPE (for configJson column)
+// ============================================
+export type ProfileConfig = {
+  scheduleRule?: "DAILY" | "WEEKDAYS" | "WEEKENDS";
+  sections?: {
+    tldr?: boolean;
+    drivers?: boolean;
+    risk?: boolean;
+    checklist?: boolean;
+    sources?: boolean;
+  };
+  verbosity?: "short" | "normal" | "detailed";
+  markdownLevel?: "minimal" | "normal";
+  filters?: {
+    minRelevanceScore?: number;
+    maxRiskLevelAllowed?: number;
+    allowPromotionLinks?: boolean;
+  };
+};
 
 // ============================================
 // ITEMS - Collected content

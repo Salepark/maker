@@ -1,0 +1,245 @@
+Step 8 설계 문서 v1.0 — User Customization Layer
+0) 목적
+
+사용자가 “봇을 자기 방식대로” 쓰게 만든다.
+
+누구나 같은 데이터/같은 결과가 아니라
+
+사용자마다 토픽/소스/시간/리포트 포맷/길이/필터를 바꿔서
+
+다른 리포트와 다른 경험을 만들 수 있게 한다.
+
+1) 핵심 개념 (딱 3개)
+1) Profile(사용자) → 여러 “Bot”(프리셋/토픽 단위)를 가질 수 있음
+
+지금은 topic(예: ai_art, investing) 중심으로 굴러가죠.
+
+Step 8에서는 topic = bot 으로 발전시킵니다.
+
+예: “AI Art 커뮤니티 봇”, “Investing Daily Brief 봇”, “법/정책 모니터링 봇”
+
+2) Bot마다 Settings(설정)가 있다
+
+리포트 시간, 리포트 템플릿 옵션, 필터 기준, 소스 포함/제외 등
+
+3) Sources는 Bot에 연결된다
+
+지금도 sources에 topic이 붙어있죠.
+
+Step 8에서는 “Bot” 기준으로 연결/해제/우선순위를 부여합니다.
+
+2) 사용자가 바꿀 수 있어야 하는 옵션 목록 (MVP 우선순위)
+
+아래는 “범용 봇 매니저”로 가기 위한 최소 커스터마이징입니다.
+
+A. 리포트 생성 스케줄 (가장 먼저)
+
+실행 주기: 매일 1회 / 주중만 / 주말만
+
+실행 시간: 사용자가 선택 (타임존 포함)
+
+“미국장 개장 전” 같은 프리셋 버튼 제공(옵션)
+
+필드 예시
+
+timezone: "Asia/Seoul", "America/New_York"
+
+scheduleTimeLocal: "07:00"
+
+scheduleRule: "DAILY" or "WEEKDAYS"
+
+B. 리포트 포맷 옵션 (두 번째)
+
+섹션 On/Off
+
+TL;DR, Market Drivers, Risk Radar, Checklist, Sources
+
+길이 옵션
+
+짧게 / 보통 / 자세히
+
+스타일(마크다운 기호 최소화)
+
+지금 싫다고 하신 ##, ** 같은 과한 마크다운을 줄이는 토글
+
+필드 예시
+
+format: "clean" (기본)
+
+sections: { tldr:true, drivers:true, risk:true, checklist:true, sources:true }
+
+verbosity: "short" | "normal" | "detailed"
+
+markdownLevel: "minimal" | "normal"
+
+C. 소스 선택/우선순위/제외 (세 번째)
+
+소스 연결(선택)
+
+소스 우선순위(가중치)
+
+특정 도메인/출처 제외(예: 스팸/홍보성 사이트)
+
+필드 예시
+
+sourceIdsIncluded: number[]
+
+sourceIdsExcluded: number[]
+
+sourceWeights: Record<sourceId, 1..5>
+
+D. 필터/스코어 기준 (네 번째)
+
+relevance / reply-worthiness / risk flags 기반으로
+
+“리포트에 들어갈 최소 조건”을 사용자가 정하게
+
+필드 예시
+
+minRelevanceScore
+
+maxRiskLevelAllowed
+
+allowPromotionLinks (지금은 기본 false 권장)
+
+3) DB 설계 (v1.0)
+
+지금 구조를 크게 깨지 않고 “설정 레이어”만 얹는 방식이 안전합니다.
+
+3-1. bots 테이블 (신설 권장)
+
+id
+
+profileId (FK)
+
+key (예: "ai_art", "investing")
+
+name (표시명)
+
+isEnabled
+
+createdAt
+
+3-2. bot_settings 테이블 (신설)
+
+botId (FK)
+
+timezone
+
+scheduleRule
+
+scheduleTimeLocal
+
+format
+
+markdownLevel
+
+verbosity
+
+sectionsJson
+
+filtersJson
+
+createdAt, updatedAt
+
+3-3. source_bot_links (소스 연결 테이블)
+
+sourceId
+
+botId
+
+weight (1~5)
+
+isEnabled
+
+이미 sources에 topic 컬럼이 있다면, Step 8에서 점진적으로 링크 테이블로 옮기면 됩니다. (기존 방식 유지 + 새 방식 병행 가능)
+
+4) UI 설계 (사용자 친화적으로)
+4-1. Navigation: “My Bots”를 메인으로
+
+My Bots: 봇 목록 + 토글 + 기본 설정 요약
+
+Bots > (봇 상세)
+
+Schedule 탭
+
+Report Format 탭
+
+Sources 탭
+
+Filters 탭
+
+4-2. “소스는 제안 자료” 구조
+
+Sources 페이지에서:
+
+추천 소스 템플릿을 보여주고(카탈로그)
+
+사용자가 체크해서 자기 봇에 연결
+
+즉,
+
+운영자가 “정답”을 강요하지 않고
+
+사용자가 조합해서 “자기만의 봇”을 만들게 합니다.
+
+5) API 변경 (v1.0)
+
+GET /api/bots
+
+POST /api/bots
+
+GET /api/bots/:id
+
+PUT /api/bots/:id/settings
+
+PUT /api/bots/:id/sources (연결/해제/weight)
+
+POST /api/reports/generate?botId=... (기존 topic 대신 botId 우선)
+
+6) 파이프라인 반영 포인트
+
+Collect/Analyze/Draft/Report에서 “topic” 대신 “botId” 기반으로 동작시키는 게 최종형입니다.
+
+단, Step 8에서는 안정성을 위해 이렇게 가면 좋습니다:
+
+우선은 Report 생성부터 botSettings 반영
+
+Collect/Analyze는 기존 topic 기반 유지(당장 크게 흔들지 않기)
+
+즉:
+
+UI/DB/API로 “봇 설정 저장” 가능
+
+Reports 생성 시: botSettings로 필터/포맷/시간 적용
+
+다음 단계에서: Collect/Analyze까지 botId로 확장
+
+7) Step 8 구현 순서 (헷갈리지 않게 “한 줄”씩)
+
+DB: bots / bot_settings / source_bot_links 추가
+
+UI: My Bots 페이지 + Bot Detail(설정 폼)
+
+API: bots/settings CRUD
+
+Reports 생성 로직: botSettings 반영(포맷/섹션/필터/markdown 최소화)
+
+Scheduler: bot별 timezone/time로 daily report 실행
+
+8) 완료 기준 (Definition of Done)
+
+사용자는 “봇 2~3개”를 만들 수 있고
+
+각 봇마다:
+
+리포트 시간/타임존
+
+리포트 섹션/길이/마크다운 최소화
+
+소스 선택/제외/우선순위
+
+필터 기준
+을 UI에서 바꿀 수 있다.
+
+그리고 그 설정대로 매일 리포트가 다르게 나온다.
