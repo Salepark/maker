@@ -66,7 +66,7 @@ const sourceFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
   url: z.string().url("Must be a valid URL"),
   type: z.string().default("rss"),
-  topic: z.string().default("ai_art"),
+  topic: z.string().default("tech"),
   trustLevel: z.string().default("medium"),
   region: z.string().default("global"),
 });
@@ -74,8 +74,25 @@ const sourceFormSchema = z.object({
 type SourceFormValues = z.infer<typeof sourceFormSchema>;
 
 const TOPICS = [
-  { value: "ai_art", label: "AI Art" },
+  { value: "tech", label: "Tech" },
   { value: "investing", label: "Investing" },
+  { value: "crypto", label: "Crypto" },
+  { value: "ai_art", label: "AI Art" },
+  { value: "creative", label: "Creative" },
+  { value: "community_research", label: "Community Research" },
+  { value: "market_brief", label: "Market Brief" },
+  { value: "research_watch", label: "Research Watch" },
+  { value: "competitor_watch", label: "Competitor Watch" },
+  { value: "finance", label: "Finance" },
+  { value: "compliance", label: "Compliance" },
+  { value: "commerce", label: "Commerce" },
+  { value: "engagement", label: "Engagement" },
+  { value: "health", label: "Health" },
+  { value: "science", label: "Science" },
+  { value: "education", label: "Education" },
+  { value: "gaming", label: "Gaming" },
+  { value: "sustainability", label: "Sustainability" },
+  { value: "other", label: "Other" },
 ];
 
 const TRUST_LEVELS = [
@@ -102,7 +119,7 @@ export default function Sources() {
       name: "",
       url: "",
       type: "rss",
-      topic: "ai_art",
+      topic: "tech",
       trustLevel: "medium",
       region: "global",
     },

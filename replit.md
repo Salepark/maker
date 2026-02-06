@@ -93,6 +93,24 @@ A natural language interface, powered by Claude AI, allows users to control bots
 
 **E2E coverage**: Login → browse gallery → create bot from preset → chat commands (list, switch, status) → verify active bot persistence → delete bot
 
+### Landing Page (Phase 8)
+Enhanced landing page with three additional sections:
+- **Use Cases**: 6 concrete workflow examples (Market Brief, Research Tracker, Competitor Monitor, Community Research, Chat Control, BYO LLM)
+- **FAQ Accordion**: 6 questions covering BYO LLM, sources, templates, scheduling, outputs, privacy
+- **Bottom CTA**: Final call-to-action for sign-up
+
+### New User Onboarding (Phase 8)
+Dashboard shows a "Getting Started" card for users with 0 bots. Three steps:
+1. Add AI Provider (shows "Done" badge when provider exists)
+2. Create a Bot (links to template gallery)
+3. View Reports (links to reports page)
+
+### Report Export (Phase 8)
+Reports page includes Copy (clipboard) and Download (Markdown .md file) buttons in the report viewer header. Only visible when a report is selected.
+
+### Source Topics (Phase 8)
+Expanded from 2 to 19 topic options in the source creation form: tech, investing, crypto, ai_art, creative, community_research, market_brief, research_watch, competitor_watch, finance, compliance, commerce, engagement, health, science, education, gaming, sustainability, other. Default topic is "tech".
+
 ## External Dependencies
 
 ### Environment Variables

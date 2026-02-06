@@ -1,11 +1,12 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileText, Plus, Loader2, Bot, RefreshCw } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { FileText, Plus, Loader2, Bot, RefreshCw, Copy, Download, Check } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -31,13 +32,12 @@ interface Profile {
   presetName: string;
 }
 
-function formatKST(iso: string) {
+function formatDateTime(iso: string) {
   try {
-    return new Intl.DateTimeFormat("ko-KR", {
-      timeZone: "Asia/Seoul",
+    return new Intl.DateTimeFormat("en-US", {
       year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
+      month: "short",
+      day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
       hour12: false,
@@ -61,6 +61,7 @@ export default function Reports() {
   const { toast } = useToast();
   const [selectedReportId, setSelectedReportId] = useState<number | null>(null);
   const [selectedProfileId, setSelectedProfileId] = useState<string>("all");
+  const [copied, setCopied] = useState(false);
 
   const { data: profiles = [] } = useQuery<Profile[]>({
     queryKey: ["/api/profiles"],
@@ -82,6 +83,29 @@ export default function Reports() {
     if (!reports || selectedReportId == null) return null;
     return reports.find((r) => r.id === selectedReportId) ?? null;
   }, [reports, selectedReportId]);
+
+  const handleCopyReport = useCallback(() => {
+    if (!selectedReport) return;
+    const text = `${selectedReport.title}\n\n${selectedReport.contentText}`;
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      toast({ title: "Copied to clipboard" });
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }, [selectedReport, toast]);
+
+  const handleDownloadReport = useCallback(() => {
+    if (!selectedReport) return;
+    const text = `# ${selectedReport.title}\n\nCreated: ${formatDateTime(selectedReport.createdAt)}\nPeriod: ${formatDateTime(selectedReport.periodStart)} ~ ${formatDateTime(selectedReport.periodEnd)}\n\n${selectedReport.contentText}`;
+    const blob = new Blob([text], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${selectedReport.title.replace(/[^a-zA-Z0-9-_ ]/g, "").trim().replace(/\s+/g, "_")}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: "Report downloaded" });
+  }, [selectedReport, toast]);
 
   const generateMutation = useMutation({
     mutationFn: async (profileId?: number) => {
@@ -218,7 +242,7 @@ export default function Reports() {
                   >
                     <div className="text-sm font-medium line-clamp-2">{report.title}</div>
                     <div className="mt-1 flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
-                      <span>{formatKST(report.createdAt)}</span>
+                      <span>{formatDateTime(report.createdAt)}</span>
                       <span>·</span>
                       <Badge variant="secondary" className={`text-xs px-1.5 py-0 ${getTopicColor(report.topic)}`}>
                         {report.topic}
@@ -238,9 +262,41 @@ export default function Reports() {
 
         <Card className="h-[70vh] overflow-hidden">
           <CardHeader className="py-3 px-4 border-b">
-            <CardTitle className="text-sm font-medium line-clamp-1">
-              {selectedReport ? selectedReport.title : "Select a report"}
-            </CardTitle>
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="text-sm font-medium line-clamp-1 flex-1 min-w-0">
+                {selectedReport ? selectedReport.title : "Select a report"}
+              </CardTitle>
+              {selectedReport && (
+                <div className="flex items-center gap-1 shrink-0">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={handleCopyReport}
+                        data-testid="button-copy-report"
+                      >
+                        {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Copy to clipboard</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={handleDownloadReport}
+                        data-testid="button-download-report"
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Download as Markdown</TooltipContent>
+                  </Tooltip>
+                </div>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="h-[calc(70vh-52px)] overflow-auto p-4">
             {selectedReportId == null && (
@@ -255,9 +311,9 @@ export default function Reports() {
             {selectedReport && (
               <div className="space-y-4">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span>Created: {formatKST(selectedReport.createdAt)}</span>
+                  <span>Created: {formatDateTime(selectedReport.createdAt)}</span>
                   <span>·</span>
-                  <span>Period: {formatKST(selectedReport.periodStart)} ~ {formatKST(selectedReport.periodEnd)}</span>
+                  <span>Period: {formatDateTime(selectedReport.periodStart)} ~ {formatDateTime(selectedReport.periodEnd)}</span>
                 </div>
                 <pre 
                   className="whitespace-pre-wrap text-sm leading-6 font-sans"

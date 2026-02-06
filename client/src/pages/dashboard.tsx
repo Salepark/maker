@@ -8,7 +8,7 @@ import {
   FileText, Search, Edit, CheckCircle, Send, XCircle, Clock, RefreshCw,
   Activity, AlertTriangle, Zap, Bot as BotIcon, ArrowRight, Settings,
   Newspaper, Eye, Scale, GraduationCap, ShoppingBag, MessageSquare, TrendingUp, Users, Sparkles,
-  Layers, Rss, FileBarChart, Briefcase, BookOpen, Building2
+  Layers, Rss, FileBarChart, Briefcase, BookOpen, Building2, Key, CircleDot
 } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { Link, useLocation } from "wouter";
@@ -147,6 +147,13 @@ export default function Dashboard() {
     queryKey: ["/api/presets"],
   });
 
+  const { data: providersResponse } = useQuery<{ providers: { id: number }[] }>({
+    queryKey: ["/api/llm-providers"],
+    queryFn: () => fetch("/api/llm-providers", { credentials: "include" }).then(r => r.json()),
+  });
+  const hasProviders = (providersResponse?.providers?.length ?? 0) > 0;
+  const isNewUser = botsList.length === 0;
+
   const featuredPresets = presets.slice(0, 4);
 
   const getPresetIcon = (iconName: string | null) => {
@@ -189,6 +196,82 @@ export default function Dashboard() {
                   </Link>
                   {" "}— Add a BYO LLM provider to enable AI features for each bot.
                 </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {isNewUser && (
+        <Card data-testid="card-onboarding">
+          <CardContent className="p-6">
+            <h2 className="text-lg font-semibold mb-2">Getting Started</h2>
+            <p className="text-sm text-muted-foreground mb-6">
+              Follow these steps to set up your first automation workflow.
+            </p>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="flex gap-3">
+                <div className={`shrink-0 flex items-center justify-center h-9 w-9 rounded-md ${hasProviders ? 'bg-green-100 dark:bg-green-900' : 'bg-primary/10'}`}>
+                  <Key className={`h-5 w-5 ${hasProviders ? 'text-green-600 dark:text-green-400' : 'text-primary'}`} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-medium text-sm">1. Add AI Provider</h3>
+                    {hasProviders && (
+                      <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Done
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Add your own API key (OpenAI, Anthropic, Google, etc.) to enable AI analysis and report generation.
+                  </p>
+                  {!hasProviders && (
+                    <Link href="/settings">
+                      <Button variant="outline" size="sm" className="mt-2" data-testid="button-onboarding-provider">
+                        Go to Settings
+                        <ArrowRight className="h-3 w-3 ml-1" />
+                      </Button>
+                    </Link>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <div className="shrink-0 flex items-center justify-center h-9 w-9 rounded-md bg-primary/10">
+                  <Layers className="h-5 w-5 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-medium text-sm">2. Create a Bot</h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Pick a template below and customize the sources, schedule, and output format to your needs.
+                  </p>
+                  <Link href="/bots">
+                    <Button variant="outline" size="sm" className="mt-2" data-testid="button-onboarding-create-bot">
+                      Browse Templates
+                      <ArrowRight className="h-3 w-3 ml-1" />
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <div className="shrink-0 flex items-center justify-center h-9 w-9 rounded-md bg-primary/10">
+                  <FileBarChart className="h-5 w-5 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-medium text-sm">3. View Reports</h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Your bot will automatically collect, analyze, and generate reports on schedule. Check results in the Reports page.
+                  </p>
+                  <Link href="/reports">
+                    <Button variant="outline" size="sm" className="mt-2" data-testid="button-onboarding-reports">
+                      View Reports
+                      <ArrowRight className="h-3 w-3 ml-1" />
+                    </Button>
+                  </Link>
+                </div>
               </div>
             </div>
           </CardContent>
