@@ -19,7 +19,7 @@ async function callLLMForProfile(prompt: string, userId: string, topic: string, 
     console.log(`[ReportJob] No bot LLM configured, using system default`);
     return callLLM(prompt, maxRetries, maxTokens);
   }
-  throw new Error("AI 키가 설정되지 않았습니다. Settings에서 AI Provider를 추가하거나 관리자에게 문의하세요.");
+  throw new Error("No AI key configured. Please add an AI Provider in Settings or contact your administrator.");
 }
 
 // Check if current time matches the profile's scheduleCron
@@ -149,7 +149,7 @@ export async function generateReportsForDueProfiles(): Promise<ReportJobResult[]
           topic: profile.topic,
           outputType: "report",
           title: `${profile.name} - No Data`,
-          contentText: `# ${profile.name}\n\n> 분석된 아이템이 없습니다.`,
+          contentText: `# ${profile.name}\n\n> No analyzed items found.`,
           periodStart,
           periodEnd,
         });
@@ -172,7 +172,7 @@ export async function generateReportsForDueProfiles(): Promise<ReportJobResult[]
         }
       }
 
-      const today = new Date().toLocaleDateString("ko-KR", {
+      const today = new Date().toLocaleDateString("en-US", {
         year: "numeric",
         month: "long",
         day: "numeric",
@@ -285,7 +285,7 @@ export async function generateReportForProfile(profileId: number, userId?: strin
     }
   }
 
-  const today = new Date().toLocaleDateString("ko-KR", {
+  const today = new Date().toLocaleDateString("en-US", {
     year: "numeric",
     month: "long",
     day: "numeric",
@@ -296,7 +296,7 @@ export async function generateReportForProfile(profileId: number, userId?: strin
   let content: string;
   
   if (items.length === 0) {
-    content = `# ${profile.name}\n\n> 분석된 아이템이 없습니다.`;
+    content = `# ${profile.name}\n\n> No analyzed items found.`;
   } else {
     const briefItems = items.map((item) => ({
       id: item.id,

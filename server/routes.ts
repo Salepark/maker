@@ -251,8 +251,8 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("Error running analyze:", error);
       const msg = error?.message?.includes("LLM_API_KEY")
-        ? "AI 키가 설정되지 않았습니다. Settings에서 AI Provider를 추가하세요."
-        : "분석 실행에 실패했습니다. 잠시 후 다시 시도해 주세요.";
+        ? "AI key not configured. Please add an AI Provider in Settings."
+        : "Analysis failed. Please try again later.";
       res.status(500).json({ error: msg });
     }
   });
@@ -264,8 +264,8 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("Error running draft:", error);
       const msg = error?.message?.includes("LLM_API_KEY")
-        ? "AI 키가 설정되지 않았습니다. Settings에서 AI Provider를 추가하세요."
-        : "초안 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.";
+        ? "AI key not configured. Please add an AI Provider in Settings."
+        : "Draft generation failed. Please try again later.";
       res.status(500).json({ error: msg });
     }
   });
@@ -333,8 +333,8 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("Error generating daily brief:", error);
       const msg = error?.message?.includes("LLM_API_KEY")
-        ? "AI 키가 설정되지 않았습니다. Settings에서 AI Provider를 추가하세요."
-        : `데일리 브리프 생성에 실패했습니다: ${error?.message ?? "알 수 없는 오류"}`;
+        ? "AI key not configured. Please add an AI Provider in Settings."
+        : `Daily brief generation failed: ${error?.message ?? "Unknown error"}`;
       res.status(500).json({ ok: false, error: msg });
     }
   });
@@ -362,8 +362,8 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("Error generating report:", error);
       const msg = error?.message?.includes("LLM_API_KEY")
-        ? "AI 키가 설정되지 않았습니다. Settings에서 AI Provider를 추가하세요."
-        : `리포트 생성에 실패했습니다: ${error?.message ?? "알 수 없는 오류"}`;
+        ? "AI key not configured. Please add an AI Provider in Settings."
+        : `Report generation failed: ${error?.message ?? "Unknown error"}`;
       res.status(500).json({ ok: false, error: msg });
     }
   });
@@ -452,7 +452,7 @@ export async function registerRoutes(
           threadId,
           userId,
           role: "assistant",
-          contentText: clarificationText || "좀 더 구체적으로 말씀해주세요.",
+          contentText: clarificationText || "Could you be more specific?",
           kind: "text",
         });
         return res.json({ ok: true, mode: "clarification", clarificationText });
@@ -463,7 +463,7 @@ export async function registerRoutes(
           threadId,
           userId,
           role: "assistant",
-          contentText: command.confirmText || `'${command.type}' 실행할까요?`,
+          contentText: command.confirmText || `Run '${command.type}'?`,
           kind: "pending_command",
           commandJson: command,
           status: "pending_confirm",
@@ -523,7 +523,7 @@ export async function registerRoutes(
           threadId,
           userId,
           role: "assistant",
-          contentText: "취소했습니다.",
+          contentText: "Cancelled.",
           kind: "text",
         });
         return res.json({ ok: true, cancelled: true });
@@ -757,11 +757,11 @@ export async function registerRoutes(
 
       const { presetId, name, topic, selectedSourceUrls, customSources } = req.body;
       if (!presetId || !name || !topic) {
-        return res.status(400).json({ error: "presetId, name, topic 은 필수입니다." });
+        return res.status(400).json({ error: "presetId, name, and topic are required." });
       }
 
       const preset = await storage.getPresetById(presetId);
-      if (!preset) return res.status(404).json({ error: "프리셋을 찾을 수 없습니다." });
+      if (!preset) return res.status(404).json({ error: "Preset not found." });
 
       const config = (preset.defaultConfigJson || {}) as any;
 
@@ -808,10 +808,10 @@ export async function registerRoutes(
       res.json({ bot: full });
     } catch (error: any) {
       if (error?.code === '23505') {
-        return res.status(409).json({ error: "이 토픽으로 이미 봇이 존재합니다. 다른 토픽을 선택하세요." });
+        return res.status(409).json({ error: "A bot with this topic already exists. Please choose a different topic." });
       }
       console.error("Error creating bot from preset:", error);
-      res.status(500).json({ error: "봇 생성에 실패했습니다. 잠시 후 다시 시도해 주세요." });
+      res.status(500).json({ error: "Bot creation failed. Please try again later." });
     }
   });
 
@@ -912,10 +912,10 @@ export async function registerRoutes(
       res.json({ settings });
     } catch (error: any) {
       if (error.message?.includes("not found")) {
-        return res.status(404).json({ error: "봇을 찾을 수 없습니다." });
+        return res.status(404).json({ error: "Bot not found." });
       }
       console.error("Error saving bot settings:", error);
-      res.status(500).json({ error: "설정 저장에 실패했습니다. 잠시 후 다시 시도해 주세요." });
+      res.status(500).json({ error: "Settings save failed. Please try again later." });
     }
   });
 

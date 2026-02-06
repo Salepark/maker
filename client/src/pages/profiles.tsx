@@ -273,8 +273,8 @@ export default function Profiles() {
         <div className="mb-8">
           <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
             <div>
-              <h1 className="text-2xl font-bold" data-testid="text-page-title">내 워크플로우 봇</h1>
-              <p className="text-muted-foreground">봇의 소스, 스케줄, 결과물을 설정하고 운영하세요</p>
+              <h1 className="text-2xl font-bold" data-testid="text-page-title">My Workflow Bots</h1>
+              <p className="text-muted-foreground">Configure and manage your bots' sources, schedules, and outputs</p>
             </div>
           </div>
 
@@ -357,14 +357,14 @@ export default function Profiles() {
         <div className="mb-8">
           <div className="text-center py-12">
             <BotIcon className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-            <h1 className="text-2xl font-bold mb-2" data-testid="text-page-title">아직 만든 봇이 없습니다</h1>
+            <h1 className="text-2xl font-bold mb-2" data-testid="text-page-title">No bots created yet</h1>
             <p className="text-muted-foreground mb-6 max-w-lg mx-auto" data-testid="text-empty-state-message">
-              아래 템플릿에서 첫 번째 워크플로우를 시작하세요. 소스, 스케줄, 결과물 모두 자유롭게 바꿀 수 있습니다.
+              Start your first workflow from a template below. You can freely customize sources, schedules, and outputs.
             </p>
             <div className="flex items-center justify-center gap-3 flex-wrap">
               <Button onClick={() => setWizardOpen(true)} data-testid="button-start-from-template">
                 <Sparkles className="h-4 w-4 mr-2" />
-                템플릿에서 시작하기
+                Start from Template
               </Button>
             </div>
           </div>
@@ -372,9 +372,9 @@ export default function Profiles() {
       )}
 
       <div className="mb-4">
-        <h2 className="text-xl font-bold" data-testid="text-gallery-title">워크플로우 레시피</h2>
+        <h2 className="text-xl font-bold" data-testid="text-gallery-title">Workflow Recipes</h2>
         <p className="text-muted-foreground text-sm" data-testid="text-gallery-subtitle">
-          이 템플릿들은 정답이 아니라, 당신의 워크플로우를 만들기 위한 출발점입니다.
+          These templates are starting points for building your own workflows, not final answers.
         </p>
       </div>
 
@@ -437,7 +437,7 @@ export default function Profiles() {
                             ))}
                           </div>
                           <p className="text-xs text-primary font-medium mt-2" data-testid={`link-preset-start-${preset.key}`}>
-                            이 구성으로 시작하기 &rarr;
+                            Start with this setup &rarr;
                           </p>
                         </div>
                       </div>
@@ -706,7 +706,7 @@ export default function Profiles() {
                   data-testid="button-wizard-create"
                 >
                   {createFromPresetMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  이 구성으로 시작하기
+                  Start with this setup
                 </Button>
               </div>
             </div>

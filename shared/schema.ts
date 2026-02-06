@@ -59,7 +59,7 @@ export interface PresetDefaultConfig {
 }
 
 // ============================================
-// PROFILES - User's bot settings (핵심 테이블)
+// PROFILES - User's bot settings (core table)
 // ============================================
 export const profiles = pgTable("profiles", {
   id: serial("id").primaryKey(),
@@ -386,7 +386,7 @@ export const outputs = pgTable(
     profileId: integer("profile_id").notNull().references(() => profiles.id),
     presetId: integer("preset_id").notNull().references(() => presets.id),
 
-    topic: text("topic").notNull(), // profile.topic과 동일해야 함
+    topic: text("topic").notNull(), // must match profile.topic
     outputType: text("output_type").notNull(), // "report" | "draft" | "alert"
 
     title: text("title").notNull(),
@@ -400,7 +400,7 @@ export const outputs = pgTable(
       .defaultNow(),
   },
   (t) => ({
-    // 같은 profile + 같은 기간 report가 중복 생성되는 것 방지
+    // Prevent duplicate reports for the same profile + same period
     uqProfilePeriod: uniqueIndex("outputs_uq_profile_period").on(
       t.profileId,
       t.periodStart,

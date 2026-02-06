@@ -38,13 +38,13 @@ interface ActiveBotInfo {
 }
 
 const exampleCommands = [
-  "내 봇 목록 보여줘",
-  "investing으로 전환",
-  "봇 상태 알려줘",
-  "수집 지금 실행해줘",
-  "https://example.com/feed.xml 소스 추가해줘",
-  "봇 일시정지해줘",
-  "봇 재개해줘",
+  "Show my bot list",
+  "Switch to investing",
+  "Show bot status",
+  "Run collection now",
+  "Add source https://example.com/feed.xml",
+  "Pause bot",
+  "Resume bot",
 ];
 
 function ConfirmButtons({
@@ -67,7 +67,7 @@ function ConfirmButtons({
         data-testid={`button-confirm-${messageId}`}
       >
         {isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Check className="h-3 w-3 mr-1" />}
-        승인하고 실행
+        Approve & Run
       </Button>
       <Button
         size="sm"
@@ -77,7 +77,7 @@ function ConfirmButtons({
         data-testid={`button-cancel-${messageId}`}
       >
         <X className="h-3 w-3 mr-1" />
-        취소
+        Cancel
       </Button>
     </div>
   );
@@ -222,8 +222,8 @@ export default function Chat() {
     },
     onError: (error: any) => {
       toast({
-        title: "전송 실패",
-        description: error.message || "오류가 발생했습니다",
+        title: "Send failed",
+        description: error.message || "An error occurred",
         variant: "destructive",
       });
     },
@@ -243,8 +243,8 @@ export default function Chat() {
     onError: (error: any) => {
       setConfirmingId(null);
       toast({
-        title: "실행 실패",
-        description: error.message || "오류가 발생했습니다",
+        title: "Execution failed",
+        description: error.message || "An error occurred",
         variant: "destructive",
       });
     },
@@ -286,7 +286,7 @@ export default function Chat() {
         </h1>
         <div className="flex items-center gap-2 mt-1 flex-wrap">
           <p className="text-sm text-muted-foreground" data-testid="text-chat-description">
-            봇을 조작하는 콘솔입니다. "소스 추가해줘", "지금 실행해" 같은 명령을 입력하세요.
+            A console for controlling your bots. Type commands like "add source" or "run now".
           </p>
           {activeBotInfo ? (
             <Badge variant="secondary" data-testid="badge-active-bot">
@@ -295,7 +295,7 @@ export default function Chat() {
             </Badge>
           ) : (
             <Badge variant="outline" className="text-xs text-muted-foreground" data-testid="badge-no-active-bot">
-              활성 봇 없음
+              No active bot
             </Badge>
           )}
         </div>
@@ -313,9 +313,9 @@ export default function Chat() {
             ) : !messages?.length ? (
               <div className="flex flex-col items-center justify-center h-full text-center">
                 <MessageCircle className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium" data-testid="text-chat-empty">대화를 시작하세요</h3>
+                <h3 className="text-lg font-medium" data-testid="text-chat-empty">Start a conversation</h3>
                 <p className="text-sm text-muted-foreground mt-1">
-                  봇 목록 보기, 상태 확인, 소스 추가 등 자연어로 명령하세요
+                  Use natural language commands like list bots, check status, or add sources
                 </p>
               </div>
             ) : (
@@ -337,7 +337,7 @@ export default function Chat() {
               <Input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder={activeBotInfo ? `e.g. "이 RSS를 ${activeBotInfo.name}에 추가해줘"` : "e.g. \"내 investing 봇에 RSS 추가해줘\""}
+                placeholder={activeBotInfo ? `e.g. "Add this RSS to ${activeBotInfo.name}"` : 'e.g. "Add RSS to my investing bot"'}
                 disabled={sendMutation.isPending}
                 data-testid="input-chat-message"
               />
@@ -359,7 +359,7 @@ export default function Chat() {
         <div className="w-64 border-l border-border p-4 hidden lg:block">
           <div className="flex items-center gap-2 mb-3">
             <HelpCircle className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">예시 명령어</span>
+            <span className="text-sm font-medium">Example Commands</span>
           </div>
           <div className="space-y-2">
             {exampleCommands.map((example, i) => (
@@ -377,16 +377,16 @@ export default function Chat() {
           </div>
 
           <div className="mt-6 pt-4 border-t border-border">
-            <p className="text-xs text-muted-foreground mb-2">지원 명령:</p>
+            <p className="text-xs text-muted-foreground mb-2">Supported commands:</p>
             <div className="flex flex-wrap gap-1">
-              <Badge variant="secondary" className="text-xs">봇 목록</Badge>
-              <Badge variant="secondary" className="text-xs">봇 전환</Badge>
-              <Badge variant="secondary" className="text-xs">상태 확인</Badge>
-              <Badge variant="secondary" className="text-xs">작업 실행</Badge>
-              <Badge variant="secondary" className="text-xs">일시정지</Badge>
-              <Badge variant="secondary" className="text-xs">재개</Badge>
-              <Badge variant="secondary" className="text-xs">소스 추가</Badge>
-              <Badge variant="secondary" className="text-xs">소스 제거</Badge>
+              <Badge variant="secondary" className="text-xs">List bots</Badge>
+              <Badge variant="secondary" className="text-xs">Switch bot</Badge>
+              <Badge variant="secondary" className="text-xs">Bot status</Badge>
+              <Badge variant="secondary" className="text-xs">Run job</Badge>
+              <Badge variant="secondary" className="text-xs">Pause</Badge>
+              <Badge variant="secondary" className="text-xs">Resume</Badge>
+              <Badge variant="secondary" className="text-xs">Add source</Badge>
+              <Badge variant="secondary" className="text-xs">Remove source</Badge>
             </div>
           </div>
         </div>

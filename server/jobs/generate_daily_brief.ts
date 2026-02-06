@@ -26,14 +26,14 @@ export async function generateDailyBrief(options: DailyBriefOptions = {}): Promi
     const report = await storage.createReport({
       topic,
       title: `Daily Brief - No Data`,
-      content: `# Daily Market Brief\n\n> 분석된 아이템이 없습니다. 데이터 수집 후 다시 시도해주세요.`,
+      content: `# Daily Market Brief\n\n> No analyzed items found. Please try again after data collection.`,
       itemsCount: 0,
       itemIdsJson: [],
     });
     return { id: report.id, itemsCount: 0 };
   }
 
-  const today = new Date().toLocaleDateString("ko-KR", {
+  const today = new Date().toLocaleDateString("en-US", {
     year: "numeric",
     month: "long",
     day: "numeric",

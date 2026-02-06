@@ -169,7 +169,7 @@ export default function Dashboard() {
       <div className="space-y-2" data-testid="section-hero">
         <h1 className="text-2xl font-bold" data-testid="text-dashboard-title">Workflow Designer</h1>
         <p className="text-muted-foreground max-w-2xl" data-testid="text-hero-message">
-          당신의 자동화 워크플로우를 설계하는 도구입니다. 소스를 선택하고, 스케줄을 정하고, 결과물을 설계하세요 — 모든 것은 당신이 결정합니다.
+          A tool for designing your automation workflows. Choose your sources, set your schedule, and design your outputs — you decide everything.
         </p>
       </div>
 
@@ -187,7 +187,7 @@ export default function Dashboard() {
                   <Link href="/settings" className="text-primary hover:underline" data-testid="link-add-provider">
                     Settings &gt; Providers
                   </Link>
-                  {" "}에서 BYO LLM을 추가하면 봇별로 AI 기능을 사용할 수 있습니다.
+                  {" "}— Add a BYO LLM provider to enable AI features for each bot.
                 </p>
               </div>
             </div>
@@ -200,15 +200,15 @@ export default function Dashboard() {
           <div>
             <h2 className="text-lg font-semibold flex items-center gap-2">
               <Layers className="h-5 w-5 text-primary" />
-              워크플로우 시작하기
+              Start a Workflow
             </h2>
             <p className="text-sm text-muted-foreground">
-              템플릿은 정답이 아닌 출발점입니다. 소스, 스케줄, 결과물 모두 자유롭게 바꿀 수 있습니다.
+              Templates are starting points, not answers. You can freely customize sources, schedules, and outputs.
             </p>
           </div>
           <Link href="/bots">
             <Button variant="outline" size="sm" data-testid="link-view-all-templates">
-              모든 템플릿 보기
+              View All Templates
               <ArrowRight className="h-4 w-4 ml-1" />
             </Button>
           </Link>
@@ -234,7 +234,7 @@ export default function Dashboard() {
                   <p className="text-xs text-muted-foreground line-clamp-2">{preset.description}</p>
                   <div className="pt-1">
                     <span className="text-xs text-primary font-medium" data-testid={`link-template-start-${preset.key}`}>
-                      이 구성으로 시작하기 &rarr;
+                      Start with this setup &rarr;
                     </span>
                   </div>
                 </CardContent>
@@ -250,15 +250,15 @@ export default function Dashboard() {
             <div>
               <h2 className="text-lg font-semibold flex items-center gap-2">
                 <BotIcon className="h-5 w-5 text-primary" />
-                내 워크플로우 봇
+                My Workflow Bots
               </h2>
               <p className="text-sm text-muted-foreground">
-                현재 운영 중인 봇들입니다. 설정을 변경하거나 즉시 실행할 수 있습니다.
+                Your active bots. Change settings or run them instantly.
               </p>
             </div>
             <Link href="/bots">
               <Button variant="outline" size="sm" data-testid="link-manage-bots">
-                전체 관리
+                Manage All
                 <ArrowRight className="h-4 w-4 ml-1" />
               </Button>
             </Link>

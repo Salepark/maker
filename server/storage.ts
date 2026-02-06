@@ -547,7 +547,7 @@ export class DatabaseStorage implements IStorage {
   async getOrCreateDefaultThread(userId: string): Promise<ChatThread> {
     const threads = await this.getUserThreads(userId);
     if (threads.length > 0) return threads[0];
-    return this.createThread(userId, "기본 대화");
+    return this.createThread(userId, "Default Thread");
   }
 
   async listThreadMessages(threadId: number, userId: string, limit: number = 100): Promise<ChatMessage[]> {
