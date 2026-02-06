@@ -488,7 +488,7 @@ export default function Profiles() {
       )}
 
       <Dialog open={wizardOpen} onOpenChange={(open) => open ? setWizardOpen(true) : resetWizard()}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>
               {wizardStep === "preset" && "Choose a Template"}
@@ -550,7 +550,8 @@ export default function Profiles() {
           )}
 
           {wizardStep === "configure" && selectedPreset && (
-            <div className="space-y-4 py-2">
+            <div className="flex flex-col min-h-0 flex-1">
+            <div className="space-y-4 py-2 overflow-y-auto flex-1 min-h-0 pr-1">
               <div className="space-y-2">
                 <Label htmlFor="bot-name">Bot Name</Label>
                 <Input
@@ -685,8 +686,9 @@ export default function Profiles() {
                 </div>
                 );
               })()}
+            </div>
 
-              <div className="flex gap-2 justify-end pt-2">
+              <div className="flex gap-2 justify-end pt-3 border-t border-border shrink-0">
                 <Button
                   variant="ghost"
                   size="sm"
