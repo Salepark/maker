@@ -1,0 +1,350 @@
+Phase 6 v1.0 — Chat Command Center (Replit Assistant 복붙용 개발지시서)
+목표
+
+앱 내부 채팅에서 사용자가 자연어로 입력하면:
+
+명령 후보 탐지
+
+LLM이 Command JSON으로 구조화
+
+승인(Confirm) UI 표시
+
+승인 시에만 실행
+
+결과를 채팅으로 반환
+
+항상 “현재 대화의 대상 봇(Active Bot)” 컨텍스트를 유지
+
+0) 체크: 현재 상태 가정
+
+이미 채팅 UI/메시지 저장/표시는 있음
+
+현재는 전역 topic 기반으로 뭔가 실행되거나, 보고서/잡 실행 트리거가 있음
+
+봇/소스/스케줄 API는 이미 존재 (Phase 4까지 구현됨)
+
+Phase 6은 “새 기능 추가”라기보다, 채팅을 ‘명령 라우터’로 업그레이드하는 작업입니다.
+
+1) Command 스키마 고정 (shared/types)
+1-1. shared/chatCommand.ts 생성
+
+아래 타입을 만들고 프론트/백엔드 공용으로 사용
+
+export type ChatCommandType =
+  | "list_bots"
+  | "switch_bot"
+  | "bot_status"
+  | "run_now"
+  | "pause_bot"
+  | "resume_bot"
+  | "add_source"
+  | "remove_source"
+  | "chat";
+
+export type RunNowTarget = "collect" | "analyze" | "draft" | "daily_brief";
+
+export type ChatCommand = {
+  type: ChatCommandType;
+  botKey: string | null;        // "ai_art", "investing" 등. 없으면 activeBot 사용
+  args?: Record<string, any>;   // command별 payload
+  confidence: number;           // 0~1
+  needsConfirm: boolean;        // v1에서는 true가 기본
+  confirmText: string;          // 사용자에게 보여줄 실행 요약 한 줄
+};
+
+2) DB: “대화 쓰레드 + active bot” 최소 스키마 추가
+
+thread가 없으면 “봇 컨텍스트”와 “승인 대기(Confirm Pending)”를 안정적으로 못 합니다.
+
+2-1. chat_threads / chat_messages 도입(최소)
+
+shared/schema.ts에 추가:
+
+chat_threads
+
+id
+
+userId
+
+title (nullable)
+
+activeBotId (nullable, FK bots.id on delete set null)
+
+createdAt
+
+chat_messages
+
+id
+
+threadId
+
+role ("user" | "assistant" | "system")
+
+content
+
+kind ("text" | "pending_command" | "command_result") // optional but 추천
+
+commandJson (jsonb nullable) // pending일 때 저장
+
+createdAt
+
+중요: “단일 메시지 리스트”만 있던 구조라면, 마이그레이션은 간단히:
+
+기존 메시지는 기본 thread 하나 만들어서 그 안으로 묶거나
+
+새 채팅부터 thread 적용해도 됨(v1에서는 새 채팅부터도 OK)
+
+2-2. Drizzle push
+
+drizzle-kit push로 schema 반영
+
+3) Storage 함수 추가 (server/storage.ts)
+3-1. IStorage에 추가
+
+createThread(userId): thread
+
+getThread(threadId, userId)
+
+setThreadActiveBot(threadId, botId|null)
+
+listThreadMessages(threadId, userId, limit?)
+
+addThreadMessage(...)
+
+savePendingCommand(messageId, commandJson)
+
+clearPendingCommand(messageId)
+
+“userId ownership” 검증을 storage 레벨에서 항상 하도록 구현
+
+4) 서버: Chat API 2개로 단순화
+4-1. 라우트 추가 server/routes.ts
+A) POST /api/chat/threads
+
+새 thread 생성, 기본 activeBotId는 null
+
+반환: thread
+
+B) GET /api/chat/threads/:threadId/messages
+
+해당 thread 메시지 리스트
+
+C) POST /api/chat/threads/:threadId/message
+
+입력:
+
+{ "text": "..." }
+
+
+처리 흐름:
+
+thread 조회 + 소유권 확인
+
+user 메시지 저장
+
+명령 후보 탐지(룰 기반):
+
+URL 포함 OR
+
+키워드 포함(추가/삭제/실행/바로/스케줄/정지/재개/상태/목록/전환)
+
+후보 아니면:
+
+기존 “일반 대화” 로직(있다면) 호출 OR 간단 응답
+
+후보면:
+
+LLM으로 Command JSON만 생성 (callLLMWithJsonParsing 사용)
+
+command.botKey가 null이면 thread.activeBotId 기반으로 botKey 추론(없으면 null 유지)
+
+confidence < 0.7이면:
+
+assistant가 “어떤 봇/무슨 작업인지” 되묻는 일반 메시지로 응답(단, 추가 질문은 짧게)
+
+needsConfirm=true면:
+
+pending_command 메시지로 저장 (commandJson 포함)
+
+응답 payload에 pendingCommand와 confirmText 포함
+
+응답 예:
+
+{
+  "mode": "confirm",
+  "pendingMessageId": 123,
+  "command": { ...ChatCommand },
+  "confirmText": "investing 봇에서 daily_brief를 지금 실행할까요?"
+}
+
+D) POST /api/chat/threads/:threadId/confirm
+
+입력:
+
+{ "pendingMessageId": 123, "approve": true }
+
+
+처리:
+
+pending 메시지 조회 + 소유권 확인
+
+approve=false면:
+
+pending 취소 처리 + assistant 메시지 “취소했어요.”
+
+approve=true면:
+
+commandJson 로드
+
+Command Router 실행 (아래 5번)
+
+결과를 command_result 메시지로 저장
+
+pending clear
+
+응답: 실행 결과 텍스트
+
+5) Command Router 구현 (server/chat/commandRouter.ts)
+5-1. Router가 처리할 8개 명령
+(1) list_bots
+
+storage.getBotsByUser(userId)
+
+결과: 봇 목록 + key + 이름
+
+(2) switch_bot
+
+args: { botKey } 또는 command.botKey 사용
+
+해당 user의 봇 조회 → thread.activeBotId 설정
+
+결과: “이제부터 [봇이름] 봇으로 이야기할게요.”
+
+(3) bot_status
+
+대상 봇의 settings + sources 요약(개수)
+
+결과: “스케줄: 매일 07:30, 소스: 5개, 포맷: minimal …”
+
+(4) run_now
+
+args: { target: "collect|analyze|draft|daily_brief" }
+
+기존 수동 실행 API/함수 재사용 (이미 있는 runAnalyzeNow 등)
+
+결과: 실행 시작/완료 메시지 + 처리 건수
+
+(5) pause_bot / (6) resume_bot
+
+bot settings의 schedule enabled toggle (또는 enabled 필드)
+
+결과: “일시정지/재개 완료”
+
+(7) add_source
+
+args: { name?: string, url: string }
+
+url validation (http/https)
+
+storage에 source upsert + bot-source link
+
+결과: “소스 추가 완료: {name or url}”
+
+(8) remove_source
+
+args: { url?: string, sourceId?: number, name?: string }
+
+가능하면 url 기반으로 찾기
+
+bot-source unlink
+
+결과: “소스 제거 완료 …”
+
+중요: 모든 라우팅은 “봇 소유권(userId)” 체크 통과해야 함.
+
+6) LLM 프롬프트: “Command JSON only”
+6-1. server/llm/prompts_chat.ts 추가
+
+시스템 메시지(지시) 핵심:
+
+“반드시 JSON만 출력”
+
+모르면 type="chat"로
+
+botKey가 언급되면 채우고, 없으면 null
+
+URL 있으면 add_source/remove_source 우선 고려
+
+run_now target은 collect/analyze/draft/daily_brief 중 하나로 강제
+
+프롬프트(개요):
+
+입력: user message + (가능하면) user bot list 요약 + active bot key
+
+출력: ChatCommand JSON
+
+7) 프론트: Confirm UI만 추가하면 끝 (최소 변경)
+7-1. 채팅 화면에서 처리
+
+서버 응답이 mode="confirm"이면:
+
+confirmText를 말풍선으로 보여주고
+
+버튼 2개:
+
+“승인하고 실행”
+
+“취소”
+
+버튼 클릭 시 /confirm 호출
+
+7-2. Thread 선택(최소)
+
+v1에서는 “기본 thread 1개”만 써도 됨
+
+다만 API는 thread 기반으로 구현해두기 (Phase 6.1에서 멀티 thread UI 확장 쉬움)
+
+7-3. Active bot 표시
+
+채팅 상단에 Active bot: (없음) 또는 봇 이름 표시
+
+“봇 바꾸기”는 명령(switch_bot)으로도 되고, 드롭다운 추가는 v1.1
+
+8) 안전장치 (필수)
+
+confidence < 0.7 → 실행 금지(질문 or 목록 제시)
+
+confirm 없이는 절대 실행 금지(v1)
+
+URL validation + 중복 소스 방지
+
+봇/쓰레드/소스 전부 userId ownership 체크
+
+9) 테스트 시나리오 (E2E 최소 6개)
+
+채팅에 “내 봇 목록 보여줘” → list_bots confirm → 실행 → 목록 출력
+
+“investing로 전환” → switch_bot confirm → active bot 설정 확인
+
+“지금 리포트 실행해줘” → run_now daily_brief confirm → 실행 결과
+
+“이 RSS 추가: https://example.com/feed”
+ → add_source confirm → 소스 추가 확인
+
+“방금 추가한 소스 제거” → remove_source (이건 v1에서 애매하면 url로만 지원) confirm → 제거
+
+approve=false 취소 처리 확인
+
+구현 팁 (현재 구현과 충돌 피하는 방식)
+
+“전역 topic 기반”은 유지하되, chat command에서는 반드시 botKey→botId 매핑해서 실행하게 바꾸세요.
+
+기존 채팅 메시지 저장이 있다면 그대로 재사용하고, thread 컬럼만 얹어도 됩니다.
+
+“대화 쓰레드”는 UI가 없어도 API 내부에서 1개 기본 thread 생성해서 쓰면 됩니다.
+
+마지막으로: 왜 이게 “상당한 작업”인데도 해야 하냐?
+
+지금 상태(즉시 실행/전역 topic)는 사용자 입장에서 사고치기 쉬움
+
+“승인 단계 + 봇 컨텍스트”가 들어가면 진짜 매니저급 UX가 됩니다.
