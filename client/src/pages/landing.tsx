@@ -106,12 +106,12 @@ export default function Landing() {
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div className="space-y-6">
               <h1 className="text-4xl lg:text-5xl font-bold leading-tight" data-testid="text-hero-title">
-                Design Your Own
+                Build Your Automation,
                 <br />
-                <span className="text-primary">Automation Workflows</span>
+                <span className="text-primary">Your Way</span>
               </h1>
               <p className="text-lg text-muted-foreground max-w-lg" data-testid="text-hero-subtitle">
-                We don't provide bots. Choose your sources, set your schedule, and design your outputs — your own automation tool.
+                Choose your sources, set your schedule, and design your outputs. Your workflow, your rules.
               </p>
               <div className="flex flex-wrap gap-4">
                 <Button size="lg" asChild data-testid="button-get-started">
