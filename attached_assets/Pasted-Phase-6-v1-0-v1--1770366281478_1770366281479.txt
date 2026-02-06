@@ -1,0 +1,157 @@
+Phase 6 v1.0 목표
+
+채팅에서 자연어로 입력하면
+
+어떤 봇/무슨 작업인지 판별
+
+“실행해도 되나요?” 확인(반자동)
+
+실행 결과를 채팅에 리턴
+
+v1은 **“반자동(승인 후 실행)”**이 기본입니다.
+
+1) v1 명령 8개만 먼저 고정
+
+처음부터 모든 걸 다 하면 복잡해져요. 아래 8개만 잡으면 “매니저” 느낌이 확 납니다.
+
+Bot 대상/상태
+
+list_bots : 내 봇 목록 보여줘
+
+switch_bot : 지금 대화의 대상 봇을 바꿔줘 (예: “ai_art로 전환”)
+
+bot_status : 이 봇 상태/스케줄/소스 요약
+
+실행
+
+run_now : 지금 수집/분석/초안/리포트 중 무엇을 실행
+
+pause_bot : 일시정지(스케줄 OFF)
+
+resume_bot : 재개(스케줄 ON)
+
+소스
+
+add_source : RSS 추가 (URL)
+
+remove_source : 소스 제거 (이름/URL)
+
+나머지(아이템 스킵, 초안 승인/게시 등)는 v1.1로 빼요.
+
+2) “명령 판별(분기)” 규칙
+
+채팅 입력이 들어오면:
+
+A. 명령 후보 탐지(가벼운 룰)
+
+아래 중 하나라도 걸리면 “명령 후보”로 봅니다.
+
+“추가/삭제/실행/지금/바로/스케줄/일시정지/재개/상태/목록/전환”
+
+URL이 포함됨(http:// https://)
+
+B. 명령 후보면 → LLM으로 “구조화(Command JSON)”만 뽑기
+
+LLM에게 “대답하지 말고 명령 JSON만” 만들게 합니다.
+
+출력 스키마(고정)
+
+{
+  "type": "list_bots | switch_bot | bot_status | run_now | pause_bot | resume_bot | add_source | remove_source | chat",
+  "botKey": "ai_art | investing | ... | null",
+  "args": {},
+  "confidence": 0.0,
+  "needsConfirm": true,
+  "confirmText": "사용자에게 보여줄 한 줄 실행 요약"
+}
+
+
+confidence < 0.7 이면 무조건 “질문”으로 되돌리거나 재확인
+
+needsConfirm은 v1에서 항상 true로 두어도 됩니다(안전)
+
+3) 실행은 “승인 후”만 (반자동 UX)
+
+채팅 UI에 아래 2버튼만 추가하면 됩니다.
+
+✅ 승인하고 실행
+
+❌ 취소
+
+승인하면 내부 API(이미 있는 것들) 호출해서 처리하고 결과를 채팅으로 요약합니다.
+
+4) “대화 컨텍스트(현재 봇)”만 깔끔히
+
+채팅 화면 상단에 아주 작은 표시:
+
+Active bot: ai_art (변경 가능)
+
+규칙:
+
+사용자가 botKey를 명시하지 않으면 active bot 적용
+
+active bot이 없으면 list_bots 먼저 유도
+
+5) 실행 결과 응답 포맷(뉴스 앵커처럼 깔끔)
+
+명령 실행 후엔 무조건 이 형식으로 짧게:
+
+무엇을 했는지
+
+결과 숫자(가능하면)
+
+다음 추천 한 줄
+
+예:
+
+“소스 1개를 추가했어요: Reuters Business. 다음 수집은 10분 후입니다.”
+
+“분석을 실행했어요: 10건 처리 완료, 초안 후보 3건 생성 가능.”
+
+6) v1 개발 작업 순서(정해진 루트대로)
+
+여기서부터는 “할 일”만 순서대로입니다.
+
+DB(최소)
+
+chat_threads(선택) / chat_messages
+
+activeBotId를 thread에 저장(또는 사용자별 세션)
+
+서버
+
+POST /api/chat/message
+
+입력: { threadId, text }
+
+처리:
+
+command 후보 탐지
+
+LLM으로 command JSON 생성
+
+needsConfirm이면 “confirm payload”로 반환
+
+POST /api/chat/confirm
+
+입력: { threadId, commandJson }
+
+처리:
+
+실제 내부 함수 호출(add source / run now 등)
+
+결과 메시지 저장 후 반환
+
+프론트
+
+채팅 메시지 렌더링
+
+confirm payload 받으면 “승인/취소” 버튼 표시
+
+승인 시 /confirm 호출
+
+권한/안전
+
+botId/userId ownership 검사(필수)
+
+URL validation(https, rss, 너무 긴 것 차단)
