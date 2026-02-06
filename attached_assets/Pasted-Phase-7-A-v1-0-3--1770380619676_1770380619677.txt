@@ -1,0 +1,243 @@
+Phase 7-A v1.0 — “홍보에 쓰는 봇”이 아니라 “홍보용 워크플로우 템플릿 3종” 추가
+🎯 목표
+
+우리는 유용한 봇을 파는 서비스가 아니라,
+사용자가 자기 워크플로우를 설계할 수 있게 해주는 도구다.
+
+따라서:
+
+자동 홍보 ❌
+
+링크/프로모션 자동 삽입 ❌
+
+커뮤니티 리스크 유발 ❌
+
+대신:
+
+리서치 / 요약 / 초안 생성 / 모니터링 같은 워크플로우 출발점 템플릿 3개를 추가한다.
+
+전부 Human approval required
+
+전부 No promotion / No links
+
+전부 Draft or Report only
+
+포지셔닝: “이렇게 구성해서 시작해보세요” 예시
+
+🧩 추가할 템플릿 3종
+1) 📰 “Daily Market Brief (Safe)”
+
+용도:
+매일 아침, 시장/산업 뉴스를 안전하게 요약하는 리포트 워크플로우
+
+기본 설정:
+
+topic: market_brief
+
+outputType: report
+
+schedule: DAILY 09:00
+
+requireHumanApproval: true
+
+rules:
+
+no promotion
+
+no links
+
+informational tone only
+
+기본 소스 (3~5개, 전부 ON):
+
+Reuters Business RSS
+
+CNBC Top News RSS
+
+Bloomberg (public news RSS)
+
+Financial Times (public section)
+
+WSJ (public section)
+
+2) 🧠 “Academic Watcher (Research)”
+
+용도:
+논문/연구 동향을 추적하고 요약하는 리서치 워크플로우
+
+기본 설정:
+
+topic: research_watch
+
+outputType: report
+
+schedule: WEEKDAYS 09:00
+
+requireHumanApproval: true
+
+rules:
+
+no promotion
+
+no links
+
+neutral academic tone
+
+기본 소스 (3~5개, 전부 ON):
+
+arXiv RSS (cs.AI or cs.CL)
+
+Google Research Blog
+
+OpenAI Blog (research category)
+
+DeepMind Blog
+
+MIT Technology Review (research)
+
+3) 🏢 “Competitor Signal Monitor”
+
+용도:
+경쟁사/산업 동향 변화를 요약하는 모니터링 워크플로우
+
+기본 설정:
+
+topic: competitor_watch
+
+outputType: report
+
+schedule: DAILY 09:00
+
+requireHumanApproval: true
+
+rules:
+
+no promotion
+
+no links
+
+factual change summary only
+
+기본 소스 (3~5개, 전부 ON):
+
+TechCrunch
+
+The Verge (business/tech)
+
+Product Hunt (new launches RSS)
+
+Hacker News
+
+Company blogs (generic placeholder feed)
+
+🛠️ 구현 작업 목록
+Step 1. presets 시드 데이터 추가
+
+seed.ts 또는 presets seed 로직에 아래 3개 프리셋 추가:
+
+daily_market_brief_safe
+
+academic_watcher_research
+
+competitor_signal_monitor
+
+각 프리셋은:
+
+title
+
+description
+
+category
+
+topicVariants (1개만 있어도 됨)
+
+defaultConfigJson 에:
+
+scheduleRule
+
+scheduleTimeLocal
+
+outputType
+
+requireHumanApproval = true
+
+format = minimal or normal
+
+rulesJson = { noPromotion: true, noLinks: true, tone: "informational" }
+
+suggestedSources 에 위에 정의한 공용/중립 소스만 넣기
+
+⚠️ 중요:
+
+Recommended / Optional 구분 없음
+
+전부 Default Sources
+
+전부 체크 ON
+
+Step 2. 프리셋 갤러리 UI 확인
+
+갤러리 카드에:
+
+소스 개수
+
+출력 타입 (Report)
+
+“출발용 워크플로우 템플릿” 뉘앙스 유지
+
+“이 템플릿은 시작점이며, 언제든 수정 가능” 안내 유지
+
+Step 3. 위자드 Configure 단계 정책 유지
+
+기본 소스: 전부 ON
+
+“Add your own sources” 입력 유지
+
+문구:
+
+기본 소스는 일반적으로 널리 쓰이는 공개 채널입니다.
+더 전문적인 소스는 직접 추가할 수 있습니다.
+
+Step 4. 안전장치 확인
+
+모든 템플릿:
+
+requireHumanApproval = true
+
+자동 발행 없음
+
+Draft/Report만 생성
+
+링크/홍보 금지 rule 유지
+
+Step 5. QA 체크리스트
+
+ 갤러리에 3개 템플릿 보이는가?
+
+ 생성 위자드에서 소스 전부 기본 체크인가?
+
+ 커스텀 소스 추가 가능한가?
+
+ 생성 후 Bot Detail에 설정 제대로 반영되는가?
+
+ 승인 없이 자동 실행/발행 안 되는가?
+
+ 리포트 생성 시 링크/홍보 문구 안 나오는가?
+
+📌 제품 포지셔닝 문구 (UI 참고용)
+
+“이 템플릿은 완성된 답이 아니라, 워크플로우의 출발점입니다.”
+
+“모든 설정은 언제든 변경할 수 있습니다.”
+
+“우리는 결과를 대신 만들어주지 않습니다. 당신이 자동화를 설계합니다.”
+
+🏁 완료 조건
+
+프리셋 3종이 갤러리에 추가됨
+
+전부 안전한 기본값 + 승인 필수
+
+전부 “워크플로우 시작점” 톤 유지
+
+기존 Community Research Helper와 동일한 철학 유지
