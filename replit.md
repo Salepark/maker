@@ -14,7 +14,10 @@ Preferred communication style: Simple, everyday language.
 The frontend is a React 18 TypeScript single-page application using Wouter for routing, TanStack React Query for state management, shadcn/ui for UI components, and Tailwind CSS for styling. It features a multi-user profile system with dedicated pages for bot management, reports, sources, and settings, supporting light/dark theme toggling.
 
 ### Multi-User Bot Management
-The system supports multiple user-defined bots, each associated with a specific topic (e.g., AI art, investing). Bots are created from presets, allowing users to customize schedules, report sections, verbosity, markdown level, and content filters. This architecture includes dedicated database tables for bots, bot settings, and source linkages, ensuring strict topic isolation for data processing and report generation.
+The system supports multiple user-defined bots, each associated with a specific topic (e.g., AI art, investing). Bots are created from presets via a Template Gallery with a guided wizard flow, allowing users to customize schedules, report sections, verbosity, markdown level, and content filters. This architecture includes dedicated database tables for bots, bot settings, and source linkages, ensuring strict topic isolation for data processing and report generation.
+
+### Preset Gallery & Onboarding (Phase 4)
+The system features a Preset Gallery with 8 templates across 6 categories (Information, Business, Compliance, Research, Commerce, Engagement). Each preset includes `defaultConfigJson` with schedule, sections, format, suggested sources, and topic variants. Bot creation from presets is atomic (using DB transactions via `createBotFromPreset()` in storage). The wizard flow: Select Template → Choose Topic (if multi-topic) → Configure (name, source checkboxes) → Create. Pre-filled settings are fully customizable post-creation.
 
 ### Backend
 The backend is built with Node.js and TypeScript using Express.js, providing RESTful JSON APIs. It includes modules for database abstraction, scheduled background jobs (collect, analyze, draft), LLM integration, and business logic. Authentication is handled via Replit Auth with PostgreSQL for session storage, and all API routes are protected.
