@@ -100,8 +100,13 @@ export default function Dashboard() {
               <div>
                 <p className="font-medium text-sm" data-testid="text-llm-warning">System AI key is not configured</p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Analysis, drafting, and report generation are paused. Content collection continues normally. 
-                  Each bot can still use its own AI provider configured in Settings.
+                  Analysis, drafting, and report generation are paused. Content collection continues normally.
+                </p>
+                <p className="text-sm mt-2">
+                  <Link href="/settings" className="text-primary hover:underline" data-testid="link-add-provider">
+                    Settings &gt; Providers
+                  </Link>
+                  {" "}에서 BYO LLM을 추가하면 봇별로 AI 기능을 사용할 수 있습니다.
                 </p>
               </div>
             </div>

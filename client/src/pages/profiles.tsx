@@ -166,6 +166,12 @@ export default function Profiles() {
     setSelectedSourceUrls(new Set());
   };
 
+  const pickDefaultSources = (allSources: SuggestedSource[], topic: string, maxDefault = 2): Set<string> => {
+    const topicSources = allSources.filter(s => s.topic === topic);
+    const picked = topicSources.slice(0, maxDefault);
+    return new Set(picked.map(s => s.url));
+  };
+
   const handlePresetSelect = (preset: Preset) => {
     setSelectedPreset(preset);
     const variants = preset.variantsJson || [];
@@ -173,7 +179,7 @@ export default function Profiles() {
       setSelectedTopic(variants[0]);
       setBotName(`My ${preset.name}`);
       const suggestedSources = preset.defaultConfigJson?.suggestedSources || [];
-      setSelectedSourceUrls(new Set(suggestedSources.map(s => s.url)));
+      setSelectedSourceUrls(pickDefaultSources(suggestedSources, variants[0]));
       setWizardStep("configure");
     } else if (variants.length > 1) {
       setWizardStep("topic");
@@ -189,8 +195,7 @@ export default function Profiles() {
     setSelectedTopic(topic);
     setBotName(`My ${selectedPreset?.name} - ${topic}`);
     const suggestedSources = selectedPreset?.defaultConfigJson?.suggestedSources || [];
-    const topicSources = suggestedSources.filter(s => s.topic === topic || topic === "general");
-    setSelectedSourceUrls(new Set(topicSources.map(s => s.url)));
+    setSelectedSourceUrls(pickDefaultSources(suggestedSources, topic));
     setWizardStep("configure");
   };
 
@@ -218,7 +223,7 @@ export default function Profiles() {
     return IconComponent || Sparkles;
   };
 
-  const uniqueCategories = [...new Set(presets.map(p => p.category).filter(Boolean))] as string[];
+  const uniqueCategories = Array.from(new Set(presets.map(p => p.category).filter((c): c is string => c !== null && c !== undefined)));
 
   if (botsLoading) {
     return (
@@ -438,8 +443,8 @@ export default function Profiles() {
             </DialogTitle>
             <DialogDescription>
               {wizardStep === "preset" && "Pick a template to start with. You can customize everything later."}
-              {wizardStep === "topic" && `Choose a focus area for ${selectedPreset?.name}`}
-              {wizardStep === "configure" && "Name your bot and select which sources to include"}
+              {wizardStep === "topic" && `This template supports multiple topics. Choose which area to focus on for ${selectedPreset?.name}.`}
+              {wizardStep === "configure" && "Name your bot and select which sources to include."}
             </DialogDescription>
           </DialogHeader>
 
@@ -527,34 +532,53 @@ export default function Profiles() {
                 </div>
               )}
 
-              {selectedPreset.defaultConfigJson?.suggestedSources && selectedPreset.defaultConfigJson.suggestedSources.length > 0 && (
+              {selectedPreset.defaultConfigJson?.suggestedSources && selectedPreset.defaultConfigJson.suggestedSources.length > 0 && (() => {
+                const allSources = selectedPreset.defaultConfigJson.suggestedSources!;
+                const topicSources = allSources.filter(s => s.topic === selectedTopic);
+                const recommended = topicSources.slice(0, 2);
+                const optional = [
+                  ...topicSources.slice(2),
+                  ...allSources.filter(s => s.topic !== selectedTopic),
+                ];
+                const renderSourceRow = (source: SuggestedSource) => (
+                  <div
+                    key={source.url}
+                    className="flex items-center gap-3 p-2 rounded-md border border-border"
+                    data-testid={`source-checkbox-${source.name.replace(/\s/g, '-').toLowerCase()}`}
+                  >
+                    <Checkbox
+                      checked={selectedSourceUrls.has(source.url)}
+                      onCheckedChange={() => toggleSourceUrl(source.url)}
+                      id={`source-${source.url}`}
+                    />
+                    <label htmlFor={`source-${source.url}`} className="flex-1 cursor-pointer">
+                      <span className="text-sm font-medium">{source.name}</span>
+                      <span className="text-xs text-muted-foreground ml-2">({source.topic})</span>
+                    </label>
+                  </div>
+                );
+                return (
                 <div className="space-y-2">
                   <Label className="flex items-center gap-1.5">
                     <Rss className="h-4 w-4" />
-                    Suggested Sources
+                    Sources
                   </Label>
-                  <p className="text-xs text-muted-foreground">Check the sources you'd like to include. You can add more later.</p>
-                  <div className="space-y-2">
-                    {selectedPreset.defaultConfigJson.suggestedSources.map((source) => (
-                      <div
-                        key={source.url}
-                        className="flex items-center gap-3 p-2 rounded-md border border-border"
-                        data-testid={`source-checkbox-${source.name.replace(/\s/g, '-').toLowerCase()}`}
-                      >
-                        <Checkbox
-                          checked={selectedSourceUrls.has(source.url)}
-                          onCheckedChange={() => toggleSourceUrl(source.url)}
-                          id={`source-${source.url}`}
-                        />
-                        <label htmlFor={`source-${source.url}`} className="flex-1 cursor-pointer">
-                          <span className="text-sm font-medium">{source.name}</span>
-                          <span className="text-xs text-muted-foreground ml-2">({source.topic})</span>
-                        </label>
-                      </div>
-                    ))}
-                  </div>
+                  <p className="text-xs text-muted-foreground">Select which sources to include. You can add more later.</p>
+                  {recommended.length > 0 && (
+                    <div className="space-y-1.5">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Recommended</p>
+                      {recommended.map(renderSourceRow)}
+                    </div>
+                  )}
+                  {optional.length > 0 && (
+                    <div className="space-y-1.5 mt-2">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Optional</p>
+                      {optional.map(renderSourceRow)}
+                    </div>
+                  )}
                 </div>
-              )}
+                );
+              })()}
 
               <div className="flex gap-2 justify-end pt-2">
                 <Button

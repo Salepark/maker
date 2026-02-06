@@ -19,6 +19,19 @@ The system supports multiple user-defined bots, each associated with a specific 
 ### Preset Gallery & Onboarding (Phase 4)
 The system features a Preset Gallery with 8 templates across 6 categories (Information, Business, Compliance, Research, Commerce, Engagement). Each preset includes `defaultConfigJson` with schedule, sections, format, suggested sources, and topic variants. Bot creation from presets is atomic (using DB transactions via `createBotFromPreset()` in storage). The wizard flow: Select Template → Choose Topic (if multi-topic) → Configure (name, source checkboxes) → Create. Pre-filled settings are fully customizable post-creation.
 
+**Key Policies:**
+- **Source creation policy**: Reuse existing sources by URL; create new ones only if URL not found. Bot-source links are always created fresh per bot.
+- **Anti-uniformity**: Only the first 2 topic-matching sources are pre-checked as "Recommended"; remaining appear as "Optional" unchecked.
+- **Seed safety**: Presets have UNIQUE key constraint; seeds check by key, add new and update existing without duplication.
+- **LLM selection priority**: Bot-specific LLM provider > System default (LLM_API_KEY env var) > Error with actionable Korean message ("Settings에서 AI Provider를 추가하세요").
+- **Navigation**: Sidebar uses `/bots` route; `/profiles` is kept as alias for backward compatibility.
+
+**Endpoints:**
+- `GET /api/presets` — List all preset templates
+- `POST /api/bots/from-preset` — Atomic bot creation (bot + settings + sources in one transaction)
+
+**E2E coverage**: Login → browse gallery → create bot from preset → verify redirect → delete bot
+
 ### Backend
 The backend is built with Node.js and TypeScript using Express.js, providing RESTful JSON APIs. It includes modules for database abstraction, scheduled background jobs (collect, analyze, draft), LLM integration, and business logic. Authentication is handled via Replit Auth with PostgreSQL for session storage, and all API routes are protected.
 

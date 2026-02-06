@@ -203,7 +203,7 @@ export default function BotDetail() {
     return (
       <div className="container mx-auto p-6 max-w-4xl">
         <p className="text-muted-foreground">Bot not found</p>
-        <Button variant="ghost" onClick={() => setLocation("/profiles")} data-testid="button-back">
+        <Button variant="ghost" onClick={() => setLocation("/bots")} data-testid="button-back">
           <ArrowLeft className="h-4 w-4 mr-2" /> Back to My Bots
         </Button>
       </div>
@@ -213,7 +213,7 @@ export default function BotDetail() {
   return (
     <div className="container mx-auto p-6 max-w-4xl">
       <div className="flex items-center gap-4 mb-6 flex-wrap">
-        <Button variant="ghost" size="icon" onClick={() => setLocation("/profiles")} data-testid="button-back">
+        <Button variant="ghost" size="icon" onClick={() => setLocation("/bots")} data-testid="button-back">
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex-1 min-w-0">

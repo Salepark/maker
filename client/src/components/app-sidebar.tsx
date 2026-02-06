@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 
 const menuItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "My Bots", url: "/profiles", icon: Bot },
+  { title: "My Bots", url: "/bots", icon: Bot },
   { title: "Sources", url: "/sources", icon: Rss },
   { title: "Reports", url: "/reports", icon: FileBarChart },
   { title: "Drafts", url: "/drafts", icon: CheckCircle },
@@ -91,7 +91,7 @@ export function AppSidebar() {
                     asChild
                     isActive={location === item.url || (item.url !== "/" && location.startsWith(item.url))}
                   >
-                    <Link href={item.url} data-testid={`link-${item.title.toLowerCase()}`}>
+                    <Link href={item.url} data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, '-')}`}>
                       <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
                     </Link>

@@ -1,0 +1,125 @@
+1) Phase 4 v1.0 DoD 재확인 (당신 구현 내용 기준)
+
+이미 아래는 완료로 판정됩니다.
+
+✅ 프리셋 갤러리(템플릿 갤러리): profiles 페이지를 갤러리 + bot 관리로 재구성
+
+✅ 온보딩(가이드 위저드): 템플릿 선택 → (토픽 선택) → 이름/소스 설정 → 생성
+
+✅ 추천 소스 체크박스: 선택한 RSS만 생성/연결
+
+✅ 원자적 생성(트랜잭션): bot + settings + sources를 storage 레벨에서 transaction 처리
+
+✅ 생성 후 redirect: bot settings 페이지로 이동
+
+✅ E2E 통과 + architect review 통과
+
+✅ 추가로 3개 빠른 수정: system status 위젯 / report.ts bot-specific LLM / 한국어 에러 메시지
+
+즉, Phase 4 v1.0 “기능”은 끝났습니다.
+
+2) 지금 당장 해야 하는 “마감 작업” 6개 (헷갈림 제거용)
+
+이 6개만 하면, 앞으로는 “어디까지가 Phase 4였지?”가 안 생깁니다.
+
+A. UX/제품 일관성 2개
+
+용어 통일
+
+UI에서 “Profiles”라는 단어가 남아있으면, 사용자 혼란이 큽니다.
+
+권장: Templates / Presets / Gallery 중 하나로 완전히 통일
+
+프리셋 vs 봇 vs 토픽
+
+위저드에서 토픽 선택이 들어갔다면:
+
+프리셋이 “multi-topic”인지 “single-topic”인지 UI에서 명확히
+
+예: “이 템플릿은 여러 토픽 중 선택 가능합니다.”
+
+B. 데이터/운영 안정성 2개
+
+시드 중복 방지 확인
+
+seeds가 여러 번 실행되어도 presets가 중복으로 늘어나지 않게(UNIQUE key)
+
+이미 key unique면 OK
+
+source url 중복 처리
+
+findSourceByUrl 추가했으니:
+
+이미 존재하는 소스면 재사용할지/새로 만들지 정책을 명확히
+
+보통은 “봇-소스 연결은 새로 만들고, 소스 자체는 재사용”이 깔끔합니다.
+
+C. 리포트/LLM 경계 2개
+
+Report LLM 선택 우선순위 문서화
+
+지금은 profile → topic → bot 매칭해서 bot LLM 사용하도록 브릿지 했죠.
+
+우선순위가 문서로 박혀 있어야 나중에 안 꼬입니다.
+
+예: bot-specific LLM > system default > (없으면 에러)
+
+System Status 위젯에서 사용자 행동 안내
+
+“시스템 키 없음”이면 단순 표기 말고,
+
+“BYO LLM을 Providers에서 추가하세요” 같은 행동 유도 한 줄
+
+3) “획일화 방지”가 Phase 4의 핵심인데… 지금 구현이 살짝 걱정되는 1가지
+
+당신 구현 요약에 따르면:
+
+추천 소스가 “모두 pre-selected” 상태
+
+이건 사용자가 빨리 시작하기엔 좋지만, 모두가 거의 같은 리포트를 받는 방향으로 갑니다(당신이 싫어하던 지점).
+그래서 **Phase 4.0.1(초소형 패치)**로 아래 한 줄만 바꾸는 걸 강력 추천합니다:
+
+추천 소스 기본 선택을 0~2개만 체크(나머지는 제안)
+
+또는 “Recommended(기본 2개)” / “Optional(나머지)”로 그룹 나누기
+
+이 한 줄이 “플랫폼의 재미”를 살립니다.
+
+4) 최종 산출물(문서) 업데이트 템플릿 — replit.md에 그대로 넣을 내용
+
+아래를 replit.md에 Phase 4 섹션으로 추가하면 끝입니다.
+
+Phase 4 v1.0: Preset Gallery & Onboarding
+
+/api/presets (or presets storage)
+
+POST /api/bots/from-preset (transactional)
+
+Wizard flow: Template → Topic → Config(name/sources) → Create
+
+Source creation policy: reuse-by-url vs create-new (명시)
+
+Redirect to bot settings
+
+System status widget added
+
+Report generation uses bot-resolved LLM for matching topic
+
+User-friendly Korean errors for manual triggers
+
+E2E coverage: login → create bot from preset → verify → delete
+
+결론
+
+당신이 올린 로그 기준으로 Phase 4 v1.0은 이미 구현 완료입니다.
+지금 해야 할 일은 “추가 개발”이 아니라:
+
+용어 통일
+
+추천 소스 기본 체크 정책(획일화 방지)
+
+중복/재사용 정책 명시
+
+문서 업데이트
+
+이 4가지로 “마감”입니다.

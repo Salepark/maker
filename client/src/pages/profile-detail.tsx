@@ -228,10 +228,10 @@ export default function ProfileDetail() {
   if (!profile) {
     return (
       <div className="container mx-auto p-6 max-w-4xl">
-        <p className="text-muted-foreground">Profile not found</p>
-        <Button variant="ghost" onClick={() => setLocation("/profiles")}>
+        <p className="text-muted-foreground">Bot not found</p>
+        <Button variant="ghost" onClick={() => setLocation("/bots")}>
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Profiles
+          Back to My Bots
         </Button>
       </div>
     );
@@ -242,7 +242,7 @@ export default function ProfileDetail() {
   return (
     <div className="container mx-auto p-6 max-w-4xl">
       <div className="flex items-center gap-4 mb-6">
-        <Button variant="ghost" size="icon" onClick={() => setLocation("/profiles")} data-testid="button-back">
+        <Button variant="ghost" size="icon" onClick={() => setLocation("/bots")} data-testid="button-back">
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex-1">

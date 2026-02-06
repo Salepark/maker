@@ -31,6 +31,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Dashboard} />
+      <Route path="/bots" component={Profiles} />
       <Route path="/profiles" component={Profiles} />
       <Route path="/profiles/:id" component={ProfileDetail} />
       <Route path="/bots/:id" component={BotDetail} />
