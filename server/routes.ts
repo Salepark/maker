@@ -746,6 +746,125 @@ export async function registerRoutes(
   });
 
   // ============================================
+  // LLM PROVIDERS API (Phase 3)
+  // ============================================
+  app.get("/api/llm-providers", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      const providers = await storage.listLlmProviders(userId);
+      const safe = providers.map(p => ({ ...p, apiKeyEncrypted: undefined, apiKeyHint: p.apiKeyEncrypted ? "****" : "" }));
+      res.json({ providers: safe });
+    } catch (error) {
+      console.error("Error listing LLM providers:", error);
+      res.status(500).json({ error: "Failed to list LLM providers" });
+    }
+  });
+
+  app.post("/api/llm-providers", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      const { name, providerType, apiKey, baseUrl, defaultModel } = req.body;
+      if (!name || !providerType || !apiKey) {
+        return res.status(400).json({ error: "name, providerType, and apiKey are required" });
+      }
+      const validTypes = ["openai", "anthropic", "google", "custom"];
+      if (!validTypes.includes(providerType)) {
+        return res.status(400).json({ error: `providerType must be one of: ${validTypes.join(", ")}` });
+      }
+
+      const { encrypt } = await import("./lib/crypto");
+      const provider = await storage.createLlmProvider({
+        userId,
+        name,
+        providerType,
+        apiKeyEncrypted: encrypt(apiKey),
+        baseUrl: baseUrl || null,
+        defaultModel: defaultModel || null,
+      });
+      res.json({ provider: { ...provider, apiKeyEncrypted: undefined, apiKeyHint: "****" } });
+    } catch (error) {
+      console.error("Error creating LLM provider:", error);
+      res.status(500).json({ error: "Failed to create LLM provider" });
+    }
+  });
+
+  app.put("/api/llm-providers/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: "Invalid provider id" });
+
+      const { name, providerType, apiKey, baseUrl, defaultModel } = req.body;
+      const patch: Record<string, any> = {};
+      if (name !== undefined) patch.name = name;
+      if (providerType !== undefined) patch.providerType = providerType;
+      if (baseUrl !== undefined) patch.baseUrl = baseUrl;
+      if (defaultModel !== undefined) patch.defaultModel = defaultModel;
+      if (apiKey) {
+        const { encrypt } = await import("./lib/crypto");
+        patch.apiKeyEncrypted = encrypt(apiKey);
+      }
+
+      const provider = await storage.updateLlmProvider(id, userId, patch);
+      if (!provider) return res.status(404).json({ error: "LLM provider not found" });
+      res.json({ provider: { ...provider, apiKeyEncrypted: undefined, apiKeyHint: "****" } });
+    } catch (error) {
+      console.error("Error updating LLM provider:", error);
+      res.status(500).json({ error: "Failed to update LLM provider" });
+    }
+  });
+
+  app.delete("/api/llm-providers/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: "Invalid provider id" });
+
+      await storage.deleteLlmProvider(id, userId);
+      res.json({ ok: true });
+    } catch (error) {
+      console.error("Error deleting LLM provider:", error);
+      res.status(500).json({ error: "Failed to delete LLM provider" });
+    }
+  });
+
+  // Bot LLM assignment
+  app.put("/api/bots/:botId/settings/llm", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      const botId = parseInt(req.params.botId);
+      if (isNaN(botId)) return res.status(400).json({ error: "Invalid botId" });
+
+      const bot = await storage.getBot(botId, userId);
+      if (!bot) return res.status(404).json({ error: "Bot not found" });
+
+      const { llmProviderId, modelOverride } = req.body;
+
+      if (llmProviderId != null) {
+        const provider = await storage.getLlmProvider(llmProviderId, userId);
+        if (!provider) return res.status(400).json({ error: "LLM provider not found or not yours" });
+      }
+
+      const settings = await storage.upsertBotSettings(userId, botId, {
+        llmProviderId: llmProviderId ?? null,
+        modelOverride: modelOverride ?? null,
+      });
+      res.json({ settings });
+    } catch (error: any) {
+      if (error.message?.includes("not found")) {
+        return res.status(404).json({ error: error.message });
+      }
+      console.error("Error setting bot LLM:", error);
+      res.status(500).json({ error: "Failed to set bot LLM" });
+    }
+  });
+
+  // ============================================
   // SOURCES API (with userId support)
   // ============================================
   app.get("/api/user-sources", isAuthenticated, async (req, res) => {

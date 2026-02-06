@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRoute, useLocation } from "wouter";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -11,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Save, Loader2 } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Brain } from "lucide-react";
 
 interface BotSettings {
   id: number;
@@ -24,6 +25,15 @@ interface BotSettings {
   verbosity: string;
   sectionsJson: Record<string, boolean>;
   filtersJson: Record<string, number>;
+  llmProviderId: number | null;
+  modelOverride: string | null;
+}
+
+interface LlmProviderSafe {
+  id: number;
+  name: string;
+  providerType: string;
+  defaultModel: string | null;
 }
 
 interface BotData {
@@ -62,6 +72,8 @@ export default function BotDetail() {
     tldr: true, drivers: true, risk: true, checklist: true, sources: true,
   });
   const [minImportanceScore, setMinImportanceScore] = useState(0);
+  const [llmProviderId, setLlmProviderId] = useState<string>("system");
+  const [modelOverride, setModelOverride] = useState("");
 
   const { data: botResponse, isLoading } = useQuery<{ bot: BotData }>({
     queryKey: ["/api/bots", botId],
@@ -81,9 +93,15 @@ export default function BotDetail() {
     enabled: !!botId,
   });
 
+  const { data: providersResponse } = useQuery<{ providers: LlmProviderSafe[] }>({
+    queryKey: ["/api/llm-providers"],
+    queryFn: () => fetch("/api/llm-providers", { credentials: "include" }).then(r => r.json()),
+  });
+
   const bot = botResponse?.bot;
   const botSettings = settingsResponse?.settings;
   const botSources = sourcesResponse?.links ?? [];
+  const availableProviders = providersResponse?.providers ?? [];
 
   useEffect(() => {
     if (bot) {
@@ -105,6 +123,8 @@ export default function BotDetail() {
       if (botSettings.filtersJson?.minImportanceScore != null) {
         setMinImportanceScore(botSettings.filtersJson.minImportanceScore);
       }
+      setLlmProviderId(botSettings.llmProviderId ? String(botSettings.llmProviderId) : "system");
+      setModelOverride(botSettings.modelOverride || "");
     }
   }, [botSettings]);
 
@@ -119,6 +139,8 @@ export default function BotDetail() {
         markdownLevel,
         sectionsJson: sections,
         filtersJson: { minImportanceScore },
+        llmProviderId: llmProviderId === "system" ? null : parseInt(llmProviderId),
+        modelOverride: modelOverride || null,
       });
     },
     onSuccess: () => {
@@ -180,6 +202,49 @@ export default function BotDetail() {
             <div className="flex items-center justify-between">
               <Label htmlFor="bot-enabled">Enabled</Label>
               <Switch id="bot-enabled" checked={isEnabled} onCheckedChange={setIsEnabled} data-testid="toggle-bot-enabled" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Brain className="h-5 w-5" />
+              AI Model
+            </CardTitle>
+            <CardDescription>
+              Choose which AI provider this bot uses for analysis and reports
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            <div className="grid gap-2">
+              <Label>LLM Provider</Label>
+              <Select value={llmProviderId} onValueChange={setLlmProviderId}>
+                <SelectTrigger data-testid="select-llm-provider">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="system">System Default (Anthropic Claude)</SelectItem>
+                  {availableProviders.map((p) => (
+                    <SelectItem key={p.id} value={String(p.id)}>{p.name} ({p.providerType})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {availableProviders.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  No custom providers yet. Add one in Settings to use your own API keys.
+                </p>
+              )}
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="model-override">Model Override <span className="text-xs text-muted-foreground">(optional)</span></Label>
+              <Input
+                id="model-override"
+                value={modelOverride}
+                onChange={(e) => setModelOverride(e.target.value)}
+                placeholder="Leave blank to use provider's default"
+                data-testid="input-model-override"
+              />
             </div>
           </CardContent>
         </Card>

@@ -2,13 +2,14 @@ import { db } from "./db";
 import { 
   sources, items, analysis, drafts, posts, reports, chatMessages, settings,
   presets, profiles, profileSources, outputs, outputItems,
-  bots, botSettings, sourceBotLinks,
+  bots, botSettings, sourceBotLinks, llmProviders,
   type Source, type Item, type Analysis, type Draft, type Post, type Report, 
   type InsertSource, type InsertItem, type InsertAnalysis, type InsertDraft, type InsertReport, 
   type ChatMessage, type InsertChatMessage, type Setting,
   type Preset, type InsertPreset, type Profile, type InsertProfile, 
   type Output, type InsertOutput, type OutputItem,
-  type Bot, type InsertBot, type BotSettings, type InsertBotSettings, type SourceBotLink
+  type Bot, type InsertBot, type BotSettings, type InsertBotSettings, type SourceBotLink,
+  type LlmProvider, type InsertLlmProvider
 } from "@shared/schema";
 import { eq, desc, sql, and, count, gte, lt, lte, or, isNull, inArray } from "drizzle-orm";
 
@@ -135,6 +136,16 @@ export interface IStorage {
 
   // Default bot creation on first login
   ensureDefaultBots(userId: string): Promise<Bot[]>;
+
+  // ============================================
+  // LLM PROVIDERS - Phase 3 BYO LLM
+  // ============================================
+  createLlmProvider(data: InsertLlmProvider): Promise<LlmProvider>;
+  listLlmProviders(userId: string): Promise<LlmProvider[]>;
+  getLlmProvider(id: number, userId: string): Promise<LlmProvider | undefined>;
+  updateLlmProvider(id: number, userId: string, patch: Partial<Omit<InsertLlmProvider, 'userId'>>): Promise<LlmProvider | undefined>;
+  deleteLlmProvider(id: number, userId: string): Promise<void>;
+  resolveLLMForBot(botId: number): Promise<{ providerType: string; apiKey: string; baseUrl: string | null; model: string | null } | null>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1157,6 +1168,52 @@ export class DatabaseStorage implements IStorage {
     }
 
     return createdBots;
+  }
+
+  // ============================================
+  // LLM PROVIDERS - Phase 3 BYO LLM
+  // ============================================
+
+  async createLlmProvider(data: InsertLlmProvider): Promise<LlmProvider> {
+    const [provider] = await db.insert(llmProviders).values(data).returning();
+    return provider;
+  }
+
+  async listLlmProviders(userId: string): Promise<LlmProvider[]> {
+    return db.select().from(llmProviders).where(eq(llmProviders.userId, userId)).orderBy(desc(llmProviders.createdAt));
+  }
+
+  async getLlmProvider(id: number, userId: string): Promise<LlmProvider | undefined> {
+    const [provider] = await db.select().from(llmProviders).where(and(eq(llmProviders.id, id), eq(llmProviders.userId, userId)));
+    return provider;
+  }
+
+  async updateLlmProvider(id: number, userId: string, patch: Partial<Omit<InsertLlmProvider, 'userId'>>): Promise<LlmProvider | undefined> {
+    const [updated] = await db.update(llmProviders)
+      .set(patch)
+      .where(and(eq(llmProviders.id, id), eq(llmProviders.userId, userId)))
+      .returning();
+    return updated;
+  }
+
+  async deleteLlmProvider(id: number, userId: string): Promise<void> {
+    await db.delete(llmProviders).where(and(eq(llmProviders.id, id), eq(llmProviders.userId, userId)));
+  }
+
+  async resolveLLMForBot(botId: number): Promise<{ providerType: string; apiKey: string; baseUrl: string | null; model: string | null } | null> {
+    const [setting] = await db.select().from(botSettings).where(eq(botSettings.botId, botId));
+    if (!setting || !setting.llmProviderId) return null;
+
+    const [provider] = await db.select().from(llmProviders).where(eq(llmProviders.id, setting.llmProviderId));
+    if (!provider) return null;
+
+    const { decrypt } = await import("./lib/crypto");
+    return {
+      providerType: provider.providerType,
+      apiKey: decrypt(provider.apiKeyEncrypted),
+      baseUrl: provider.baseUrl,
+      model: setting.modelOverride || provider.defaultModel,
+    };
   }
 }
 

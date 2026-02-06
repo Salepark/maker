@@ -1,65 +1,48 @@
-const LLM_API_KEY = process.env.LLM_API_KEY || "";
-const CLAUDE_MODEL = process.env.CLAUDE_MODEL || "claude-sonnet-4-5-20250929";
-const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
+import * as anthropicAdapter from "./providers/anthropic";
+import * as openaiAdapter from "./providers/openai";
+import * as googleAdapter from "./providers/google";
+import * as customAdapter from "./providers/custom";
 
-interface AnthropicMessage {
-  role: "user" | "assistant";
-  content: string;
+export interface LLMConfig {
+  providerType: string;
+  apiKey: string;
+  baseUrl?: string | null;
+  model?: string | null;
 }
 
-interface AnthropicResponse {
-  content: Array<{
-    type: string;
-    text?: string;
-  }>;
-  stop_reason: string;
+const adapters: Record<string, typeof anthropicAdapter> = {
+  anthropic: anthropicAdapter,
+  openai: openaiAdapter,
+  google: googleAdapter,
+  custom: customAdapter,
+};
+
+function getAdapter(providerType: string) {
+  const adapter = adapters[providerType];
+  if (!adapter) throw new Error(`Unsupported LLM provider type: ${providerType}`);
+  return adapter;
 }
 
-export async function callLLM(prompt: string, maxRetries: number = 2, maxTokens: number = 1200): Promise<string> {
-  if (!LLM_API_KEY) {
-    throw new Error("Missing LLM_API_KEY environment variable");
-  }
-
+export async function callLLMWithConfig(
+  config: LLMConfig,
+  prompt: string,
+  maxRetries: number = 2,
+  maxTokens: number = 1200
+): Promise<string> {
+  const adapter = getAdapter(config.providerType);
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      const response = await fetch(ANTHROPIC_API_URL, {
-        method: "POST",
-        headers: {
-          "x-api-key": LLM_API_KEY,
-          "anthropic-version": "2023-06-01",
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          model: CLAUDE_MODEL,
-          max_tokens: maxTokens,
-          temperature: 0.2,
-          messages: [{ role: "user", content: prompt }],
-        }),
+      return await adapter.generate(prompt, {
+        apiKey: config.apiKey,
+        baseUrl: config.baseUrl,
+        model: config.model,
+        maxTokens,
       });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Anthropic API error: ${response.status} - ${errorText}`);
-      }
-
-      const data: AnthropicResponse = await response.json();
-      
-      const text = data.content
-        .filter((c) => c.type === "text" && c.text)
-        .map((c) => c.text)
-        .join("");
-
-      if (!text) {
-        throw new Error("Empty response from Anthropic API");
-      }
-
-      return text;
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
       console.error(`LLM call attempt ${attempt + 1} failed:`, lastError.message);
-      
       if (attempt < maxRetries) {
         await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
       }
@@ -69,31 +52,30 @@ export async function callLLM(prompt: string, maxRetries: number = 2, maxTokens:
   throw lastError || new Error("LLM call failed after retries");
 }
 
-export async function callLLMWithJsonParsing<T>(prompt: string, maxRetries: number = 2): Promise<T> {
+export async function callLLMWithConfigJson<T>(
+  config: LLMConfig,
+  prompt: string,
+  maxRetries: number = 2
+): Promise<T> {
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      const response = await callLLM(prompt, 0);
-      
+      const response = await callLLMWithConfig(config, prompt, 0);
       let jsonStr = response.trim();
       const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
       if (jsonMatch) {
         jsonStr = jsonMatch[1].trim();
       }
-      
       const startIndex = jsonStr.indexOf("{");
       const endIndex = jsonStr.lastIndexOf("}");
       if (startIndex !== -1 && endIndex !== -1 && endIndex > startIndex) {
         jsonStr = jsonStr.slice(startIndex, endIndex + 1);
       }
-
-      const parsed = JSON.parse(jsonStr) as T;
-      return parsed;
+      return JSON.parse(jsonStr) as T;
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
       console.error(`JSON parsing attempt ${attempt + 1} failed:`, lastError.message);
-      
       if (attempt < maxRetries) {
         await new Promise((resolve) => setTimeout(resolve, 500));
       }
@@ -101,4 +83,27 @@ export async function callLLMWithJsonParsing<T>(prompt: string, maxRetries: numb
   }
 
   throw lastError || new Error("JSON parsing failed after retries");
+}
+
+// ============================================
+// Legacy functions (backward compatible, used by system-level jobs)
+// These fall back to env-var LLM_API_KEY when no bot LLM is configured
+// ============================================
+
+function getSystemConfig(): LLMConfig {
+  const apiKey = process.env.LLM_API_KEY || "";
+  if (!apiKey) throw new Error("No LLM configured: set LLM_API_KEY or assign an LLM provider to your bot");
+  return {
+    providerType: "anthropic",
+    apiKey,
+    model: process.env.CLAUDE_MODEL || "claude-sonnet-4-5-20250929",
+  };
+}
+
+export async function callLLM(prompt: string, maxRetries: number = 2, maxTokens: number = 1200): Promise<string> {
+  return callLLMWithConfig(getSystemConfig(), prompt, maxRetries, maxTokens);
+}
+
+export async function callLLMWithJsonParsing<T>(prompt: string, maxRetries: number = 2): Promise<T> {
+  return callLLMWithConfigJson<T>(getSystemConfig(), prompt, maxRetries);
 }

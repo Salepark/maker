@@ -1,0 +1,186 @@
+좋아요. 아래는 **Replit Assistant에 그대로 붙여넣어서 실행 지시로 쓰는 버전 (Dev Instruction v1.0 / Phase 3)** 입니다.
+군더더기 설명 없이 **해야 할 일만** 정리했습니다.
+
+---
+
+# 🚀 Dev Instruction v1.0 — Phase 3 (BYO LLM)
+
+## 목표
+
+* 사용자가 **자기 LLM Provider(API 키)** 를 직접 연결
+* **봇마다** 사용할 LLM 선택 가능
+* 리포트/분석/초안 생성 시 **해당 봇에 연결된 LLM** 사용
+* 시스템 기본 LLM 의존 제거
+* 말투/스타일/캐릭터는 **이번 단계에서 다루지 않음**
+
+---
+
+## Step 3-1. DB 스키마 추가
+
+### 테이블 추가
+
+```sql
+llm_providers (
+  id INTEGER PRIMARY KEY,
+  userId TEXT NOT NULL,
+  name TEXT NOT NULL,
+  providerType TEXT NOT NULL,  -- "openai" | "anthropic" | "google" | "custom"
+  apiKeyEncrypted TEXT NOT NULL,
+  baseUrl TEXT,
+  defaultModel TEXT,
+  createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### bot_settings 컬럼 추가
+
+```sql
+ALTER TABLE bot_settings ADD COLUMN llmProviderId INTEGER;
+ALTER TABLE bot_settings ADD COLUMN modelOverride TEXT;
+```
+
+---
+
+## Step 3-2. Storage 함수 추가
+
+다음 함수 구현:
+
+* createLLMProvider(userId, data)
+* listLLMProviders(userId)
+* getLLMProvider(id, userId)
+* updateLLMProvider(id, userId, data)
+* deleteLLMProvider(id, userId)
+
+추가 유틸:
+
+* getBotLLMConfig(botId, userId)
+* resolveLLMForBot(botId) → { providerType, apiKey, baseUrl, model }
+
+---
+
+## Step 3-3. API 라우트 추가
+
+```http
+GET    /api/llm-providers
+POST   /api/llm-providers
+PUT    /api/llm-providers/:id
+DELETE /api/llm-providers/:id
+```
+
+```http
+PUT /api/bots/:id/settings/llm
+Body: { llmProviderId, modelOverride }
+```
+
+모든 요청은 userId 소유권 체크 필수.
+
+---
+
+## Step 3-4. LLM 호출 레이어 리팩터링
+
+기존:
+
+* callLLMWithJsonParsing() 이 특정 Provider 종속
+
+변경:
+
+* Provider-agnostic 구조로 리팩터링
+
+공통 인터페이스:
+
+```ts
+callLLM({
+  providerType,
+  apiKey,
+  baseUrl,
+  model,
+  prompt,
+  responseFormat
+})
+```
+
+Provider 어댑터 분리:
+
+* providers/openai.ts
+* providers/anthropic.ts
+* providers/google.ts
+* providers/custom.ts
+
+각각:
+
+```ts
+export async function generate(prompt, options): Promise<string>
+```
+
+---
+
+## Step 3-5. 리포트 / 분석 파이프라인 수정
+
+모든 LLM 호출 흐름을 다음처럼 변경:
+
+1. botId 기준으로 bot_settings 조회
+2. llmProviderId 가져오기
+3. resolveLLMForBot(botId) 호출
+4. 해당 provider adapter로 LLM 호출
+5. 결과 저장
+
+❗️하드코딩된 기본 LLM 호출 전부 제거
+
+---
+
+## Step 3-6. UI 추가
+
+### Settings > LLM Providers 페이지
+
+기능:
+
+* Provider 추가
+
+  * name
+  * providerType
+  * apiKey
+  * baseUrl (optional)
+  * defaultModel
+* Provider 목록 / 수정 / 삭제
+
+### Bot Settings 페이지에 추가
+
+* “이 봇에서 사용할 LLM Provider” 드롭다운
+* “Model Override” 입력 필드
+
+---
+
+## Step 3-7. 보안 규칙
+
+* API Key는 반드시 암호화 저장
+* 서버에서만 복호화
+* 클라이언트로 절대 반환하지 말 것
+* LLM 미설정 시:
+
+  * 명확한 에러 메시지: “이 봇에 LLM Provider가 설정되지 않았습니다”
+
+---
+
+## Step 3-8. 완료 조건 (DoD)
+
+* 사용자가 LLM Provider CRUD 가능
+* 봇마다 다른 LLM 연결 가능
+* 리포트/분석/초안 생성 시 해당 봇의 LLM 사용
+* 기존 ai_art / investing 봇 정상 동작
+* 시스템 기본 LLM 의존 코드 제거 완료
+
+---
+
+## 이번 Phase에서 하지 말 것 ❌
+
+* 말투 / 캐릭터 / 스타일 프리셋
+* 홍보 성향 / 커뮤니티 모드
+* 자동 포스팅
+* 정책 / 약관 / 법적 가드 UI
+
+(이건 Phase 4에서 진행)
+
+---
+
+이걸 **Replit Assistant에 그대로 붙여넣고 실행**하면 됩니다.
+다 끝나면 다음 단계에서 **“봇 성격/스타일/운영 모드” 레이어** 얹으면, 진짜 플랫폼 됩니다.

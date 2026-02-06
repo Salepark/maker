@@ -122,7 +122,29 @@ export type Bot = typeof bots.$inferSelect;
 export type InsertBot = z.infer<typeof insertBotSchema>;
 
 // ============================================
-// BOT_SETTINGS - Bot settings 1:1 (Step 8-1)
+// LLM_PROVIDERS - User's LLM API connections (Phase 3)
+// ============================================
+export const llmProviders = pgTable("llm_providers", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  name: text("name").notNull(),
+  providerType: text("provider_type").notNull(), // "openai" | "anthropic" | "google" | "custom"
+  apiKeyEncrypted: text("api_key_encrypted").notNull(),
+  baseUrl: text("base_url"),
+  defaultModel: text("default_model"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertLlmProviderSchema = createInsertSchema(llmProviders).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type LlmProvider = typeof llmProviders.$inferSelect;
+export type InsertLlmProvider = z.infer<typeof insertLlmProviderSchema>;
+
+// ============================================
+// BOT_SETTINGS - Bot settings 1:1 (Step 8-1 + Phase 3 LLM)
 // ============================================
 export const botSettings = pgTable("bot_settings", {
   id: serial("id").primaryKey(),
@@ -144,6 +166,8 @@ export const botSettings = pgTable("bot_settings", {
     minImportanceScore: 0,
     maxRiskLevel: 100
   }),
+  llmProviderId: integer("llm_provider_id").references(() => llmProviders.id, { onDelete: "set null" }),
+  modelOverride: text("model_override"),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
