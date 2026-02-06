@@ -1,11 +1,11 @@
 import { db } from "./db";
 import { 
-  sources, items, analysis, drafts, posts, reports, chatMessages, settings,
+  sources, items, analysis, drafts, posts, reports, chatMessages, chatThreads, settings,
   presets, profiles, profileSources, outputs, outputItems,
   bots, botSettings, sourceBotLinks, llmProviders,
   type Source, type Item, type Analysis, type Draft, type Post, type Report, 
   type InsertSource, type InsertItem, type InsertAnalysis, type InsertDraft, type InsertReport, 
-  type ChatMessage, type InsertChatMessage, type Setting,
+  type ChatMessage, type InsertChatMessage, type ChatThread, type InsertChatThread, type Setting,
   type Preset, type InsertPreset, type Profile, type InsertProfile, 
   type Output, type InsertOutput, type OutputItem,
   type Bot, type InsertBot, type BotSettings, type InsertBotSettings, type SourceBotLink,
@@ -53,11 +53,19 @@ export interface IStorage {
   createReport(data: InsertReport): Promise<Report>;
   getAnalyzedItemsForBrief(lookbackHours: number, limit: number, topic?: string): Promise<any[]>;
 
+  createThread(userId: string, title?: string): Promise<ChatThread>;
+  getThread(threadId: number, userId: string): Promise<ChatThread | null>;
+  getUserThreads(userId: string): Promise<ChatThread[]>;
+  setThreadActiveBot(threadId: number, userId: string, botId: number | null): Promise<void>;
+  getOrCreateDefaultThread(userId: string): Promise<ChatThread>;
+  listThreadMessages(threadId: number, userId: string, limit?: number): Promise<ChatMessage[]>;
+  addThreadMessage(data: InsertChatMessage): Promise<ChatMessage>;
+  updateChatMessageStatus(id: number, userId: string, status: string): Promise<void>;
+  savePendingCommand(messageId: number, userId: string, commandJson: any): Promise<void>;
+  clearPendingCommand(messageId: number, userId: string): Promise<void>;
+
   getChatMessages(userId: string, limit?: number): Promise<ChatMessage[]>;
   createChatMessage(data: InsertChatMessage): Promise<ChatMessage>;
-  updateChatMessageStatus(id: number, userId: string, status: string): Promise<void>;
-  getActiveBotId(userId: string): Promise<number | null>;
-  setActiveBotId(userId: string, botId: number | null): Promise<void>;
 
   getSetting(key: string): Promise<string | undefined>;
   setSetting(key: string, value: string): Promise<void>;
@@ -510,13 +518,47 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
-  async getChatMessages(userId: string, limit: number = 50): Promise<ChatMessage[]> {
+  async createThread(userId: string, title?: string): Promise<ChatThread> {
+    const [thread] = await db.insert(chatThreads).values({
+      userId,
+      title: title || null,
+    }).returning();
+    return thread;
+  }
+
+  async getThread(threadId: number, userId: string): Promise<ChatThread | null> {
+    const [thread] = await db.select().from(chatThreads)
+      .where(and(eq(chatThreads.id, threadId), eq(chatThreads.userId, userId)));
+    return thread || null;
+  }
+
+  async getUserThreads(userId: string): Promise<ChatThread[]> {
+    return db.select().from(chatThreads)
+      .where(eq(chatThreads.userId, userId))
+      .orderBy(desc(chatThreads.createdAt));
+  }
+
+  async setThreadActiveBot(threadId: number, userId: string, botId: number | null): Promise<void> {
+    await db.update(chatThreads)
+      .set({ activeBotId: botId })
+      .where(and(eq(chatThreads.id, threadId), eq(chatThreads.userId, userId)));
+  }
+
+  async getOrCreateDefaultThread(userId: string): Promise<ChatThread> {
+    const threads = await this.getUserThreads(userId);
+    if (threads.length > 0) return threads[0];
+    return this.createThread(userId, "기본 대화");
+  }
+
+  async listThreadMessages(threadId: number, userId: string, limit: number = 100): Promise<ChatMessage[]> {
+    const thread = await this.getThread(threadId, userId);
+    if (!thread) return [];
     return db.select().from(chatMessages)
-      .where(eq(chatMessages.userId, userId))
+      .where(and(eq(chatMessages.threadId, threadId), eq(chatMessages.userId, userId)))
       .orderBy(desc(chatMessages.createdAt)).limit(limit);
   }
 
-  async createChatMessage(data: InsertChatMessage): Promise<ChatMessage> {
+  async addThreadMessage(data: InsertChatMessage): Promise<ChatMessage> {
     const [msg] = await db.insert(chatMessages).values(data).returning();
     return msg;
   }
@@ -527,17 +569,27 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(chatMessages.id, id), eq(chatMessages.userId, userId)));
   }
 
-  async getActiveBotId(userId: string): Promise<number | null> {
-    const val = await this.getSetting(`active_bot_${userId}`);
-    return val ? parseInt(val, 10) : null;
+  async savePendingCommand(messageId: number, userId: string, commandJson: any): Promise<void> {
+    await db.update(chatMessages)
+      .set({ commandJson, kind: "pending_command", status: "pending_confirm" })
+      .where(and(eq(chatMessages.id, messageId), eq(chatMessages.userId, userId)));
   }
 
-  async setActiveBotId(userId: string, botId: number | null): Promise<void> {
-    if (botId === null) {
-      await db.delete(settings).where(eq(settings.key, `active_bot_${userId}`));
-    } else {
-      await this.setSetting(`active_bot_${userId}`, String(botId));
-    }
+  async clearPendingCommand(messageId: number, userId: string): Promise<void> {
+    await db.update(chatMessages)
+      .set({ status: "done" })
+      .where(and(eq(chatMessages.id, messageId), eq(chatMessages.userId, userId)));
+  }
+
+  async getChatMessages(userId: string, limit: number = 50): Promise<ChatMessage[]> {
+    return db.select().from(chatMessages)
+      .where(eq(chatMessages.userId, userId))
+      .orderBy(desc(chatMessages.createdAt)).limit(limit);
+  }
+
+  async createChatMessage(data: InsertChatMessage): Promise<ChatMessage> {
+    const [msg] = await db.insert(chatMessages).values(data).returning();
+    return msg;
   }
 
   async getSetting(key: string): Promise<string | undefined> {

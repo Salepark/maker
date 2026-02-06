@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { collectFromSource, collectAllSources } from "./services/rss";
 import { startScheduler, stopScheduler, getSchedulerStatus, runCollectNow, runAnalyzeNow, runDraftNow, runDailyBriefNow, runReportNow } from "./jobs/scheduler";
 import { parseCommand } from "./chat/command-parser";
-import { executeCommand } from "./chat/executor";
+import { routeCommand } from "./chat/commandRouter";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { runAllSeeds } from "./seed";
 
@@ -368,132 +368,181 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/chat/messages", isAuthenticated, async (req, res) => {
+  app.post("/api/chat/threads", isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ error: "Not authenticated" });
-      const messages = await storage.getChatMessages(userId, 100);
+      const thread = await storage.createThread(userId);
+      res.json(thread);
+    } catch (error) {
+      console.error("Error creating thread:", error);
+      res.status(500).json({ error: "Failed to create thread" });
+    }
+  });
+
+  app.get("/api/chat/threads", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+      const threads = await storage.getUserThreads(userId);
+      res.json(threads);
+    } catch (error) {
+      console.error("Error listing threads:", error);
+      res.status(500).json({ error: "Failed to list threads" });
+    }
+  });
+
+  app.get("/api/chat/threads/:threadId/messages", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+      const threadId = parseInt(req.params.threadId, 10);
+      if (isNaN(threadId)) return res.status(400).json({ error: "Invalid threadId" });
+
+      const thread = await storage.getThread(threadId, userId);
+      if (!thread) return res.status(404).json({ error: "Thread not found" });
+
+      const messages = await storage.listThreadMessages(threadId, userId, 100);
       res.json(messages.reverse());
     } catch (error) {
-      console.error("Error getting chat messages:", error);
-      res.status(500).json({ error: "Failed to get chat messages" });
+      console.error("Error getting thread messages:", error);
+      res.status(500).json({ error: "Failed to get thread messages" });
     }
   });
 
-  app.get("/api/chat/active-bot", isAuthenticated, async (req, res) => {
+  app.post("/api/chat/threads/:threadId/message", isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ error: "Not authenticated" });
-      const activeBotId = await storage.getActiveBotId(userId);
-      if (!activeBotId) return res.json({ activeBot: null });
-      const bot = await storage.getBot(activeBotId, userId);
-      if (!bot) {
-        await storage.setActiveBotId(userId, null);
-        return res.json({ activeBot: null });
-      }
-      res.json({ activeBot: { id: bot.id, key: bot.key, name: bot.name } });
-    } catch (error) {
-      console.error("Error getting active bot:", error);
-      res.status(500).json({ error: "Failed to get active bot" });
-    }
-  });
+      const threadId = parseInt(req.params.threadId, 10);
+      if (isNaN(threadId)) return res.status(400).json({ error: "Invalid threadId" });
 
-  app.post("/api/chat/message", isAuthenticated, async (req, res) => {
-    try {
-      const userId = getUserId(req);
-      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+      const thread = await storage.getThread(threadId, userId);
+      if (!thread) return res.status(404).json({ error: "Thread not found" });
 
-      const { message } = req.body;
-      if (!message || typeof message !== "string") {
-        return res.status(400).json({ error: "Message is required" });
+      const { text } = req.body;
+      if (!text || typeof text !== "string") {
+        return res.status(400).json({ error: "text is required" });
       }
 
-      await storage.createChatMessage({
+      await storage.addThreadMessage({
+        threadId,
         userId,
         role: "user",
-        contentText: message,
+        contentText: text,
+        kind: "text",
       });
 
       const userBots = await storage.listBots(userId);
-      const activeBotId = await storage.getActiveBotId(userId);
       let activeBotKey: string | null = null;
-      if (activeBotId) {
-        const activeBot = userBots.find(b => b.id === activeBotId);
+      if (thread.activeBotId) {
+        const activeBot = userBots.find(b => b.id === thread.activeBotId);
         activeBotKey = activeBot?.key || null;
       }
 
-      const command = await parseCommand(message, {
+      const parseResult = await parseCommand(text, {
         activeBotKey,
         availableBotKeys: userBots.map(b => b.key),
       });
 
+      const { command, clarificationNeeded, clarificationText } = parseResult;
+
+      if (clarificationNeeded) {
+        await storage.addThreadMessage({
+          threadId,
+          userId,
+          role: "assistant",
+          contentText: clarificationText || "좀 더 구체적으로 말씀해주세요.",
+          kind: "text",
+        });
+        return res.json({ ok: true, mode: "clarification", clarificationText });
+      }
+
       if (command.needsConfirm && command.type !== "chat") {
-        const confirmMsg = await storage.createChatMessage({
+        const confirmMsg = await storage.addThreadMessage({
+          threadId,
           userId,
           role: "assistant",
           contentText: command.confirmText || `'${command.type}' 실행할까요?`,
+          kind: "pending_command",
           commandJson: command,
           status: "pending_confirm",
         });
-        return res.json({ ok: true, needsConfirm: true, command, messageId: confirmMsg.id });
+        return res.json({
+          ok: true,
+          mode: "confirm",
+          pendingMessageId: confirmMsg.id,
+          command,
+          confirmText: command.confirmText,
+        });
       }
 
-      const result = await executeCommand(userId, command);
+      const result = await routeCommand(userId, command, threadId);
 
-      await storage.createChatMessage({
+      await storage.addThreadMessage({
+        threadId,
         userId,
         role: "assistant",
         contentText: result.assistantMessage,
+        kind: "command_result",
         commandJson: result.executed,
         resultJson: result.result,
-        status: "done",
       });
 
-      res.json({ ok: result.ok, needsConfirm: false, result });
+      res.json({ ok: result.ok, mode: "executed", result });
     } catch (error: any) {
       console.error("Error processing chat message:", error);
       res.status(500).json({ ok: false, error: error?.message ?? String(error) });
     }
   });
 
-  app.post("/api/chat/confirm", isAuthenticated, async (req, res) => {
+  app.post("/api/chat/threads/:threadId/confirm", isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ error: "Not authenticated" });
+      const threadId = parseInt(req.params.threadId, 10);
+      if (isNaN(threadId)) return res.status(400).json({ error: "Invalid threadId" });
 
-      const { messageId, approved } = req.body;
-      if (!messageId) return res.status(400).json({ error: "messageId is required" });
+      const thread = await storage.getThread(threadId, userId);
+      if (!thread) return res.status(404).json({ error: "Thread not found" });
 
-      const messages = await storage.getChatMessages(userId, 200);
-      const pendingMsg = messages.find(m => m.id === messageId && m.status === "pending_confirm");
+      const { pendingMessageId, approve } = req.body;
+      if (!pendingMessageId) return res.status(400).json({ error: "pendingMessageId is required" });
+
+      const messages = await storage.listThreadMessages(threadId, userId, 200);
+      const pendingMsg = messages.find(m => m.id === pendingMessageId && m.status === "pending_confirm");
 
       if (!pendingMsg) {
-        return res.status(404).json({ error: "Pending confirmation not found" });
+        return res.status(404).json({ error: "Pending confirmation not found or already resolved" });
       }
 
-      await storage.updateChatMessageStatus(messageId, userId, approved ? "confirmed" : "cancelled");
+      await storage.updateChatMessageStatus(pendingMessageId, userId, approve ? "confirmed" : "cancelled");
 
-      if (!approved) {
-        await storage.createChatMessage({
+      if (!approve) {
+        await storage.addThreadMessage({
+          threadId,
           userId,
           role: "assistant",
           contentText: "취소했습니다.",
-          status: "done",
+          kind: "text",
         });
         return res.json({ ok: true, cancelled: true });
       }
 
       const command = pendingMsg.commandJson as any;
-      const result = await executeCommand(userId, command);
+      const result = await routeCommand(userId, command, threadId);
 
-      await storage.createChatMessage({
+      await storage.addThreadMessage({
+        threadId,
         userId,
         role: "assistant",
         contentText: result.assistantMessage,
+        kind: "command_result",
         commandJson: result.executed,
         resultJson: result.result,
-        status: "done",
       });
+
+      await storage.clearPendingCommand(pendingMessageId, userId);
 
       res.json({ ok: result.ok, result });
     } catch (error: any) {

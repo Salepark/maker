@@ -453,11 +453,29 @@ export const messages = pgTable("messages", {
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
+export const chatThreads = pgTable("chat_threads", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  title: text("title"),
+  activeBotId: integer("active_bot_id").references(() => bots.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertChatThreadSchema = createInsertSchema(chatThreads).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type ChatThread = typeof chatThreads.$inferSelect;
+export type InsertChatThread = z.infer<typeof insertChatThreadSchema>;
+
 export const chatMessages = pgTable("chat_messages", {
   id: serial("id").primaryKey(),
+  threadId: integer("thread_id").references(() => chatThreads.id, { onDelete: "cascade" }),
   userId: varchar("user_id").notNull().references(() => users.id),
   role: text("role").notNull(),
   contentText: text("content_text").notNull(),
+  kind: text("kind").default("text"),
   commandJson: jsonb("command_json"),
   resultJson: jsonb("result_json"),
   status: text("status").default("done"),

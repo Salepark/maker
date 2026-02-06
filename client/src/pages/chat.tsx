@@ -8,19 +8,30 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { MessageCircle, Send, Loader2, Bot, User, HelpCircle, Check, X, Zap } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import type { MessageKind } from "@shared/chatCommand";
+
+interface ChatThread {
+  id: number;
+  userId: string;
+  title: string | null;
+  activeBotId: number | null;
+  createdAt: string;
+}
 
 interface ChatMessage {
   id: number;
+  threadId: number | null;
   userId: string;
   role: "user" | "assistant";
   contentText: string;
+  kind?: MessageKind;
   commandJson?: any;
   resultJson?: any;
   status?: string;
   createdAt: string;
 }
 
-interface ActiveBot {
+interface ActiveBotInfo {
   id: number;
   key: string;
   name: string;
@@ -85,6 +96,7 @@ function MessageBubble({
 }) {
   const isUser = message.role === "user";
   const isPending = message.status === "pending_confirm";
+  const kind = message.kind || "text";
 
   return (
     <div
@@ -108,12 +120,12 @@ function MessageBubble({
         }`}
       >
         <p className="text-sm whitespace-pre-wrap">{message.contentText}</p>
-        {message.commandJson && !isPending && (
+        {kind === "command_result" && message.commandJson && (
           <Badge variant="outline" className="mt-2 text-xs">
             {message.commandJson.type || message.commandJson.action}
           </Badge>
         )}
-        {isPending && (
+        {kind === "pending_command" && isPending && (
           <div>
             <Badge variant="secondary" className="mt-2 text-xs">
               <Zap className="h-3 w-3 mr-1" />
@@ -127,6 +139,11 @@ function MessageBubble({
             />
           </div>
         )}
+        {!kind && message.commandJson && !isPending && (
+          <Badge variant="outline" className="mt-2 text-xs">
+            {message.commandJson.type}
+          </Badge>
+        )}
       </div>
     </div>
   );
@@ -136,28 +153,72 @@ export default function Chat() {
   const { toast } = useToast();
   const [input, setInput] = useState("");
   const [confirmingId, setConfirmingId] = useState<number | null>(null);
+  const [threadId, setThreadId] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const { data: messages, isLoading } = useQuery<ChatMessage[]>({
-    queryKey: ["/api/chat/messages"],
+  const { data: threads, isLoading: threadsLoading } = useQuery<ChatThread[]>({
+    queryKey: ["/api/chat/threads"],
+  });
+
+  useEffect(() => {
+    if (threads && threads.length > 0 && !threadId) {
+      setThreadId(threads[0].id);
+    }
+  }, [threads, threadId]);
+
+  const createThreadMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/chat/threads", {});
+      return res.json();
+    },
+    onSuccess: (newThread: ChatThread) => {
+      setThreadId(newThread.id);
+      queryClient.invalidateQueries({ queryKey: ["/api/chat/threads"] });
+    },
+  });
+
+  useEffect(() => {
+    if (!threadsLoading && threads && threads.length === 0 && !createThreadMutation.isPending) {
+      createThreadMutation.mutate();
+    }
+  }, [threads, threadsLoading]);
+
+  const currentThread = threads?.find(t => t.id === threadId);
+
+  const { data: messages, isLoading: messagesLoading } = useQuery<ChatMessage[]>({
+    queryKey: ["/api/chat/threads", threadId, "messages"],
+    queryFn: async () => {
+      if (!threadId) return [];
+      const res = await fetch(`/api/chat/threads/${threadId}/messages`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to load messages");
+      return res.json();
+    },
+    enabled: !!threadId,
     refetchInterval: 5000,
   });
 
-  const { data: activeBotData } = useQuery<{ activeBot: ActiveBot | null }>({
-    queryKey: ["/api/chat/active-bot"],
+  const { data: activeBotInfo } = useQuery<ActiveBotInfo | null>({
+    queryKey: ["/api/chat/threads", threadId, "activeBot"],
+    queryFn: async () => {
+      if (!currentThread?.activeBotId) return null;
+      const res = await fetch(`/api/bots`, { credentials: "include" });
+      if (!res.ok) return null;
+      const bots = await res.json();
+      return bots.find((b: any) => b.id === currentThread.activeBotId) || null;
+    },
+    enabled: !!currentThread,
     refetchInterval: 10000,
   });
 
-  const activeBot = activeBotData?.activeBot;
-
   const sendMutation = useMutation({
-    mutationFn: async (message: string) => {
-      const res = await apiRequest("POST", "/api/chat/message", { message });
+    mutationFn: async (text: string) => {
+      if (!threadId) throw new Error("No thread");
+      const res = await apiRequest("POST", `/api/chat/threads/${threadId}/message`, { text });
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/chat/messages"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/chat/active-bot"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/chat/threads", threadId, "messages"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/chat/threads"] });
     },
     onError: (error: any) => {
       toast({
@@ -169,14 +230,15 @@ export default function Chat() {
   });
 
   const confirmMutation = useMutation({
-    mutationFn: async ({ messageId, approved }: { messageId: number; approved: boolean }) => {
-      const res = await apiRequest("POST", "/api/chat/confirm", { messageId, approved });
+    mutationFn: async ({ pendingMessageId, approve }: { pendingMessageId: number; approve: boolean }) => {
+      if (!threadId) throw new Error("No thread");
+      const res = await apiRequest("POST", `/api/chat/threads/${threadId}/confirm`, { pendingMessageId, approve });
       return res.json();
     },
     onSuccess: () => {
       setConfirmingId(null);
-      queryClient.invalidateQueries({ queryKey: ["/api/chat/messages"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/chat/active-bot"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/chat/threads", threadId, "messages"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/chat/threads"] });
     },
     onError: (error: any) => {
       setConfirmingId(null);
@@ -205,13 +267,15 @@ export default function Chat() {
 
   const handleConfirm = (messageId: number) => {
     setConfirmingId(messageId);
-    confirmMutation.mutate({ messageId, approved: true });
+    confirmMutation.mutate({ pendingMessageId: messageId, approve: true });
   };
 
   const handleCancel = (messageId: number) => {
     setConfirmingId(messageId);
-    confirmMutation.mutate({ messageId, approved: false });
+    confirmMutation.mutate({ pendingMessageId: messageId, approve: false });
   };
+
+  const isLoading = threadsLoading || messagesLoading;
 
   return (
     <div className="flex flex-col h-full">
@@ -224,10 +288,10 @@ export default function Chat() {
           <p className="text-sm text-muted-foreground">
             자연어로 봇을 제어하세요
           </p>
-          {activeBot ? (
+          {activeBotInfo ? (
             <Badge variant="secondary" data-testid="badge-active-bot">
               <Bot className="h-3 w-3 mr-1" />
-              {activeBot.name}
+              {activeBotInfo.name}
             </Badge>
           ) : (
             <Badge variant="outline" className="text-xs text-muted-foreground" data-testid="badge-no-active-bot">
@@ -273,7 +337,7 @@ export default function Chat() {
               <Input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder={activeBot ? `${activeBot.name}에게 명령...` : "봇 목록 보여줘 / 소스 추가 / 수집 실행..."}
+                placeholder={activeBotInfo ? `${activeBotInfo.name}에게 명령...` : "봇 목록 보여줘 / 소스 추가 / 수집 실행..."}
                 disabled={sendMutation.isPending}
                 data-testid="input-chat-message"
               />

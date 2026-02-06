@@ -61,15 +61,28 @@ For the 'ai_art' topic, the system enforces a strict "community contribution mod
 A natural language interface, powered by Claude AI, allows users to control bots via chat commands. The system supports 8 bot-centric commands: `list_bots`, `switch_bot`, `bot_status`, `run_now`, `pause_bot`, `resume_bot`, `add_source`, `remove_source`. Commands are parsed by LLM into a structured JSON schema `{type, botKey, args, confidence, needsConfirm, confirmText}`.
 
 **Two-step execution flow (semi-automatic):**
-- `POST /api/chat/message` — Parses user input, returns confirm payload for data-changing commands
-- `POST /api/chat/confirm` — Executes on approval, marks pending message as confirmed/cancelled
-- `GET /api/chat/active-bot` — Returns currently active bot for the user
+- `POST /api/chat/threads` — Create a new chat thread
+- `GET /api/chat/threads` — List user's threads
+- `GET /api/chat/threads/:threadId/messages` — List messages in a thread
+- `POST /api/chat/threads/:threadId/message` — Parses user input, returns confirm payload for data-changing commands
+- `POST /api/chat/threads/:threadId/confirm` — Executes on approval, marks pending message as confirmed/cancelled
 
-**Active bot context:** Per-user active bot stored in settings. Commands without explicit botKey use the active bot. UI shows active bot indicator at the top.
+**Active bot context:** Per-thread active bot stored in `chat_threads.activeBotId`. Commands without explicit botKey use the thread's active bot. UI shows active bot indicator at the top.
 
-**Confirmation UX:** Data-modifying commands (run_now, pause_bot, resume_bot, add_source, remove_source) show approve/cancel buttons. Read-only commands (list_bots, bot_status, switch_bot) execute immediately.
+**Confirmation UX:** Data-modifying commands (run_now, pause_bot, resume_bot, add_source, remove_source) show approve/cancel buttons. Read-only commands (list_bots, bot_status, switch_bot) execute immediately. confidence < 0.7 triggers a clarifying question instead of execution.
 
-**Chat messages are user-scoped** (userId column) with status tracking (done, pending_confirm, confirmed, cancelled).
+**Chat messages are user-scoped** (userId column) with `kind` field (`text`, `pending_command`, `command_result`) and status tracking (done, pending_confirm, confirmed, cancelled).
+
+**Shared types:** `shared/chatCommand.ts` exports `ChatCommandType`, `ChatCommand`, `RunNowTarget`, `MessageKind` for frontend/backend consistency.
+
+**File structure:**
+- `shared/chatCommand.ts` — Shared command types
+- `server/llm/prompts_chat.ts` — LLM prompt templates for command parsing and clarification
+- `server/chat/command-parser.ts` — Keyword detection + LLM-based command parsing
+- `server/chat/commandRouter.ts` — Command execution router (8 commands)
+- `server/chat/executor.ts` — Re-export shim for backward compatibility
+
+**E2E coverage**: Login → browse gallery → create bot from preset → chat commands (list, switch, status) → verify active bot persistence → delete bot
 
 ## External Dependencies
 
