@@ -1,0 +1,266 @@
+아래는 **Step 8-2 (API 엔드포인트 연결) v1.0 — Replit Assistant 복붙용 개발지시서**입니다.
+그대로 Replit Assistant에 붙여넣고 진행하세요. (지금은 “말투/프롬프트” 같은 건 **절대 건드리지 않습니다**)
+
+---
+
+## Step 8-2 (API 엔드포인트 연결) v1.0 — 목표
+
+**멀티봇(My Bots) + 봇별 Settings + 봇별 Sources 연결**이 UI에서 실제로 저장/조회되게 만든다.
+
+* DB/스키마(8-1)는 끝났다고 가정 ✅
+* 이번 단계는 **routes.ts + storage.ts + 최소 UI 연결**까지 포함
+* 핵심 원칙: **userId 스코프 강제** (남 데이터 절대 못 봄)
+
+---
+
+## 0) 작업 전 체크
+
+1. 서버 실행되고 DB 연결 OK인지 확인
+2. `shared/schema.ts`에 아래 테이블이 “이미 존재”해야 함(8-1 완료 기준):
+
+   * `bots`
+   * `bot_settings`
+   * `source_bot_links` (또는 이름이 `bot_sources` 류일 수 있음)
+   * 기존 `sources` 테이블(이미 있음)
+3. storage 레이어가 repo 패턴이면: `server/storage.ts`에 함수 추가
+
+> ⚠️ 테이블/컬럼명이 실제 코드와 다르면, **schema.ts에 있는 실제 이름을 우선**으로 적용해.
+
+---
+
+## 1) server/storage.ts — 함수 추가/구현 (핵심)
+
+### 1-1. Bot CRUD
+
+아래 함수들을 `export`로 추가:
+
+* `listBots(userId: string): Promise<Bot[]>`
+* `getBot(userId: string, botId: number): Promise<Bot | null>`
+* `createBot(userId: string, input: { name: string; topic: string; description?: string | null }): Promise<Bot>`
+* `updateBot(userId: string, botId: number, patch: Partial<{ name: string; topic: string; description: string | null; isEnabled: boolean }>): Promise<Bot>`
+* `deleteBot(userId: string, botId: number): Promise<void>`
+
+구현 규칙:
+
+* 모든 쿼리는 `where(and(eq(bots.userId, userId), eq(bots.id, botId)))`
+* `deleteBot`은 아래 순서로 연쇄 삭제:
+
+  1. `source_bot_links`에서 botId 삭제
+  2. `bot_settings`에서 botId 삭제
+  3. `bots`에서 삭제
+
+### 1-2. Bot Settings
+
+* `getBotSettings(userId: string, botId: number): Promise<BotSettings | null>`
+* `upsertBotSettings(userId: string, botId: number, input: { timezone?: string; scheduleRule?: string; scheduleTimeLocal?: string; format?: string; markdownLevel?: string; verbosity?: string; sectionsJson?: any; filtersJson?: any }): Promise<BotSettings>`
+
+구현 규칙:
+
+* bot 존재 검증 먼저: `getBot(userId, botId)` 없으면 throw
+* settings는 1:1 이므로:
+
+  * 있으면 update
+  * 없으면 insert
+* `sectionsJson`, `filtersJson`는 JSON 컬럼이면 그대로 넣고, text면 JSON.stringify/parse 일관성 유지
+
+### 1-3. Bot Sources (소스 연결)
+
+* `getBotSources(userId: string, botId: number): Promise<Array<{ sourceId: number; weight: number; isEnabled: boolean }>>`
+* `setBotSources(userId: string, botId: number, links: Array<{ sourceId: number; weight?: number; isEnabled?: boolean }>): Promise<void>`
+
+구현 규칙:
+
+* bot 존재 검증
+* **userId 소유의 source만 연결 가능** (sources.userId == userId 조건으로 검증)
+* setBotSources는 “전체 교체 방식” 추천:
+
+  1. 기존 링크 삭제 (botId)
+  2. 새 링크 bulk insert
+* default:
+
+  * weight 없으면 3
+  * isEnabled 없으면 true
+
+### 1-4. ensureDefaultBots (로그인 시 자동 생성)
+
+* `ensureDefaultBots(userId: string): Promise<void>`
+
+동작:
+
+* userId로 bots가 0개면 기본 2개 생성
+
+  * `ai_art` (Community Engagement Helper Bot)
+  * `investing` (Daily Market Brief)
+* 각 bot 생성 후 기본 bot_settings도 생성 (timezone Asia/Seoul, scheduleTimeLocal “07:00”, format “markdown” 정도만)
+
+> ⚠️ 여기서 프롬프트/말투는 넣지 마. “기본값만”.
+
+---
+
+## 2) server/routes.ts — API 엔드포인트 추가
+
+### 공통 규칙
+
+* 인증: 세션에서 `req.session.userId` (또는 프로젝트에서 쓰는 user 식별자) 반드시 필요
+* 없으면 401
+* botId 파라미터는 number 변환, 실패 시 400
+
+### 2-1. Bots API
+
+1. `GET /api/bots`
+
+* 응답: `{ bots: [...] }`
+* storage.listBots(userId)
+
+2. `POST /api/bots`
+
+* body: `{ name, topic, description? }`
+* 응답: `{ bot }`
+* storage.createBot(userId, ...)
+
+3. `GET /api/bots/:botId`
+
+* 응답: `{ bot }` (없으면 404)
+
+4. `PATCH /api/bots/:botId`
+
+* body: patch
+* 응답: `{ bot }`
+
+5. `DELETE /api/bots/:botId`
+
+* 응답: `{ ok: true }`
+
+### 2-2. Bot Settings API
+
+1. `GET /api/bots/:botId/settings`
+
+* 응답: `{ settings }` (없으면 `{ settings: null }` 또는 기본값 반환 중 택1)
+* 추천: null 반환 후 UI에서 “아직 설정 없음” 처리
+
+2. `PUT /api/bots/:botId/settings`
+
+* body: settings input
+* 응답: `{ settings }`
+* storage.upsertBotSettings(...)
+
+### 2-3. Bot Sources API
+
+1. `GET /api/bots/:botId/sources`
+
+* 응답: `{ links: [...] }`
+
+2. `PUT /api/bots/:botId/sources`
+
+* body: `{ links: [...] }`
+* 응답: `{ ok: true }`
+
+> ⚠️ “Sources 페이지에서 소스 추가”는 기존 sources CRUD를 쓰고,
+> 여기서는 “봇-소스 연결”만 다룬다.
+
+---
+
+## 3) 로그인/세션 시 ensureDefaultBots 연결
+
+프로젝트마다 위치가 다를 텐데 보통 아래 중 하나임:
+
+* `/api/auth/me`
+* `/api/session`
+* `/api/login` 성공 직후
+* `server/routes.ts`에서 로그인 성공 핸들러
+
+✅ 로그인 성공해서 `req.session.userId`가 세팅되는 **바로 다음 줄**에:
+
+* `await storage.ensureDefaultBots(userId);`
+
+추가.
+
+---
+
+## 4) 클라이언트(프론트) — 최소 연결만
+
+(지금은 UI 다듬기 NO, 기능 연결만)
+
+### 4-1. React Query API 함수 추가
+
+`client/lib/api.ts`(또는 프로젝트의 api 유틸)에 추가:
+
+* `fetchBots()`
+* `createBot()`
+* `updateBot()`
+* `deleteBot()`
+* `fetchBotSettings(botId)`
+* `saveBotSettings(botId, payload)`
+* `fetchBotSources(botId)`
+* `saveBotSources(botId, links)`
+
+### 4-2. My Bots 페이지(있다면)에서 /api/bots 연결
+
+* 목록이 0이면 “봇이 없습니다”가 아니라
+
+  * 로그인 시 ensureDefaultBots 되므로 곧 2개가 보여야 정상
+
+### 4-3. Settings 페이지(봇별 설정) 연결 방식
+
+당장 UX 완벽 필요 없음. 최소 요건:
+
+* 현재 선택된 botId를 기준으로 `GET /api/bots/:botId/settings` 호출
+* 저장 버튼 누르면 `PUT /api/bots/:botId/settings`
+
+bot 선택 UI가 아직 없으면:
+
+* 임시로 profile.topic 기반(현재 방식)으로 bot을 찾고 그 botId를 사용
+* 또는 첫 번째 bot을 기본 선택
+
+> 다음 단계(8-3)에서 “봇 선택 UX”를 제대로 만듦.
+
+---
+
+## 5) 빠른 테스트 (필수)
+
+서버 실행 후 curl 또는 브라우저에서 확인:
+
+1. 로그인 후:
+
+* `GET /api/bots`
+
+  * 최소 2개(ai_art, investing) 반환돼야 함
+
+2. settings 저장:
+
+* `PUT /api/bots/{id}/settings` 후
+* `GET /api/bots/{id}/settings` 값 유지 확인
+
+3. sources 연결:
+
+* sources 테이블에 소스 1개 이상 만든 뒤
+* `PUT /api/bots/{id}/sources`로 links 저장
+* `GET /api/bots/{id}/sources`로 동일 값 조회
+
+---
+
+## 6) 완료 조건 (8-2 Done)
+
+* 로그인하면 기본 봇 2개 자동 생성 ✅
+* My Bots에서 봇 목록이 실제 API 기반으로 표시 ✅
+* 봇별 Settings 저장/조회가 DB에 반영 ✅
+* 봇별 Sources 연결이 DB에 반영 ✅
+
+---
+
+## 7) 절대 하지 말 것(이번 단계)
+
+* 말투/프롬프트 수정
+* 리포트 포맷 대개편
+* 정책/제재(가이드라인) 추가
+* “홍보/링크” 로직 추가
+
+(이건 Phase/Step 뒤에서 따로 함)
+
+---
+
+원하시면, 다음 메시지에서 **(Step 8-2 v1.0에 맞춘) “정확히 어느 파일에 어떤 코드 블록을 붙여넣을지”**까지 더 극단적으로 “복붙 단위”로 쪼개드릴게요.
+
+지금 질문 1개만 답해주세요(짧게):
+**지금 코드베이스에서 로그인 성공 라우트가 어디예요?**
+(예: `/api/login`, `/api/auth/me`, `/api/session` 중 하나)

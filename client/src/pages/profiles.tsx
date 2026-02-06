@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Bot, Copy, Trash2, Settings, Loader2 } from "lucide-react";
+import { Plus, Bot as BotIcon, Copy, Trash2, Settings, Loader2 } from "lucide-react";
 
 interface Preset {
   id: number;
@@ -37,6 +37,29 @@ interface Profile {
   presetName: string;
 }
 
+interface BotSettings {
+  id: number;
+  botId: number;
+  timezone: string;
+  scheduleRule: string;
+  scheduleTimeLocal: string;
+  format: string;
+  markdownLevel: string;
+  verbosity: string;
+  sectionsJson: Record<string, boolean>;
+  filtersJson: Record<string, number>;
+}
+
+interface BotData {
+  id: number;
+  userId: string;
+  key: string;
+  name: string;
+  isEnabled: boolean;
+  createdAt: string;
+  settings: BotSettings | null;
+}
+
 export default function Profiles() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -45,6 +68,11 @@ export default function Profiles() {
   const [selectedPreset, setSelectedPreset] = useState<Preset | null>(null);
   const [selectedVariant, setSelectedVariant] = useState<string>("");
   const [profileName, setProfileName] = useState("");
+
+  const { data: botsResponse, isLoading: botsLoading } = useQuery<{ bots: BotData[] }>({
+    queryKey: ["/api/bots"],
+  });
+  const botsList = botsResponse?.bots ?? [];
 
   const { data: profiles = [], isLoading: profilesLoading } = useQuery<Profile[]>({
     queryKey: ["/api/profiles"],
@@ -65,6 +93,25 @@ export default function Profiles() {
     },
     onError: () => {
       toast({ title: "Failed to create profile", variant: "destructive" });
+    },
+  });
+
+  const toggleBotMutation = useMutation({
+    mutationFn: async ({ id, isEnabled }: { id: number; isEnabled: boolean }) => {
+      return apiRequest("PATCH", `/api/bots/${id}`, { isEnabled });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bots"] });
+    },
+  });
+
+  const deleteBotMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return apiRequest("DELETE", `/api/bots/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bots"] });
+      toast({ title: "Bot deleted" });
     },
   });
 
@@ -156,7 +203,7 @@ export default function Profiles() {
     return colors[type] || "bg-gray-100 text-gray-800";
   };
 
-  if (profilesLoading) {
+  if (botsLoading || profilesLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -168,8 +215,8 @@ export default function Profiles() {
     <div className="container mx-auto p-6 max-w-6xl">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold">My Bots</h1>
-          <p className="text-muted-foreground">Create and manage your automated bot profiles</p>
+          <h1 className="text-2xl font-bold" data-testid="text-page-title">My Bots</h1>
+          <p className="text-muted-foreground">Create and manage your automated bots</p>
         </div>
         <Dialog open={wizardOpen} onOpenChange={(open) => open ? setWizardOpen(true) : resetWizard()}>
           <DialogTrigger asChild>
@@ -271,9 +318,137 @@ export default function Profiles() {
         </Dialog>
       </div>
 
-      {profiles.length === 0 ? (
+      {botsList.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-lg font-semibold mb-3" data-testid="text-bots-section-title">Bots</h2>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {botsList.map((bot) => (
+              <Card key={bot.id} className="overflow-visible" data-testid={`bot-card-${bot.id}`}>
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <CardTitle className="text-lg truncate" data-testid={`text-bot-name-${bot.id}`}>{bot.name}</CardTitle>
+                      <CardDescription className="flex items-center gap-2 mt-1 flex-wrap">
+                        <Badge className={getTopicColor(bot.key)} data-testid={`badge-bot-key-${bot.id}`}>{bot.key}</Badge>
+                      </CardDescription>
+                    </div>
+                    <Switch
+                      checked={bot.isEnabled}
+                      onCheckedChange={(checked) => toggleBotMutation.mutate({ id: bot.id, isEnabled: checked })}
+                      data-testid={`toggle-bot-${bot.id}`}
+                    />
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  {bot.settings && (
+                    <div className="text-sm text-muted-foreground mb-3">
+                      <div>Schedule: {bot.settings.scheduleRule} at {bot.settings.scheduleTimeLocal}</div>
+                      <div>Timezone: {bot.settings.timezone}</div>
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex-1"
+                      onClick={() => setLocation(`/bots/${bot.id}`)}
+                      data-testid={`button-edit-bot-${bot.id}`}
+                    >
+                      <Settings className="h-4 w-4 mr-1" />
+                      Settings
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => {
+                        if (confirm("Are you sure you want to delete this bot?")) {
+                          deleteBotMutation.mutate(bot.id);
+                        }
+                      }}
+                      disabled={deleteBotMutation.isPending}
+                      data-testid={`button-delete-bot-${bot.id}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {profiles.length > 0 && (
+        <>
+          <h2 className="text-lg font-semibold mb-3">Profiles (Legacy)</h2>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {profiles.map((profile) => (
+              <Card key={profile.id} className="overflow-visible" data-testid={`profile-card-${profile.id}`}>
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <CardTitle className="text-lg truncate">{profile.name}</CardTitle>
+                      <CardDescription className="flex items-center gap-2 mt-1 flex-wrap">
+                        <span>{profile.presetName}</span>
+                        <Badge className={getTopicColor(profile.topic)}>{profile.topic}</Badge>
+                      </CardDescription>
+                    </div>
+                    <Switch
+                      checked={profile.isActive}
+                      onCheckedChange={(checked) => toggleMutation.mutate({ id: profile.id, isActive: checked })}
+                      data-testid={`toggle-active-${profile.id}`}
+                    />
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="text-sm text-muted-foreground mb-3">
+                    <div>Schedule: {profile.scheduleCron}</div>
+                    <div>Timezone: {profile.timezone}</div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex-1"
+                      onClick={() => setLocation(`/profiles/${profile.id}`)}
+                      data-testid={`button-edit-${profile.id}`}
+                    >
+                      <Settings className="h-4 w-4 mr-1" />
+                      Edit
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => cloneMutation.mutate(profile.id)}
+                      disabled={cloneMutation.isPending}
+                      data-testid={`button-clone-${profile.id}`}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => {
+                        if (confirm("Are you sure you want to delete this bot?")) {
+                          deleteMutation.mutate(profile.id);
+                        }
+                      }}
+                      disabled={deleteMutation.isPending}
+                      data-testid={`button-delete-${profile.id}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </>
+      )}
+
+      {botsList.length === 0 && profiles.length === 0 && (
         <Card className="p-8 text-center">
-          <Bot className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+          <BotIcon className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
           <h3 className="text-lg font-medium mb-2">No bots yet</h3>
           <p className="text-muted-foreground mb-4">
             Create your first bot to start monitoring content and generating reports
@@ -283,69 +458,6 @@ export default function Profiles() {
             Create Your First Bot
           </Button>
         </Card>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {profiles.map((profile) => (
-            <Card key={profile.id} className="overflow-visible" data-testid={`profile-card-${profile.id}`}>
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <CardTitle className="text-lg truncate">{profile.name}</CardTitle>
-                    <CardDescription className="flex items-center gap-2 mt-1 flex-wrap">
-                      <span>{profile.presetName}</span>
-                      <Badge className={getTopicColor(profile.topic)}>{profile.topic}</Badge>
-                    </CardDescription>
-                  </div>
-                  <Switch
-                    checked={profile.isActive}
-                    onCheckedChange={(checked) => toggleMutation.mutate({ id: profile.id, isActive: checked })}
-                    data-testid={`toggle-active-${profile.id}`}
-                  />
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="text-sm text-muted-foreground mb-3">
-                  <div>Schedule: {profile.scheduleCron}</div>
-                  <div>Timezone: {profile.timezone}</div>
-                </div>
-                <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="flex-1"
-                    onClick={() => setLocation(`/profiles/${profile.id}`)}
-                    data-testid={`button-edit-${profile.id}`}
-                  >
-                    <Settings className="h-4 w-4 mr-1" />
-                    Edit
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => cloneMutation.mutate(profile.id)}
-                    disabled={cloneMutation.isPending}
-                    data-testid={`button-clone-${profile.id}`}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => {
-                      if (confirm("Are you sure you want to delete this bot?")) {
-                        deleteMutation.mutate(profile.id);
-                      }
-                    }}
-                    disabled={deleteMutation.isPending}
-                    data-testid={`button-delete-${profile.id}`}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
       )}
     </div>
   );

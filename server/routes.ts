@@ -586,6 +586,166 @@ export async function registerRoutes(
   });
 
   // ============================================
+  // BOTS API (Step 8-2)
+  // ============================================
+
+  app.get("/api/bots", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      const botList = await storage.listBots(userId);
+      res.json({ bots: botList });
+    } catch (error) {
+      console.error("Error listing bots:", error);
+      res.status(500).json({ error: "Failed to list bots" });
+    }
+  });
+
+  app.post("/api/bots", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      const { name, key, description } = req.body;
+      if (!name || !key) return res.status(400).json({ error: "name and key are required" });
+
+      const bot = await storage.createBot({ userId, key, name, isEnabled: true });
+      await storage.createBotSettings({ botId: bot.id } as any);
+      const full = await storage.getBot(bot.id, userId);
+      res.json({ bot: full });
+    } catch (error: any) {
+      if (error?.code === '23505') {
+        return res.status(409).json({ error: "A bot with this key already exists" });
+      }
+      console.error("Error creating bot:", error);
+      res.status(500).json({ error: "Failed to create bot" });
+    }
+  });
+
+  app.get("/api/bots/:botId", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      const botId = parseInt(req.params.botId);
+      if (isNaN(botId)) return res.status(400).json({ error: "Invalid botId" });
+
+      const bot = await storage.getBot(botId, userId);
+      if (!bot) return res.status(404).json({ error: "Bot not found" });
+      res.json({ bot });
+    } catch (error) {
+      console.error("Error getting bot:", error);
+      res.status(500).json({ error: "Failed to get bot" });
+    }
+  });
+
+  app.patch("/api/bots/:botId", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      const botId = parseInt(req.params.botId);
+      if (isNaN(botId)) return res.status(400).json({ error: "Invalid botId" });
+
+      const bot = await storage.updateBot(botId, userId, req.body);
+      if (!bot) return res.status(404).json({ error: "Bot not found" });
+      res.json({ bot });
+    } catch (error) {
+      console.error("Error updating bot:", error);
+      res.status(500).json({ error: "Failed to update bot" });
+    }
+  });
+
+  app.delete("/api/bots/:botId", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      const botId = parseInt(req.params.botId);
+      if (isNaN(botId)) return res.status(400).json({ error: "Invalid botId" });
+
+      await storage.deleteBot(botId, userId);
+      res.json({ ok: true });
+    } catch (error) {
+      console.error("Error deleting bot:", error);
+      res.status(500).json({ error: "Failed to delete bot" });
+    }
+  });
+
+  // Bot Settings
+  app.get("/api/bots/:botId/settings", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      const botId = parseInt(req.params.botId);
+      if (isNaN(botId)) return res.status(400).json({ error: "Invalid botId" });
+
+      const bot = await storage.getBot(botId, userId);
+      if (!bot) return res.status(404).json({ error: "Bot not found" });
+
+      const settings = await storage.getBotSettings(botId);
+      res.json({ settings: settings ?? null });
+    } catch (error) {
+      console.error("Error getting bot settings:", error);
+      res.status(500).json({ error: "Failed to get bot settings" });
+    }
+  });
+
+  app.put("/api/bots/:botId/settings", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      const botId = parseInt(req.params.botId);
+      if (isNaN(botId)) return res.status(400).json({ error: "Invalid botId" });
+
+      const settings = await storage.upsertBotSettings(userId, botId, req.body);
+      res.json({ settings });
+    } catch (error: any) {
+      if (error.message?.includes("not found")) {
+        return res.status(404).json({ error: error.message });
+      }
+      console.error("Error saving bot settings:", error);
+      res.status(500).json({ error: "Failed to save bot settings" });
+    }
+  });
+
+  // Bot Sources
+  app.get("/api/bots/:botId/sources", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      const botId = parseInt(req.params.botId);
+      if (isNaN(botId)) return res.status(400).json({ error: "Invalid botId" });
+
+      const bot = await storage.getBot(botId, userId);
+      if (!bot) return res.status(404).json({ error: "Bot not found" });
+
+      const botSources = await storage.getBotSources(botId);
+      res.json({ links: botSources });
+    } catch (error) {
+      console.error("Error getting bot sources:", error);
+      res.status(500).json({ error: "Failed to get bot sources" });
+    }
+  });
+
+  app.put("/api/bots/:botId/sources", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      const botId = parseInt(req.params.botId);
+      if (isNaN(botId)) return res.status(400).json({ error: "Invalid botId" });
+
+      const { links } = req.body;
+      if (!Array.isArray(links)) return res.status(400).json({ error: "links must be an array" });
+
+      await storage.setBotSources(botId, userId, links);
+      res.json({ ok: true });
+    } catch (error: any) {
+      if (error.message?.includes("not found") || error.message?.includes("not accessible")) {
+        return res.status(400).json({ error: error.message });
+      }
+      console.error("Error setting bot sources:", error);
+      res.status(500).json({ error: "Failed to set bot sources" });
+    }
+  });
+
+  // ============================================
   // SOURCES API (with userId support)
   // ============================================
   app.get("/api/user-sources", isAuthenticated, async (req, res) => {

@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { authStorage } from "./storage";
 import { isAuthenticated } from "./replitAuth";
+import { storage } from "../../storage";
 
 // Register auth-specific routes
 export function registerAuthRoutes(app: Express): void {
@@ -9,6 +10,14 @@ export function registerAuthRoutes(app: Express): void {
     try {
       const userId = req.user.claims.sub;
       const user = await authStorage.getUser(userId);
+
+      // Ensure default bots exist for this user (runs only on first login)
+      try {
+        await storage.ensureDefaultBots(userId);
+      } catch (e) {
+        console.error("Error ensuring default bots:", e);
+      }
+
       res.json(user);
     } catch (error) {
       console.error("Error fetching user:", error);

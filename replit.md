@@ -82,7 +82,18 @@ The application now supports multi-user bot management with profile-based report
 - **Report Generation**: Applies configJson settings to prompt builder and filters items
 - **Scheduler Logic**: Checks `scheduleCron` against current time/day before generating reports
 
-**API Routes:**
+**API Routes (Step 8-2 Bots API):**
+- `GET /api/bots` - List user's bots with settings
+- `POST /api/bots` - Create new bot (body: { name, key })
+- `GET /api/bots/:botId` - Get single bot with settings
+- `PATCH /api/bots/:botId` - Update bot (partial)
+- `DELETE /api/bots/:botId` - Delete bot (cascade: settings + source links)
+- `GET /api/bots/:botId/settings` - Get bot settings
+- `PUT /api/bots/:botId/settings` - Upsert bot settings
+- `GET /api/bots/:botId/sources` - Get linked sources
+- `PUT /api/bots/:botId/sources` - Set source links (body: { links: [...] })
+
+**API Routes (Legacy Profiles):**
 - `GET /api/presets` - List available bot templates
 - `GET/POST /api/profiles` - List user's bots or create new one
 - `GET/PUT/DELETE /api/profiles/:id` - Manage specific profile

@@ -127,6 +127,7 @@ export interface IStorage {
   getBotSettings(botId: number): Promise<BotSettings | undefined>;
   createBotSettings(data: InsertBotSettings): Promise<BotSettings>;
   updateBotSettings(botId: number, patch: Partial<Omit<InsertBotSettings, 'botId'>>): Promise<BotSettings | undefined>;
+  upsertBotSettings(userId: string, botId: number, input: Partial<Omit<InsertBotSettings, 'botId'>>): Promise<BotSettings>;
 
   // Source-Bot Links
   getBotSources(botId: number): Promise<(Source & { weight: number; isEnabled: boolean })[]>;
@@ -1031,6 +1032,19 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
+  async upsertBotSettings(userId: string, botId: number, input: Partial<Omit<InsertBotSettings, 'botId'>>): Promise<BotSettings> {
+    const bot = await this.getBot(botId, userId);
+    if (!bot) throw new Error("Bot not found or access denied");
+
+    const existing = await this.getBotSettings(botId);
+    if (existing) {
+      const updated = await this.updateBotSettings(botId, input);
+      return updated!;
+    } else {
+      return this.createBotSettings({ botId, ...input } as InsertBotSettings);
+    }
+  }
+
   // Source-Bot Links
   async getBotSources(botId: number): Promise<(Source & { weight: number; isEnabled: boolean })[]> {
     const links = await db
@@ -1054,6 +1068,22 @@ export class DatabaseStorage implements IStorage {
     // Verify bot belongs to user
     const [bot] = await db.select().from(bots).where(and(eq(bots.id, botId), eq(bots.userId, userId))).limit(1);
     if (!bot) throw new Error("Bot not found or access denied");
+
+    // Validate source ownership: only user's own sources or default sources
+    if (sourceData.length > 0) {
+      const sourceIds = sourceData.map(s => s.sourceId);
+      const validSources = await db.select({ id: sources.id })
+        .from(sources)
+        .where(and(
+          inArray(sources.id, sourceIds),
+          or(eq(sources.userId, userId), isNull(sources.userId))
+        ));
+      const validIds = new Set(validSources.map(s => s.id));
+      const invalid = sourceIds.filter(id => !validIds.has(id));
+      if (invalid.length > 0) {
+        throw new Error(`Source IDs not accessible: ${invalid.join(', ')}`);
+      }
+    }
 
     // Delete existing links
     await db.delete(sourceBotLinks).where(eq(sourceBotLinks.botId, botId));
