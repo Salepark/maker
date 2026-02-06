@@ -370,7 +370,9 @@ export async function registerRoutes(
 
   app.get("/api/chat/messages", isAuthenticated, async (req, res) => {
     try {
-      const messages = await storage.getChatMessages(100);
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+      const messages = await storage.getChatMessages(userId, 100);
       res.json(messages.reverse());
     } catch (error) {
       console.error("Error getting chat messages:", error);
@@ -378,38 +380,124 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/chat/command", isAuthenticated, async (req, res) => {
+  app.get("/api/chat/active-bot", isAuthenticated, async (req, res) => {
     try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+      const activeBotId = await storage.getActiveBotId(userId);
+      if (!activeBotId) return res.json({ activeBot: null });
+      const bot = await storage.getBot(activeBotId, userId);
+      if (!bot) {
+        await storage.setActiveBotId(userId, null);
+        return res.json({ activeBot: null });
+      }
+      res.json({ activeBot: { id: bot.id, key: bot.key, name: bot.name } });
+    } catch (error) {
+      console.error("Error getting active bot:", error);
+      res.status(500).json({ error: "Failed to get active bot" });
+    }
+  });
+
+  app.post("/api/chat/message", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+
       const { message } = req.body;
       if (!message || typeof message !== "string") {
         return res.status(400).json({ error: "Message is required" });
       }
 
       await storage.createChatMessage({
+        userId,
         role: "user",
         contentText: message,
       });
 
-      const defaultTopic = (await storage.getSetting("default_topic")) || "ai_art";
-      const dailyBriefTime = (await storage.getSetting("daily_brief_time_kst")) || "22:00";
+      const userBots = await storage.listBots(userId);
+      const activeBotId = await storage.getActiveBotId(userId);
+      let activeBotKey: string | null = null;
+      if (activeBotId) {
+        const activeBot = userBots.find(b => b.id === activeBotId);
+        activeBotKey = activeBot?.key || null;
+      }
 
       const command = await parseCommand(message, {
-        default_topic: defaultTopic,
-        daily_brief_time_kst: dailyBriefTime,
+        activeBotKey,
+        availableBotKeys: userBots.map(b => b.key),
       });
 
-      const result = await executeCommand(command);
+      if (command.needsConfirm && command.type !== "chat") {
+        const confirmMsg = await storage.createChatMessage({
+          userId,
+          role: "assistant",
+          contentText: command.confirmText || `'${command.type}' 실행할까요?`,
+          commandJson: command,
+          status: "pending_confirm",
+        });
+        return res.json({ ok: true, needsConfirm: true, command, messageId: confirmMsg.id });
+      }
+
+      const result = await executeCommand(userId, command);
 
       await storage.createChatMessage({
+        userId,
         role: "assistant",
         contentText: result.assistantMessage,
         commandJson: result.executed,
         resultJson: result.result,
+        status: "done",
       });
 
-      res.json(result);
+      res.json({ ok: result.ok, needsConfirm: false, result });
     } catch (error: any) {
-      console.error("Error processing chat command:", error);
+      console.error("Error processing chat message:", error);
+      res.status(500).json({ ok: false, error: error?.message ?? String(error) });
+    }
+  });
+
+  app.post("/api/chat/confirm", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+
+      const { messageId, approved } = req.body;
+      if (!messageId) return res.status(400).json({ error: "messageId is required" });
+
+      const messages = await storage.getChatMessages(userId, 200);
+      const pendingMsg = messages.find(m => m.id === messageId && m.status === "pending_confirm");
+
+      if (!pendingMsg) {
+        return res.status(404).json({ error: "Pending confirmation not found" });
+      }
+
+      await storage.updateChatMessageStatus(messageId, userId, approved ? "confirmed" : "cancelled");
+
+      if (!approved) {
+        await storage.createChatMessage({
+          userId,
+          role: "assistant",
+          contentText: "취소했습니다.",
+          status: "done",
+        });
+        return res.json({ ok: true, cancelled: true });
+      }
+
+      const command = pendingMsg.commandJson as any;
+      const result = await executeCommand(userId, command);
+
+      await storage.createChatMessage({
+        userId,
+        role: "assistant",
+        contentText: result.assistantMessage,
+        commandJson: result.executed,
+        resultJson: result.result,
+        status: "done",
+      });
+
+      res.json({ ok: result.ok, result });
+    } catch (error: any) {
+      console.error("Error confirming chat command:", error);
       res.status(500).json({ ok: false, error: error?.message ?? String(error) });
     }
   });

@@ -57,8 +57,19 @@ The system features a multi-provider LLM architecture, allowing users to "Bring 
 ### AI Art Community Contribution Mode
 For the 'ai_art' topic, the system enforces a strict "community contribution mode" to prevent promotional content. This involves LLM prompt instructions, server-side validation using regex checks to reject forbidden content (URLs, specific brand mentions, promotional phrases), and forcing `includesLink=false` for all AI art drafts.
 
-### Command Chat
-A natural language interface, powered by Claude AI, allows users to control bots via chat commands. It parses natural language into JSON commands (e.g., `generate_report`, `run_pipeline`, `set_preference`) and executes them after validation.
+### Command Chat (Phase 6 v1.0)
+A natural language interface, powered by Claude AI, allows users to control bots via chat commands. The system supports 8 bot-centric commands: `list_bots`, `switch_bot`, `bot_status`, `run_now`, `pause_bot`, `resume_bot`, `add_source`, `remove_source`. Commands are parsed by LLM into a structured JSON schema `{type, botKey, args, confidence, needsConfirm, confirmText}`.
+
+**Two-step execution flow (semi-automatic):**
+- `POST /api/chat/message` — Parses user input, returns confirm payload for data-changing commands
+- `POST /api/chat/confirm` — Executes on approval, marks pending message as confirmed/cancelled
+- `GET /api/chat/active-bot` — Returns currently active bot for the user
+
+**Active bot context:** Per-user active bot stored in settings. Commands without explicit botKey use the active bot. UI shows active bot indicator at the top.
+
+**Confirmation UX:** Data-modifying commands (run_now, pause_bot, resume_bot, add_source, remove_source) show approve/cancel buttons. Read-only commands (list_bots, bot_status, switch_bot) execute immediately.
+
+**Chat messages are user-scoped** (userId column) with status tracking (done, pending_confirm, confirmed, cancelled).
 
 ## External Dependencies
 

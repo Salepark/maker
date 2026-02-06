@@ -53,8 +53,11 @@ export interface IStorage {
   createReport(data: InsertReport): Promise<Report>;
   getAnalyzedItemsForBrief(lookbackHours: number, limit: number, topic?: string): Promise<any[]>;
 
-  getChatMessages(limit?: number): Promise<ChatMessage[]>;
+  getChatMessages(userId: string, limit?: number): Promise<ChatMessage[]>;
   createChatMessage(data: InsertChatMessage): Promise<ChatMessage>;
+  updateChatMessageStatus(id: number, userId: string, status: string): Promise<void>;
+  getActiveBotId(userId: string): Promise<number | null>;
+  setActiveBotId(userId: string, botId: number | null): Promise<void>;
 
   getSetting(key: string): Promise<string | undefined>;
   setSetting(key: string, value: string): Promise<void>;
@@ -507,13 +510,34 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
-  async getChatMessages(limit: number = 50): Promise<ChatMessage[]> {
-    return db.select().from(chatMessages).orderBy(desc(chatMessages.createdAt)).limit(limit);
+  async getChatMessages(userId: string, limit: number = 50): Promise<ChatMessage[]> {
+    return db.select().from(chatMessages)
+      .where(eq(chatMessages.userId, userId))
+      .orderBy(desc(chatMessages.createdAt)).limit(limit);
   }
 
   async createChatMessage(data: InsertChatMessage): Promise<ChatMessage> {
     const [msg] = await db.insert(chatMessages).values(data).returning();
     return msg;
+  }
+
+  async updateChatMessageStatus(id: number, userId: string, status: string): Promise<void> {
+    await db.update(chatMessages)
+      .set({ status })
+      .where(and(eq(chatMessages.id, id), eq(chatMessages.userId, userId)));
+  }
+
+  async getActiveBotId(userId: string): Promise<number | null> {
+    const val = await this.getSetting(`active_bot_${userId}`);
+    return val ? parseInt(val, 10) : null;
+  }
+
+  async setActiveBotId(userId: string, botId: number | null): Promise<void> {
+    if (botId === null) {
+      await db.delete(settings).where(eq(settings.key, `active_bot_${userId}`));
+    } else {
+      await this.setSetting(`active_bot_${userId}`, String(botId));
+    }
   }
 
   async getSetting(key: string): Promise<string | undefined> {

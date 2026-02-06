@@ -455,10 +455,12 @@ export const messages = pgTable("messages", {
 
 export const chatMessages = pgTable("chat_messages", {
   id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
   role: text("role").notNull(),
   contentText: text("content_text").notNull(),
   commandJson: jsonb("command_json"),
   resultJson: jsonb("result_json"),
+  status: text("status").default("done"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
