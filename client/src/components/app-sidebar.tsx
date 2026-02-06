@@ -23,7 +23,7 @@ const menuItems = [
   { title: "Drafts", url: "/drafts", icon: CheckCircle },
   { title: "Items", url: "/items", icon: FileText },
   { title: "Observe", url: "/observe", icon: Eye },
-  { title: "Chat", url: "/chat", icon: MessageCircle },
+  { title: "Console", url: "/chat", icon: MessageCircle },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
@@ -56,7 +56,7 @@ export function AppSidebar() {
           </div>
           <div className="flex flex-col">
             <span className="font-semibold text-sm">Makelr</span>
-            <span className="text-xs text-muted-foreground">Bot Manager</span>
+            <span className="text-xs text-muted-foreground">Workflow Designer</span>
           </div>
         </div>
       </SidebarHeader>

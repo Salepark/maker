@@ -2,7 +2,9 @@
 
 ## Overview
 
-Makelr Bot Manager is an AI-powered platform for content monitoring and community engagement, primarily for AI art marketplaces. It automates the collection, analysis, and response drafting for online content, with a human-in-the-loop approval process. The system processes content from RSS feeds, uses AI for relevance scoring and risk identification, and generates contextual replies. It supports multi-user bot management, customizable report generation, and topic isolation. The platform aims to provide valuable insights and facilitate engagement while ensuring brand safety and adherence to community guidelines.
+Makelr is a workflow design tool for building personal automation bots. Users design their own workflows — choosing sources, schedules, and output formats — rather than consuming pre-built answers. The platform processes content from RSS feeds, uses AI for analysis, and generates customizable reports. It supports multi-user bot management, topic isolation, and preset templates as starting points (not answers).
+
+**Product Philosophy (Phase 7):** "We don't provide bots. We provide tools for users to design their own automation workflows." Templates are starting points, not final solutions. Users own the workflow: sources, schedule, and output.
 
 ## User Preferences
 

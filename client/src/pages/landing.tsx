@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Bot, BarChart3, MessageSquare, Shield, Zap, Clock } from "lucide-react";
+import { Bot, Layers, Rss, Settings, Zap, ArrowRight } from "lucide-react";
 
 export default function Landing() {
   return (
@@ -9,7 +9,7 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Bot className="h-6 w-6 text-primary" />
-            <span className="font-semibold text-lg">Bot Manager</span>
+            <span className="font-semibold text-lg">Makelr</span>
           </div>
           <Button asChild data-testid="button-login-nav">
             <a href="/api/login">Sign In</a>
@@ -21,27 +21,34 @@ export default function Landing() {
         <section className="max-w-6xl mx-auto px-6 py-16">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div className="space-y-6">
-              <h1 className="text-4xl lg:text-5xl font-bold leading-tight">
-                AI-Powered Content
+              <h1 className="text-4xl lg:text-5xl font-bold leading-tight" data-testid="text-hero-title">
+                당신의 자동화
                 <br />
-                <span className="text-primary">Bot Management</span>
+                <span className="text-primary">워크플로우를 설계하세요</span>
               </h1>
-              <p className="text-lg text-muted-foreground max-w-lg">
-                Collect content from RSS feeds, analyze with AI, and generate intelligent responses for community engagement and market research.
+              <p className="text-lg text-muted-foreground max-w-lg" data-testid="text-hero-subtitle">
+                이 서비스는 봇을 제공하지 않습니다. 소스를 선택하고, 스케줄을 정하고, 결과물을 설계하는 — 당신만의 자동화 도구입니다.
               </p>
               <div className="flex flex-wrap gap-4">
                 <Button size="lg" asChild data-testid="button-get-started">
-                  <a href="/api/login">Get Started</a>
+                  <a href="/api/login">
+                    시작하기
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </a>
                 </Button>
               </div>
-              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
                 <div className="flex items-center gap-1">
-                  <Shield className="h-4 w-4" />
-                  <span>Secure Access</span>
+                  <Layers className="h-4 w-4" />
+                  <span>템플릿은 출발점</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Settings className="h-4 w-4" />
+                  <span>모든 설정 커스터마이즈</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <Zap className="h-4 w-4" />
-                  <span>AI-Powered</span>
+                  <span>AI 분석 & 리포트</span>
                 </div>
               </div>
             </div>
@@ -50,24 +57,24 @@ export default function Landing() {
               <div className="bg-gradient-to-br from-primary/20 to-primary/5 rounded-2xl p-8 border border-border/50">
                 <div className="space-y-4">
                   <div className="flex items-center gap-3 p-4 bg-background rounded-lg border border-border">
-                    <BarChart3 className="h-8 w-8 text-primary" />
+                    <Rss className="h-8 w-8 text-primary" />
                     <div>
-                      <div className="font-medium">Market Analysis</div>
-                      <div className="text-sm text-muted-foreground">Daily briefs & insights</div>
+                      <div className="font-medium">소스 선택</div>
+                      <div className="text-sm text-muted-foreground">RSS, 뉴스, 커뮤니티 — 원하는 소스를 연결</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 p-4 bg-background rounded-lg border border-border">
-                    <MessageSquare className="h-8 w-8 text-primary" />
+                    <Settings className="h-8 w-8 text-primary" />
                     <div>
-                      <div className="font-medium">Smart Replies</div>
-                      <div className="text-sm text-muted-foreground">AI-generated drafts</div>
+                      <div className="font-medium">스케줄 & 포맷 설정</div>
+                      <div className="text-sm text-muted-foreground">실행 주기, 결과물 형태를 자유롭게 조정</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 p-4 bg-background rounded-lg border border-border">
-                    <Clock className="h-8 w-8 text-primary" />
+                    <Zap className="h-8 w-8 text-primary" />
                     <div>
-                      <div className="font-medium">24/7 Monitoring</div>
-                      <div className="text-sm text-muted-foreground">Automated collection</div>
+                      <div className="font-medium">AI가 분석 & 정리</div>
+                      <div className="text-sm text-muted-foreground">수집된 콘텐츠를 AI가 분석하고 리포트 생성</div>
                     </div>
                   </div>
                 </div>
@@ -77,40 +84,43 @@ export default function Landing() {
         </section>
 
         <section className="max-w-6xl mx-auto px-6 py-16">
-          <h2 className="text-2xl font-bold text-center mb-12">Key Features</h2>
+          <h2 className="text-2xl font-bold text-center mb-4" data-testid="text-how-it-works">이렇게 동작합니다</h2>
+          <p className="text-center text-muted-foreground mb-12 max-w-lg mx-auto">
+            당신이 소스, 스케줄, 결과물을 결정합니다. 워크플로우의 주인은 당신입니다.
+          </p>
           <div className="grid md:grid-cols-3 gap-6">
+            <Card className="hover-elevate">
+              <CardContent className="pt-6 space-y-3">
+                <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Layers className="h-6 w-6 text-primary" />
+                </div>
+                <h3 className="font-semibold">템플릿에서 시작</h3>
+                <p className="text-sm text-muted-foreground">
+                  템플릿은 정답이 아닌 출발점입니다. 뉴스 모니터링, 시장 분석, 커뮤니티 참여 등 다양한 워크플로우를 바로 시작할 수 있습니다.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="hover-elevate">
+              <CardContent className="pt-6 space-y-3">
+                <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Settings className="h-6 w-6 text-primary" />
+                </div>
+                <h3 className="font-semibold">자유롭게 설정</h3>
+                <p className="text-sm text-muted-foreground">
+                  소스, 스케줄, 리포트 형식, AI 모델까지 모든 것을 당신의 목적에 맞게 바꿀 수 있습니다. 우리는 도구를 제공하고, 당신이 선택합니다.
+                </p>
+              </CardContent>
+            </Card>
+
             <Card className="hover-elevate">
               <CardContent className="pt-6 space-y-3">
                 <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
                   <Bot className="h-6 w-6 text-primary" />
                 </div>
-                <h3 className="font-semibold">Content Collection</h3>
+                <h3 className="font-semibold">자동화 운영</h3>
                 <p className="text-sm text-muted-foreground">
-                  Automatically collect from RSS feeds, Reddit, Hacker News, and more with customizable schedules.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="hover-elevate">
-              <CardContent className="pt-6 space-y-3">
-                <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <BarChart3 className="h-6 w-6 text-primary" />
-                </div>
-                <h3 className="font-semibold">AI Analysis</h3>
-                <p className="text-sm text-muted-foreground">
-                  Claude AI analyzes content for relevance, categorization, and risk assessment.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="hover-elevate">
-              <CardContent className="pt-6 space-y-3">
-                <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <MessageSquare className="h-6 w-6 text-primary" />
-                </div>
-                <h3 className="font-semibold">Draft Generation</h3>
-                <p className="text-sm text-muted-foreground">
-                  Generate contextual reply drafts for human review before posting.
+                  설정이 끝나면 봇이 자동으로 수집, 분석, 리포트를 생성합니다. 채팅 콘솔로 언제든 봇을 제어하세요.
                 </p>
               </CardContent>
             </Card>

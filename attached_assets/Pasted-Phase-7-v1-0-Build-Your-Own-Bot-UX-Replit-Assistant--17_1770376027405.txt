@@ -1,0 +1,222 @@
+Phase 7 v1.0 — “Build Your Own Bot” UX 정비
+
+Replit Assistant 복붙용 개발지시서
+
+🎯 목표(철학 고정)
+
+우리는 봇을 제공하는 서비스가 아니라,
+사용자가 자기 워크플로우 봇을 설계하도록 돕는 도구다.
+
+UX는:
+
+결과 “소비” 중심 ❌
+
+설계 / 조합 / 운영 중심 ✅
+
+템플릿 = 정답 ❌ / 출발점 ✅
+
+✅ 범위
+
+DB 변경: ❌ 없음
+
+서버 로직 변경: ❌ 없음
+
+프론트(UI/카피/레이아웃): ✅ 변경
+
+새 기능: ❌ 거의 없음 (요약 카드 1개 추가 정도)
+
+1) Dashboard 리디자인 (아이디어 보드화)
+파일
+
+client/src/pages/dashboard.tsx (또는 해당 경로)
+
+작업
+
+상단 Hero 문구 추가:
+
+This is not a service that gives you bots.
+This is a tool to design your own automation workflows.
+
+
+(한글 UI면:
+“이 서비스는 봇을 제공하지 않습니다. 당신의 자동화 워크플로우를 설계하는 도구입니다.”)
+
+섹션 구조 변경:
+
+Section A: Start from a template
+
+Preset Gallery로 이동하는 카드 3~4개 배치
+
+각 카드:
+
+제목 (예: News Monitoring Workflow)
+
+설명 (예: “뉴스 소스를 모아서 매일 요약하는 흐름”)
+
+버튼: “이 구성으로 시작하기” → Presets 페이지로 이동
+
+Section B: Your bots
+
+기존 봇 리스트 유지
+
+각 봇 카드 버튼:
+
+Open
+
+Settings
+
+Run now
+
+2) Preset Gallery 톤 정리 (레시피 북화)
+파일
+
+client/src/pages/presets.tsx (또는 profiles.tsx로 쓰이던 화면)
+
+작업
+
+페이지 상단 고정 문구 추가:
+
+These templates are not answers.
+They are starting points you can adapt to your own workflow.
+
+
+(한글: “이 템플릿들은 정답이 아니라, 당신의 워크플로우를 만들기 위한 출발점입니다.”)
+
+각 프리셋 카드에 다음 정보 블록 추가:
+
+Purpose: 이 워크플로우의 목적
+
+Sources: 어떤 종류의 정보를 보는지
+
+Schedule: 어떤 주기로 도는지
+
+Output: 어떤 형태로 정리되는지
+
+CTA 버튼 문구 통일:
+
+❌ “Create bot”
+
+✅ “이 구성으로 시작하기” / “Start with this workflow”
+
+3) Bot Settings 상단에 “Workflow Summary Card” 추가
+파일
+
+client/src/pages/bot-detail.tsx (또는 유사)
+
+작업
+
+페이지 최상단에 카드 하나 추가:
+제목: This bot’s workflow
+
+내용 템플릿:
+
+This bot is designed to:
+- Watch: {sources count} sources
+- Run: {schedule summary}
+- Produce: {format / report type summary}
+
+
+하단 안내 문구:
+
+You can change all of these settings to fit your own purpose.
+
+
+(한글: “이 설정들은 언제든지 당신의 목적에 맞게 바꿀 수 있습니다.”)
+
+기존 설정 UI는 그대로 두고, 요약 카드만 위에 얹기
+
+4) Empty State UX 정비 (봇 없을 때)
+파일
+
+Bots 목록 페이지 (client/src/pages/bots.tsx 등)
+
+작업
+
+봇이 0개일 때:
+
+문구:
+
+You don’t have any bots yet.
+Start by creating your first workflow.
+
+
+버튼:
+
+“템플릿에서 시작하기” → Presets
+
+“빈 봇으로 시작하기(고급)” → Create Empty Bot
+
+5) Chat 포지셔닝 문구 추가
+파일
+
+client/src/components/chat/ChatHeader.tsx 또는 채팅 상단 컴포넌트
+
+작업
+
+상단 작은 안내 텍스트 추가:
+
+This chat is a control console for your bots.
+Try: “Add this RSS to my investing bot” or “Run the report now”.
+
+
+입력 placeholder:
+
+e.g. “Add this RSS to my investing bot…”
+
+6) Help / Onboarding 핵심 문구 반영
+파일
+
+client/src/pages/help.tsx 또는 onboarding 관련 컴포넌트
+
+추가 문구 3개:
+This service does not give you answers.
+It gives you tools to build your own automation.
+
+Templates are starting points, not final solutions.
+
+You choose the sources, schedule, and output.
+You own the workflow.
+
+7) 카피 전반 점검 체크리스트
+
+ “추천”, “정답”, “이걸 쓰세요” 같은 뉘앙스 제거
+
+ “시작점”, “구성”, “워크플로우”, “설계” 중심 용어로 통일
+
+ “우리는 제공 / 당신은 선택” 구조 유지
+
+8) QA 시나리오
+
+신규 유저 접속 → Dashboard:
+
+“아, 이건 만드는 도구구나”가 바로 보이는지
+
+Preset 페이지:
+
+“이게 정답이 아니라 출발점”이라는 메시지가 명확한지
+
+Bot Settings:
+
+이 봇이 무슨 워크플로우인지 한 눈에 들어오는지
+
+Bots 비어있을 때:
+
+어디서 시작해야 할지 바로 보이는지
+
+Chat:
+
+“대화”가 아니라 “조작 콘솔”이라는 인상이 드는지
+
+✅ 완료 기준
+
+기능 변화 없이도:
+
+제품 정체성이 화면에서 명확히 느껴질 것
+
+“결과 받는 서비스” 오해가 사라질 것
+
+“내가 설계하는 도구”라는 인식이 생길 것
+
+한 줄 요약(개발자용)
+
+Phase 7은 기능 추가가 아니라, 제품의 철학을 UI에 새기는 작업이다.

@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Save, Loader2, Brain, Clock, FileText, Filter, Rss, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Brain, Clock, FileText, Filter, Rss, AlertTriangle, Layers } from "lucide-react";
 
 interface BotSettings {
   id: number;
@@ -210,6 +210,13 @@ export default function BotDetail() {
     );
   }
 
+  const scheduleLabel = botSettings
+    ? `${botSettings.scheduleRule === "DAILY" ? "매일" : botSettings.scheduleRule === "WEEKDAYS" ? "평일" : "주말"} ${botSettings.scheduleTimeLocal}`
+    : null;
+  const formatLabel = botSettings
+    ? `${botSettings.markdownLevel === "minimal" ? "대화체" : "구조화"} / ${botSettings.verbosity === "short" ? "짧게" : botSettings.verbosity === "detailed" ? "상세" : "보통"}`
+    : null;
+
   return (
     <div className="container mx-auto p-6 max-w-4xl">
       <div className="flex items-center gap-4 mb-6 flex-wrap">
@@ -217,7 +224,7 @@ export default function BotDetail() {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex-1 min-w-0">
-          <h1 className="text-2xl font-bold" data-testid="text-bot-title">Bot Settings</h1>
+          <h1 className="text-2xl font-bold" data-testid="text-bot-title">{name || "Bot Settings"}</h1>
           <div className="flex items-center gap-2 mt-1">
             <Badge variant="outline" data-testid="badge-bot-topic">{bot.key}</Badge>
             <span className="text-sm text-muted-foreground">
@@ -232,6 +239,42 @@ export default function BotDetail() {
       </div>
 
       <div className="grid gap-6">
+        <Card className="border-primary/20" data-testid="card-workflow-summary">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Layers className="h-4 w-4 text-primary" />
+              이 봇의 워크플로우
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+              <div className="flex items-start gap-2">
+                <Rss className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                <div>
+                  <span className="text-muted-foreground">감시:</span>
+                  <span className="ml-1 font-medium" data-testid="text-summary-sources">{botSources.length}개 소스</span>
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <Clock className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                <div>
+                  <span className="text-muted-foreground">실행:</span>
+                  <span className="ml-1 font-medium" data-testid="text-summary-schedule">{scheduleLabel || "미설정"}</span>
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <FileText className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                <div>
+                  <span className="text-muted-foreground">결과물:</span>
+                  <span className="ml-1 font-medium" data-testid="text-summary-format">{formatLabel || "미설정"}</span>
+                </div>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-border" data-testid="text-summary-hint">
+              이 설정들은 언제든지 당신의 목적에 맞게 바꿀 수 있습니다.
+            </p>
+          </CardContent>
+        </Card>
         <Card>
           <CardHeader>
             <CardTitle>General</CardTitle>

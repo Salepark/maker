@@ -282,11 +282,11 @@ export default function Chat() {
       <div className="p-4 border-b border-border shrink-0">
         <h1 className="text-xl font-bold flex items-center gap-2" data-testid="text-chat-title">
           <MessageCircle className="h-5 w-5" />
-          Command Chat
+          Control Console
         </h1>
-        <div className="flex items-center gap-2 mt-1">
-          <p className="text-sm text-muted-foreground">
-            자연어로 봇을 제어하세요
+        <div className="flex items-center gap-2 mt-1 flex-wrap">
+          <p className="text-sm text-muted-foreground" data-testid="text-chat-description">
+            봇을 조작하는 콘솔입니다. "소스 추가해줘", "지금 실행해" 같은 명령을 입력하세요.
           </p>
           {activeBotInfo ? (
             <Badge variant="secondary" data-testid="badge-active-bot">
@@ -337,7 +337,7 @@ export default function Chat() {
               <Input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder={activeBotInfo ? `${activeBotInfo.name}에게 명령...` : "봇 목록 보여줘 / 소스 추가 / 수집 실행..."}
+                placeholder={activeBotInfo ? `e.g. "이 RSS를 ${activeBotInfo.name}에 추가해줘"` : "e.g. \"내 investing 봇에 RSS 추가해줘\""}
                 disabled={sendMutation.isPending}
                 data-testid="input-chat-message"
               />
