@@ -11,6 +11,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Loader2 } from "lucide-react";
+import { ShareButton } from "@/components/share-button";
 
 import Dashboard from "@/pages/dashboard";
 import Items from "@/pages/items";
@@ -67,6 +68,7 @@ function AuthenticatedApp() {
           <header className="flex items-center justify-between p-3 border-b border-border bg-background shrink-0">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
             <div className="flex items-center gap-3">
+              <ShareButton />
               <ThemeToggle />
               <div className="flex items-center gap-2">
                 <Avatar className="h-8 w-8">

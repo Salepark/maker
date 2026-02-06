@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Bot, Layers, Rss, Settings, Zap, ArrowRight } from "lucide-react";
+import { ShareButton } from "@/components/share-button";
 
 export default function Landing() {
   return (
@@ -11,9 +12,12 @@ export default function Landing() {
             <Bot className="h-6 w-6 text-primary" />
             <span className="font-semibold text-lg">Makelr</span>
           </div>
-          <Button asChild data-testid="button-login-nav">
-            <a href="/api/login">Sign In</a>
-          </Button>
+          <div className="flex items-center gap-2">
+            <ShareButton />
+            <Button asChild data-testid="button-login-nav">
+              <a href="/api/login">Sign In</a>
+            </Button>
+          </div>
         </div>
       </nav>
 
