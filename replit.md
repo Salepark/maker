@@ -38,6 +38,13 @@ The system features a Preset Gallery with 8 templates across 6+ categories (Info
 - `GET /api/presets` — List all preset templates
 - `POST /api/bots/from-preset` — Atomic bot creation (bot + settings + sources in one transaction). Accepts `customSources` array for user-added URLs.
 
+**Phase 7-A v1.0 Presets (Safe Workflow Templates):**
+Three additional safe workflow templates added with identical safety policy as Community Research Helper:
+- `daily_market_brief_safe` — topic: market_brief, outputType: report, DAILY 09:00, 5 sources (Reuters, CNBC, Bloomberg, FT, WSJ)
+- `academic_watcher_research` — topic: research_watch, outputType: report, WEEKDAYS 09:00, 5 sources (ArXiv, Google Research, OpenAI Blog, DeepMind, MIT Tech Review)
+- `competitor_signal_monitor` — topic: competitor_watch, outputType: report, DAILY 09:00, 5 sources (TechCrunch, The Verge, Product Hunt, Hacker News, Ars Technica)
+All enforce: requireHumanApproval=true, promotionLevel="none", linkPolicy="no-links". Icons: Briefcase, BookOpen, Building2.
+
 **E2E coverage**: Login → browse gallery → create bot from preset → verify redirect → delete bot
 
 ### Backend
