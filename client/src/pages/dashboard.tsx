@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { FileText, Search, Edit, CheckCircle, Send, XCircle, Clock, RefreshCw } from "lucide-react";
+import { FileText, Search, Edit, CheckCircle, Send, XCircle, Clock, RefreshCw, Activity, AlertTriangle, Zap } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Link } from "wouter";
 import { format } from "date-fns";
@@ -26,6 +26,21 @@ interface RecentItem {
   status: string;
   insertedAt: string;
   sourceName: string;
+}
+
+interface SchedulerStatus {
+  isRunning: boolean;
+  systemLLMAvailable: boolean;
+  collectInterval: string;
+  analyzeInterval: string;
+  draftInterval: string;
+  reportInterval: string;
+  dailyBriefSchedule: string;
+  lastCollect: string | null;
+  lastAnalyze: string | null;
+  lastDraft: string | null;
+  lastDailyBrief: string | null;
+  lastReportRun: string | null;
 }
 
 const statusIcons: Record<string, React.ReactNode> = {
@@ -55,6 +70,11 @@ export default function Dashboard() {
     queryKey: ["/api/items/recent"],
   });
 
+  const { data: schedulerStatus } = useQuery<SchedulerStatus>({
+    queryKey: ["/api/scheduler/status"],
+    refetchInterval: 30000,
+  });
+
   const statCards = [
     { label: "Total Items", value: stats?.total ?? 0, icon: FileText, color: "text-foreground" },
     { label: "New", value: stats?.new ?? 0, icon: Clock, color: "text-blue-500" },
@@ -71,6 +91,84 @@ export default function Dashboard() {
         <h1 className="text-2xl font-bold" data-testid="text-dashboard-title">Dashboard</h1>
         <p className="text-muted-foreground">Overview of your Makelr Bot activity</p>
       </div>
+
+      {schedulerStatus && !schedulerStatus.systemLLMAvailable && (
+        <Card className="border-amber-300 dark:border-amber-700" data-testid="card-system-warning">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium text-sm" data-testid="text-llm-warning">System AI key is not configured</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Analysis, drafting, and report generation are paused. Content collection continues normally. 
+                  Each bot can still use its own AI provider configured in Settings.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {schedulerStatus && (
+        <Card data-testid="card-system-status">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Activity className="h-4 w-4" />
+              System Status
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+              <div className="flex items-center gap-2" data-testid="status-collect">
+                <Zap className="h-3.5 w-3.5 text-green-500" />
+                <span className="text-muted-foreground">Collect:</span>
+                <span className="font-medium">{schedulerStatus.collectInterval}</span>
+              </div>
+              <div className="flex items-center gap-2" data-testid="status-analyze">
+                <Zap className={`h-3.5 w-3.5 ${schedulerStatus.systemLLMAvailable ? 'text-green-500' : 'text-amber-500'}`} />
+                <span className="text-muted-foreground">Analyze:</span>
+                <span className={`font-medium ${!schedulerStatus.systemLLMAvailable ? 'text-amber-600 dark:text-amber-400' : ''}`}>
+                  {schedulerStatus.systemLLMAvailable ? schedulerStatus.analyzeInterval : "Paused"}
+                </span>
+              </div>
+              <div className="flex items-center gap-2" data-testid="status-draft">
+                <Zap className={`h-3.5 w-3.5 ${schedulerStatus.systemLLMAvailable ? 'text-green-500' : 'text-amber-500'}`} />
+                <span className="text-muted-foreground">Draft:</span>
+                <span className={`font-medium ${!schedulerStatus.systemLLMAvailable ? 'text-amber-600 dark:text-amber-400' : ''}`}>
+                  {schedulerStatus.systemLLMAvailable ? schedulerStatus.draftInterval : "Paused"}
+                </span>
+              </div>
+              <div className="flex items-center gap-2" data-testid="status-report">
+                <Zap className={`h-3.5 w-3.5 ${schedulerStatus.systemLLMAvailable ? 'text-green-500' : 'text-amber-500'}`} />
+                <span className="text-muted-foreground">Reports:</span>
+                <span className={`font-medium ${!schedulerStatus.systemLLMAvailable ? 'text-amber-600 dark:text-amber-400' : ''}`}>
+                  {schedulerStatus.systemLLMAvailable ? schedulerStatus.reportInterval : "Paused"}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-6 text-sm mt-3 pt-3 border-t border-border">
+              <div className="flex items-center gap-2">
+                <RefreshCw className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Last Collect:</span>
+                <span className="font-medium" data-testid="text-last-collect">
+                  {schedulerStatus.lastCollect 
+                    ? formatDistanceToNow(new Date(schedulerStatus.lastCollect), { addSuffix: true })
+                    : "Never"}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Search className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Last Analyze:</span>
+                <span className="font-medium" data-testid="text-last-analyze">
+                  {schedulerStatus.lastAnalyze
+                    ? formatDistanceToNow(new Date(schedulerStatus.lastAnalyze), { addSuffix: true })
+                    : "Never"}
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
         {statCards.map((stat) => (
@@ -91,31 +189,6 @@ export default function Dashboard() {
           </Card>
         ))}
       </div>
-
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center gap-6 text-sm">
-            <div className="flex items-center gap-2">
-              <RefreshCw className="h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Last Collect:</span>
-              <span className="font-medium" data-testid="text-last-collect">
-                {stats?.lastCollectAt 
-                  ? formatDistanceToNow(new Date(stats.lastCollectAt), { addSuffix: true })
-                  : "Never"}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Search className="h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Last Analyze:</span>
-              <span className="font-medium" data-testid="text-last-analyze">
-                {stats?.lastAnalyzeAt 
-                  ? formatDistanceToNow(new Date(stats.lastAnalyzeAt), { addSuffix: true })
-                  : "Never"}
-              </span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-2">

@@ -17,6 +17,9 @@ export const presets = pgTable("presets", {
   outputType: text("output_type").notNull(), // "report" | "draft" | "alert"
   description: text("description"),
   variantsJson: jsonb("variants_json").notNull().default([]),
+  defaultConfigJson: jsonb("default_config_json").notNull().default({}),
+  icon: text("icon"),
+  category: text("category"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -27,6 +30,30 @@ export const insertPresetSchema = createInsertSchema(presets).omit({
 
 export type Preset = typeof presets.$inferSelect;
 export type InsertPreset = z.infer<typeof insertPresetSchema>;
+
+export interface PresetDefaultConfig {
+  timezone?: string;
+  scheduleRule?: "DAILY" | "WEEKDAYS" | "WEEKENDS";
+  scheduleTimeLocal?: string;
+  markdownLevel?: "minimal" | "normal";
+  verbosity?: "short" | "normal" | "detailed";
+  sections?: {
+    tldr?: boolean;
+    drivers?: boolean;
+    risk?: boolean;
+    checklist?: boolean;
+    sources?: boolean;
+  };
+  filters?: {
+    minImportanceScore?: number;
+  };
+  suggestedSources?: Array<{
+    name: string;
+    url: string;
+    type?: string;
+    topic: string;
+  }>;
+}
 
 // ============================================
 // PROFILES - User's bot settings (핵심 테이블)

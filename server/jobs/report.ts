@@ -1,5 +1,5 @@
 import { storage } from "../storage";
-import { callLLM } from "../llm/client";
+import { callLLM, callLLMWithConfig, hasSystemLLMKey, type LLMConfig } from "../llm/client";
 import { buildDailyBriefPrompt, ReportConfig } from "../llm/prompts";
 
 interface ReportJobResult {
@@ -7,6 +7,19 @@ interface ReportJobResult {
   reportId: number;
   itemsCount: number;
   topic: string;
+}
+
+async function callLLMForProfile(prompt: string, userId: string, topic: string, maxRetries: number = 3, maxTokens: number = 4000): Promise<string> {
+  const botLLM = await storage.resolveLLMForProfile(userId, topic);
+  if (botLLM) {
+    console.log(`[ReportJob] Using bot-specific LLM: ${botLLM.providerType} / ${botLLM.model || 'default'}`);
+    return callLLMWithConfig(botLLM as LLMConfig, prompt, maxRetries, maxTokens);
+  }
+  if (hasSystemLLMKey()) {
+    console.log(`[ReportJob] No bot LLM configured, using system default`);
+    return callLLM(prompt, maxRetries, maxTokens);
+  }
+  throw new Error("AI 키가 설정되지 않았습니다. Settings에서 AI Provider를 추가하거나 관리자에게 문의하세요.");
 }
 
 // Check if current time matches the profile's scheduleCron
@@ -189,7 +202,7 @@ export async function generateReportsForDueProfiles(): Promise<ReportJobResult[]
       const prompt = buildDailyBriefPrompt(briefItems, today, profile.topic, config);
       
       console.log(`[ReportJob] Calling LLM for profile ${profile.id}...`);
-      const content = await callLLM(prompt, 3, 4000);
+      const content = await callLLMForProfile(prompt, profile.userId, profile.topic);
 
       const report = await storage.createOutputRecord({
         userId: profile.userId,
@@ -305,7 +318,7 @@ export async function generateReportForProfile(profileId: number, userId?: strin
     }));
 
     const prompt = buildDailyBriefPrompt(briefItems, today, profile.topic, config);
-    content = await callLLM(prompt, 3, 4000);
+    content = await callLLMForProfile(prompt, profile.userId, profile.topic);
   }
 
   const report = await storage.createOutputRecord({

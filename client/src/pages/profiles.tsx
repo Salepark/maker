@@ -6,12 +6,31 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Bot as BotIcon, Copy, Trash2, Settings, Loader2 } from "lucide-react";
+import { Plus, Bot as BotIcon, Trash2, Settings, Loader2, Newspaper, Eye, Scale, GraduationCap, ShoppingBag, MessageSquare, TrendingUp, Users, Sparkles, ArrowLeft, Rss, Clock, FileText, ChevronRight } from "lucide-react";
+
+interface SuggestedSource {
+  name: string;
+  url: string;
+  type?: string;
+  topic: string;
+}
+
+interface PresetConfig {
+  timezone?: string;
+  scheduleRule?: string;
+  scheduleTimeLocal?: string;
+  markdownLevel?: string;
+  verbosity?: string;
+  sections?: Record<string, boolean>;
+  filters?: Record<string, number>;
+  suggestedSources?: SuggestedSource[];
+}
 
 interface Preset {
   id: number;
@@ -20,21 +39,9 @@ interface Preset {
   outputType: string;
   description: string | null;
   variantsJson: string[];
-}
-
-interface Profile {
-  id: number;
-  userId: string;
-  presetId: number;
-  name: string;
-  topic: string;
-  variantKey: string | null;
-  timezone: string;
-  scheduleCron: string;
-  configJson: Record<string, unknown>;
-  isActive: boolean;
-  createdAt: string;
-  presetName: string;
+  defaultConfigJson: PresetConfig;
+  icon: string | null;
+  category: string | null;
 }
 
 interface BotSettings {
@@ -60,39 +67,74 @@ interface BotData {
   settings: BotSettings | null;
 }
 
+const iconMap: Record<string, typeof Newspaper> = {
+  Newspaper, Eye, Scale, GraduationCap, ShoppingBag, MessageSquare, TrendingUp, Users,
+};
+
+const categoryLabels: Record<string, string> = {
+  information: "Information",
+  business: "Business",
+  compliance: "Compliance",
+  research: "Research",
+  commerce: "Commerce",
+  engagement: "Engagement",
+  finance: "Finance",
+};
+
+const topicColors: Record<string, string> = {
+  investing: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+  ai_art: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
+  tech: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+  crypto: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
+  creative: "bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200",
+};
+
+const outputTypeColors: Record<string, string> = {
+  report: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+  draft: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
+  alert: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+};
+
 export default function Profiles() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+
   const [wizardOpen, setWizardOpen] = useState(false);
-  const [wizardStep, setWizardStep] = useState(1);
+  const [wizardStep, setWizardStep] = useState<"preset" | "topic" | "configure">("preset");
   const [selectedPreset, setSelectedPreset] = useState<Preset | null>(null);
-  const [selectedVariant, setSelectedVariant] = useState<string>("");
-  const [profileName, setProfileName] = useState("");
+  const [selectedTopic, setSelectedTopic] = useState("");
+  const [botName, setBotName] = useState("");
+  const [selectedSourceUrls, setSelectedSourceUrls] = useState<Set<string>>(new Set());
 
   const { data: botsResponse, isLoading: botsLoading } = useQuery<{ bots: BotData[] }>({
     queryKey: ["/api/bots"],
   });
   const botsList = botsResponse?.bots ?? [];
 
-  const { data: profiles = [], isLoading: profilesLoading } = useQuery<Profile[]>({
-    queryKey: ["/api/profiles"],
-  });
-
-  const { data: presets = [] } = useQuery<Preset[]>({
+  const { data: presets = [], isLoading: presetsLoading } = useQuery<Preset[]>({
     queryKey: ["/api/presets"],
   });
 
-  const createMutation = useMutation({
-    mutationFn: async (data: { presetId: number; name: string; topic: string; variantKey: string | null }) => {
-      return apiRequest("POST", "/api/profiles", data);
+  const createFromPresetMutation = useMutation({
+    mutationFn: async (data: { presetId: number; name: string; topic: string; selectedSourceUrls: string[] }) => {
+      return apiRequest("POST", "/api/bots/from-preset", data);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/profiles"] });
-      toast({ title: "Profile created successfully" });
+    onSuccess: async (response) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bots"] });
+      const data = await response.json();
+      toast({ title: "Bot created successfully" });
       resetWizard();
+      if (data?.bot?.id) {
+        setLocation(`/bots/${data.bot.id}`);
+      }
     },
-    onError: () => {
-      toast({ title: "Failed to create profile", variant: "destructive" });
+    onError: async (error: any) => {
+      let msg = "Failed to create bot";
+      try {
+        const body = await error?.response?.json();
+        msg = body?.error || msg;
+      } catch {}
+      toast({ title: msg, variant: "destructive" });
     },
   });
 
@@ -115,95 +157,70 @@ export default function Profiles() {
     },
   });
 
-  const toggleMutation = useMutation({
-    mutationFn: async ({ id, isActive }: { id: number; isActive: boolean }) => {
-      return apiRequest("PUT", `/api/profiles/${id}`, { isActive });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/profiles"] });
-    },
-  });
-
-  const cloneMutation = useMutation({
-    mutationFn: async (id: number) => {
-      return apiRequest("POST", `/api/profiles/${id}/clone`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/profiles"] });
-      toast({ title: "Profile cloned successfully" });
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: async (id: number) => {
-      return apiRequest("DELETE", `/api/profiles/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/profiles"] });
-      toast({ title: "Profile deleted successfully" });
-    },
-  });
-
   const resetWizard = () => {
     setWizardOpen(false);
-    setWizardStep(1);
+    setWizardStep("preset");
     setSelectedPreset(null);
-    setSelectedVariant("");
-    setProfileName("");
+    setSelectedTopic("");
+    setBotName("");
+    setSelectedSourceUrls(new Set());
   };
 
   const handlePresetSelect = (preset: Preset) => {
     setSelectedPreset(preset);
     const variants = preset.variantsJson || [];
     if (variants.length === 1) {
-      setSelectedVariant(variants[0]);
-      setProfileName(`My ${preset.name}`);
-      setWizardStep(3);
+      setSelectedTopic(variants[0]);
+      setBotName(`My ${preset.name}`);
+      const suggestedSources = preset.defaultConfigJson?.suggestedSources || [];
+      setSelectedSourceUrls(new Set(suggestedSources.map(s => s.url)));
+      setWizardStep("configure");
     } else if (variants.length > 1) {
-      setWizardStep(2);
+      setWizardStep("topic");
     } else {
-      setProfileName(`My ${preset.name}`);
-      setWizardStep(3);
+      setSelectedTopic("general");
+      setBotName(`My ${preset.name}`);
+      setSelectedSourceUrls(new Set());
+      setWizardStep("configure");
     }
   };
 
-  const handleVariantSelect = (variant: string) => {
-    setSelectedVariant(variant);
-    setProfileName(`My ${selectedPreset?.name} - ${variant}`);
-    setWizardStep(3);
+  const handleTopicSelect = (topic: string) => {
+    setSelectedTopic(topic);
+    setBotName(`My ${selectedPreset?.name} - ${topic}`);
+    const suggestedSources = selectedPreset?.defaultConfigJson?.suggestedSources || [];
+    const topicSources = suggestedSources.filter(s => s.topic === topic || topic === "general");
+    setSelectedSourceUrls(new Set(topicSources.map(s => s.url)));
+    setWizardStep("configure");
   };
 
-  const handleCreateProfile = () => {
-    if (!selectedPreset || !profileName) return;
-    
-    createMutation.mutate({
+  const handleCreate = () => {
+    if (!selectedPreset || !botName || !selectedTopic) return;
+    createFromPresetMutation.mutate({
       presetId: selectedPreset.id,
-      name: profileName,
-      topic: selectedVariant || "general",
-      variantKey: selectedVariant || null,
+      name: botName,
+      topic: selectedTopic,
+      selectedSourceUrls: Array.from(selectedSourceUrls),
     });
   };
 
-  const getTopicColor = (topic: string) => {
-    const colors: Record<string, string> = {
-      investing: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-      ai_art: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
-      tech: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-      crypto: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
-    };
-    return colors[topic] || "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200";
+  const toggleSourceUrl = (url: string) => {
+    setSelectedSourceUrls(prev => {
+      const next = new Set(prev);
+      if (next.has(url)) next.delete(url);
+      else next.add(url);
+      return next;
+    });
   };
 
-  const getOutputTypeColor = (type: string) => {
-    const colors: Record<string, string> = {
-      report: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-      draft: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
-      alert: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-    };
-    return colors[type] || "bg-gray-100 text-gray-800";
+  const getPresetIcon = (iconName: string | null) => {
+    const IconComponent = iconName ? iconMap[iconName] : Sparkles;
+    return IconComponent || Sparkles;
   };
 
-  if (botsLoading || profilesLoading) {
+  const uniqueCategories = [...new Set(presets.map(p => p.category).filter(Boolean))] as string[];
+
+  if (botsLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -213,123 +230,24 @@ export default function Profiles() {
 
   return (
     <div className="container mx-auto p-6 max-w-6xl">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold" data-testid="text-page-title">My Bots</h1>
-          <p className="text-muted-foreground">Create and manage your automated bots</p>
-        </div>
-        <Dialog open={wizardOpen} onOpenChange={(open) => open ? setWizardOpen(true) : resetWizard()}>
-          <DialogTrigger asChild>
-            <Button data-testid="button-create-profile">
-              <Plus className="h-4 w-4 mr-2" />
-              New Bot
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Create New Bot</DialogTitle>
-              <DialogDescription>
-                {wizardStep === 1 && "Choose a bot type to get started"}
-                {wizardStep === 2 && "Select a topic for your bot"}
-                {wizardStep === 3 && "Give your bot a name"}
-              </DialogDescription>
-            </DialogHeader>
-            
-            {wizardStep === 1 && (
-              <div className="grid gap-3 py-4">
-                {presets.map((preset) => (
-                  <Card 
-                    key={preset.id} 
-                    className="cursor-pointer hover-elevate"
-                    onClick={() => handlePresetSelect(preset)}
-                    data-testid={`preset-${preset.key}`}
-                  >
-                    <CardHeader className="p-4">
-                      <div className="flex items-center justify-between gap-2">
-                        <CardTitle className="text-base">{preset.name}</CardTitle>
-                        <Badge className={getOutputTypeColor(preset.outputType)}>
-                          {preset.outputType}
-                        </Badge>
-                      </div>
-                      <CardDescription className="text-sm">
-                        {preset.description || "No description"}
-                      </CardDescription>
-                    </CardHeader>
-                  </Card>
-                ))}
-              </div>
-            )}
-
-            {wizardStep === 2 && selectedPreset && (
-              <div className="grid gap-3 py-4">
-                <Label>Select Topic</Label>
-                {(selectedPreset.variantsJson || []).map((variant) => (
-                  <Button
-                    key={variant}
-                    variant="outline"
-                    className="justify-start"
-                    onClick={() => handleVariantSelect(variant)}
-                    data-testid={`variant-${variant}`}
-                  >
-                    <Badge className={`mr-2 ${getTopicColor(variant)}`}>{variant}</Badge>
-                    {variant.charAt(0).toUpperCase() + variant.slice(1).replace(/_/g, " ")}
-                  </Button>
-                ))}
-                <Button variant="ghost" onClick={() => setWizardStep(1)}>
-                  Back
-                </Button>
-              </div>
-            )}
-
-            {wizardStep === 3 && (
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="name">Bot Name</Label>
-                  <Input
-                    id="name"
-                    value={profileName}
-                    onChange={(e) => setProfileName(e.target.value)}
-                    placeholder="Enter bot name"
-                    data-testid="input-profile-name"
-                  />
-                </div>
-                {selectedVariant && (
-                  <div className="flex items-center gap-2">
-                    <Label>Topic:</Label>
-                    <Badge className={getTopicColor(selectedVariant)}>{selectedVariant}</Badge>
-                  </div>
-                )}
-                <div className="flex gap-2 justify-end">
-                  <Button variant="ghost" onClick={() => setWizardStep(selectedPreset?.variantsJson?.length ? 2 : 1)}>
-                    Back
-                  </Button>
-                  <Button 
-                    onClick={handleCreateProfile}
-                    disabled={!profileName || createMutation.isPending}
-                    data-testid="button-confirm-create"
-                  >
-                    {createMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                    Create Bot
-                  </Button>
-                </div>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
-      </div>
-
       {botsList.length > 0 && (
         <div className="mb-8">
-          <h2 className="text-lg font-semibold mb-3" data-testid="text-bots-section-title">Bots</h2>
+          <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
+            <div>
+              <h1 className="text-2xl font-bold" data-testid="text-page-title">My Bots</h1>
+              <p className="text-muted-foreground">Manage your automated bots and create new ones from templates</p>
+            </div>
+          </div>
+
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {botsList.map((bot) => (
               <Card key={bot.id} className="overflow-visible" data-testid={`bot-card-${bot.id}`}>
                 <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <CardTitle className="text-lg truncate" data-testid={`text-bot-name-${bot.id}`}>{bot.name}</CardTitle>
                       <CardDescription className="flex items-center gap-2 mt-1 flex-wrap">
-                        <Badge className={getTopicColor(bot.key)} data-testid={`badge-bot-key-${bot.id}`}>{bot.key}</Badge>
+                        <Badge className={topicColors[bot.key] || "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"} data-testid={`badge-bot-key-${bot.id}`}>{bot.key}</Badge>
                       </CardDescription>
                     </div>
                     <Switch
@@ -341,15 +259,21 @@ export default function Profiles() {
                 </CardHeader>
                 <CardContent className="pt-0">
                   {bot.settings && (
-                    <div className="text-sm text-muted-foreground mb-3">
-                      <div>Schedule: {bot.settings.scheduleRule} at {bot.settings.scheduleTimeLocal}</div>
-                      <div>Timezone: {bot.settings.timezone}</div>
+                    <div className="text-sm text-muted-foreground mb-3 space-y-1">
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="h-3.5 w-3.5" />
+                        <span>{bot.settings.scheduleRule} at {bot.settings.scheduleTimeLocal}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <FileText className="h-3.5 w-3.5" />
+                        <span>{bot.settings.markdownLevel === "minimal" ? "Conversational" : "Structured"} / {bot.settings.verbosity}</span>
+                      </div>
                     </div>
                   )}
                   <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      variant="outline"
+                      size="sm"
                       className="flex-1"
                       onClick={() => setLocation(`/bots/${bot.id}`)}
                       data-testid={`button-edit-bot-${bot.id}`}
@@ -374,91 +298,289 @@ export default function Profiles() {
                 </CardContent>
               </Card>
             ))}
+
+            <Card
+              className="overflow-visible border-dashed hover-elevate cursor-pointer flex items-center justify-center min-h-[160px]"
+              onClick={() => setWizardOpen(true)}
+              data-testid="card-add-bot"
+            >
+              <div className="text-center p-6">
+                <Plus className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                <p className="font-medium text-sm">Create New Bot</p>
+                <p className="text-xs text-muted-foreground mt-1">Choose from templates</p>
+              </div>
+            </Card>
           </div>
         </div>
       )}
 
-      {profiles.length > 0 && (
-        <>
-          <h2 className="text-lg font-semibold mb-3">Profiles (Legacy)</h2>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {profiles.map((profile) => (
-              <Card key={profile.id} className="overflow-visible" data-testid={`profile-card-${profile.id}`}>
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <CardTitle className="text-lg truncate">{profile.name}</CardTitle>
-                      <CardDescription className="flex items-center gap-2 mt-1 flex-wrap">
-                        <span>{profile.presetName}</span>
-                        <Badge className={getTopicColor(profile.topic)}>{profile.topic}</Badge>
-                      </CardDescription>
-                    </div>
-                    <Switch
-                      checked={profile.isActive}
-                      onCheckedChange={(checked) => toggleMutation.mutate({ id: profile.id, isActive: checked })}
-                      data-testid={`toggle-active-${profile.id}`}
-                    />
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="text-sm text-muted-foreground mb-3">
-                    <div>Schedule: {profile.scheduleCron}</div>
-                    <div>Timezone: {profile.timezone}</div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="flex-1"
-                      onClick={() => setLocation(`/profiles/${profile.id}`)}
-                      data-testid={`button-edit-${profile.id}`}
-                    >
-                      <Settings className="h-4 w-4 mr-1" />
-                      Edit
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => cloneMutation.mutate(profile.id)}
-                      disabled={cloneMutation.isPending}
-                      data-testid={`button-clone-${profile.id}`}
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => {
-                        if (confirm("Are you sure you want to delete this bot?")) {
-                          deleteMutation.mutate(profile.id);
-                        }
-                      }}
-                      disabled={deleteMutation.isPending}
-                      data-testid={`button-delete-${profile.id}`}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+      {botsList.length === 0 && (
+        <div className="mb-8">
+          <div className="text-center py-12">
+            <BotIcon className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+            <h1 className="text-2xl font-bold mb-2" data-testid="text-page-title">Welcome to Makelr</h1>
+            <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+              Create your first bot from a template. Each template comes with recommended settings and sources - you can customize everything later.
+            </p>
           </div>
-        </>
+        </div>
       )}
 
-      {botsList.length === 0 && profiles.length === 0 && (
-        <Card className="p-8 text-center">
-          <BotIcon className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-          <h3 className="text-lg font-medium mb-2">No bots yet</h3>
-          <p className="text-muted-foreground mb-4">
-            Create your first bot to start monitoring content and generating reports
-          </p>
-          <Button onClick={() => setWizardOpen(true)} data-testid="button-create-first">
-            <Plus className="h-4 w-4 mr-2" />
-            Create Your First Bot
-          </Button>
+      <div className="mb-4">
+        <h2 className="text-xl font-bold" data-testid="text-gallery-title">Template Gallery</h2>
+        <p className="text-muted-foreground text-sm">Pick a starting point and make it yours</p>
+      </div>
+
+      {presetsLoading && (
+        <div className="flex items-center justify-center h-32">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      )}
+
+      {!presetsLoading && presets.length === 0 && (
+        <Card className="overflow-visible">
+          <CardContent className="p-8 text-center text-muted-foreground">
+            No templates available yet. They will appear here once configured.
+          </CardContent>
         </Card>
       )}
+
+      {uniqueCategories.map(category => {
+        const categoryPresets = presets.filter(p => p.category === category);
+        if (categoryPresets.length === 0) return null;
+        return (
+          <div key={category} className="mb-6">
+            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
+              {categoryLabels[category] || category}
+            </h3>
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              {categoryPresets.map(preset => {
+                const Icon = getPresetIcon(preset.icon);
+                return (
+                  <Card
+                    key={preset.id}
+                    className="overflow-visible hover-elevate cursor-pointer"
+                    onClick={() => { handlePresetSelect(preset); setWizardOpen(true); }}
+                    data-testid={`preset-card-${preset.key}`}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 rounded-md bg-primary/10 shrink-0">
+                          <Icon className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-3">
+                            <h4 className="font-medium text-sm" data-testid={`text-preset-name-${preset.key}`}>{preset.name}</h4>
+                            <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{preset.description}</p>
+                          <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                            <Badge className={`${outputTypeColors[preset.outputType]} text-xs`} data-testid={`badge-preset-type-${preset.key}`}>{preset.outputType}</Badge>
+                            {(preset.variantsJson || []).slice(0, 3).map(v => (
+                              <Badge key={v} variant="outline" className="text-xs">{v}</Badge>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+
+      {presets.filter(p => !p.category).length > 0 && (
+        <div className="mb-6">
+          <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">Other</h3>
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+            {presets.filter(p => !p.category).map(preset => {
+              const Icon = getPresetIcon(preset.icon);
+              return (
+                <Card
+                  key={preset.id}
+                  className="overflow-visible hover-elevate cursor-pointer"
+                  onClick={() => { handlePresetSelect(preset); setWizardOpen(true); }}
+                  data-testid={`preset-card-${preset.key}`}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 rounded-md bg-primary/10 shrink-0">
+                        <Icon className="h-5 w-5 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-3">
+                          <h4 className="font-medium text-sm">{preset.name}</h4>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{preset.description}</p>
+                        <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                          <Badge className={`${outputTypeColors[preset.outputType]} text-xs`}>{preset.outputType}</Badge>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <Dialog open={wizardOpen} onOpenChange={(open) => open ? setWizardOpen(true) : resetWizard()}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {wizardStep === "preset" && "Choose a Template"}
+              {wizardStep === "topic" && "Select Topic"}
+              {wizardStep === "configure" && "Configure Your Bot"}
+            </DialogTitle>
+            <DialogDescription>
+              {wizardStep === "preset" && "Pick a template to start with. You can customize everything later."}
+              {wizardStep === "topic" && `Choose a focus area for ${selectedPreset?.name}`}
+              {wizardStep === "configure" && "Name your bot and select which sources to include"}
+            </DialogDescription>
+          </DialogHeader>
+
+          {wizardStep === "preset" && (
+            <div className="grid gap-3 py-2 max-h-[400px] overflow-y-auto">
+              {presets.map((preset) => {
+                const Icon = getPresetIcon(preset.icon);
+                return (
+                  <div
+                    key={preset.id}
+                    className="p-3 rounded-md border border-border hover-elevate cursor-pointer"
+                    onClick={() => handlePresetSelect(preset)}
+                    data-testid={`wizard-preset-${preset.key}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-md bg-primary/10 shrink-0">
+                        <Icon className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-sm">{preset.name}</h4>
+                        <p className="text-xs text-muted-foreground truncate">{preset.description}</p>
+                      </div>
+                      <Badge className={`${outputTypeColors[preset.outputType]} text-xs`}>{preset.outputType}</Badge>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {wizardStep === "topic" && selectedPreset && (
+            <div className="grid gap-3 py-2">
+              {(selectedPreset.variantsJson || []).map((topic) => (
+                <Button
+                  key={topic}
+                  variant="outline"
+                  className="justify-start"
+                  onClick={() => handleTopicSelect(topic)}
+                  data-testid={`wizard-topic-${topic}`}
+                >
+                  <Badge className={`mr-2 ${topicColors[topic] || ""}`}>{topic}</Badge>
+                  {topic.charAt(0).toUpperCase() + topic.slice(1).replace(/_/g, " ")}
+                </Button>
+              ))}
+              <Button variant="ghost" size="sm" onClick={() => setWizardStep("preset")} data-testid="button-wizard-back">
+                <ArrowLeft className="h-4 w-4 mr-1" /> Back
+              </Button>
+            </div>
+          )}
+
+          {wizardStep === "configure" && selectedPreset && (
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label htmlFor="bot-name">Bot Name</Label>
+                <Input
+                  id="bot-name"
+                  value={botName}
+                  onChange={(e) => setBotName(e.target.value)}
+                  placeholder="Enter bot name"
+                  data-testid="input-wizard-bot-name"
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Label>Topic:</Label>
+                <Badge className={topicColors[selectedTopic] || ""} data-testid="badge-wizard-topic">{selectedTopic}</Badge>
+                <Label className="text-muted-foreground text-xs">|</Label>
+                <Label className="text-muted-foreground text-xs">
+                  Output: {selectedPreset.outputType}
+                </Label>
+              </div>
+
+              {selectedPreset.defaultConfigJson && (
+                <div className="rounded-md bg-muted/50 p-3 space-y-1 text-sm">
+                  <p className="font-medium text-xs text-muted-foreground uppercase tracking-wider mb-2">Pre-filled Settings</p>
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <Clock className="h-3.5 w-3.5" />
+                    <span>{selectedPreset.defaultConfigJson.scheduleRule || "DAILY"} at {selectedPreset.defaultConfigJson.scheduleTimeLocal || "07:00"}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <FileText className="h-3.5 w-3.5" />
+                    <span>{selectedPreset.defaultConfigJson.markdownLevel === "minimal" ? "Conversational" : "Structured"} / {selectedPreset.defaultConfigJson.verbosity || "normal"}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground italic mt-1">You can change all settings after creation</p>
+                </div>
+              )}
+
+              {selectedPreset.defaultConfigJson?.suggestedSources && selectedPreset.defaultConfigJson.suggestedSources.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1.5">
+                    <Rss className="h-4 w-4" />
+                    Suggested Sources
+                  </Label>
+                  <p className="text-xs text-muted-foreground">Check the sources you'd like to include. You can add more later.</p>
+                  <div className="space-y-2">
+                    {selectedPreset.defaultConfigJson.suggestedSources.map((source) => (
+                      <div
+                        key={source.url}
+                        className="flex items-center gap-3 p-2 rounded-md border border-border"
+                        data-testid={`source-checkbox-${source.name.replace(/\s/g, '-').toLowerCase()}`}
+                      >
+                        <Checkbox
+                          checked={selectedSourceUrls.has(source.url)}
+                          onCheckedChange={() => toggleSourceUrl(source.url)}
+                          id={`source-${source.url}`}
+                        />
+                        <label htmlFor={`source-${source.url}`} className="flex-1 cursor-pointer">
+                          <span className="text-sm font-medium">{source.name}</span>
+                          <span className="text-xs text-muted-foreground ml-2">({source.topic})</span>
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-2 justify-end pt-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    if (selectedPreset.variantsJson.length > 1) setWizardStep("topic");
+                    else setWizardStep("preset");
+                  }}
+                  data-testid="button-wizard-back-configure"
+                >
+                  <ArrowLeft className="h-4 w-4 mr-1" /> Back
+                </Button>
+                <Button
+                  onClick={handleCreate}
+                  disabled={!botName || createFromPresetMutation.isPending}
+                  data-testid="button-wizard-create"
+                >
+                  {createFromPresetMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Create Bot
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

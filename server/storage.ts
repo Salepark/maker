@@ -146,6 +146,16 @@ export interface IStorage {
   updateLlmProvider(id: number, userId: string, patch: Partial<Omit<InsertLlmProvider, 'userId'>>): Promise<LlmProvider | undefined>;
   deleteLlmProvider(id: number, userId: string): Promise<void>;
   resolveLLMForBot(botId: number): Promise<{ providerType: string; apiKey: string; baseUrl: string | null; model: string | null } | null>;
+  resolveLLMForProfile(userId: string, topic: string): Promise<{ providerType: string; apiKey: string; baseUrl: string | null; model: string | null } | null>;
+  getBotByUserAndKey(userId: string, key: string): Promise<Bot | undefined>;
+  findSourceByUrl(url: string): Promise<Source | undefined>;
+  createBotFromPreset(params: {
+    userId: string;
+    key: string;
+    name: string;
+    settings: Partial<Omit<InsertBotSettings, 'botId'>>;
+    sourceData: Array<{ name: string; url: string; type?: string; topic: string }>;
+  }): Promise<Bot>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1214,6 +1224,73 @@ export class DatabaseStorage implements IStorage {
       baseUrl: provider.baseUrl,
       model: setting.modelOverride || provider.defaultModel,
     };
+  }
+
+  async findSourceByUrl(url: string): Promise<Source | undefined> {
+    const [source] = await db.select().from(sources).where(eq(sources.url, url));
+    return source;
+  }
+
+  async createBotFromPreset(params: {
+    userId: string;
+    key: string;
+    name: string;
+    settings: Partial<Omit<InsertBotSettings, 'botId'>>;
+    sourceData: Array<{ name: string; url: string; type?: string; topic: string }>;
+  }): Promise<Bot> {
+    return await db.transaction(async (tx) => {
+      const [bot] = await tx.insert(bots).values({
+        userId: params.userId,
+        key: params.key,
+        name: params.name,
+        isEnabled: true,
+      }).returning();
+
+      await tx.insert(botSettings).values({
+        botId: bot.id,
+        ...params.settings,
+      } as InsertBotSettings);
+
+      if (params.sourceData.length > 0) {
+        const sourceLinks: Array<{ botId: number; sourceId: number; weight: number; isEnabled: boolean }> = [];
+        for (const sd of params.sourceData) {
+          const [existing] = await tx.select().from(sources).where(eq(sources.url, sd.url)).limit(1);
+          let sourceId: number;
+          if (existing) {
+            sourceId = existing.id;
+          } else {
+            const [created] = await tx.insert(sources).values({
+              userId: null,
+              name: sd.name,
+              type: sd.type || "rss",
+              url: sd.url,
+              topic: sd.topic,
+              isDefault: false,
+              enabled: true,
+            }).returning();
+            sourceId = created.id;
+          }
+          sourceLinks.push({ botId: bot.id, sourceId, weight: 3, isEnabled: true });
+        }
+        if (sourceLinks.length > 0) {
+          await tx.insert(sourceBotLinks).values(sourceLinks);
+        }
+      }
+
+      return bot;
+    });
+  }
+
+  async getBotByUserAndKey(userId: string, key: string): Promise<Bot | undefined> {
+    const [bot] = await db.select().from(bots)
+      .where(and(eq(bots.userId, userId), eq(bots.key, key)));
+    return bot;
+  }
+
+  async resolveLLMForProfile(userId: string, topic: string): Promise<{ providerType: string; apiKey: string; baseUrl: string | null; model: string | null } | null> {
+    const bot = await this.getBotByUserAndKey(userId, topic);
+    if (!bot) return null;
+    return this.resolveLLMForBot(bot.id);
   }
 }
 
