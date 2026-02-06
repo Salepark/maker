@@ -618,7 +618,7 @@ export async function registerRoutes(
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
-      const { presetId, name, topic, selectedSourceUrls } = req.body;
+      const { presetId, name, topic, selectedSourceUrls, customSources } = req.body;
       if (!presetId || !name || !topic) {
         return res.status(400).json({ error: "presetId, name, topic 은 필수입니다." });
       }
@@ -633,6 +633,17 @@ export async function registerRoutes(
         .map((url: string) => config.suggestedSources?.find((s: any) => s.url === url))
         .filter(Boolean)
         .map((s: any) => ({ name: s.name, url: s.url, type: s.type || "rss", topic: s.topic || topic }));
+
+      if (Array.isArray(customSources)) {
+        for (const cs of customSources) {
+          if (cs.url && !sourceData.some((s: any) => s.url === cs.url)) {
+            try {
+              new URL(cs.url);
+              sourceData.push({ name: cs.name || new URL(cs.url).hostname, url: cs.url, type: "rss", topic: cs.topic || topic });
+            } catch {}
+          }
+        }
+      }
 
       const bot = await storage.createBotFromPreset({
         userId,

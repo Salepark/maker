@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Bot as BotIcon, Trash2, Settings, Loader2, Newspaper, Eye, Scale, GraduationCap, ShoppingBag, MessageSquare, TrendingUp, Users, Sparkles, ArrowLeft, Rss, Clock, FileText, ChevronRight } from "lucide-react";
+import { Plus, Bot as BotIcon, Trash2, Settings, Loader2, Newspaper, Eye, Scale, GraduationCap, ShoppingBag, MessageSquare, TrendingUp, Users, Sparkles, ArrowLeft, Rss, Clock, FileText, ChevronRight, Link2 } from "lucide-react";
 
 interface SuggestedSource {
   name: string;
@@ -105,6 +105,9 @@ export default function Profiles() {
   const [selectedTopic, setSelectedTopic] = useState("");
   const [botName, setBotName] = useState("");
   const [selectedSourceUrls, setSelectedSourceUrls] = useState<Set<string>>(new Set());
+  const [customSources, setCustomSources] = useState<SuggestedSource[]>([]);
+  const [customSourceUrl, setCustomSourceUrl] = useState("");
+  const [customSourceName, setCustomSourceName] = useState("");
 
   const { data: botsResponse, isLoading: botsLoading } = useQuery<{ bots: BotData[] }>({
     queryKey: ["/api/bots"],
@@ -116,7 +119,7 @@ export default function Profiles() {
   });
 
   const createFromPresetMutation = useMutation({
-    mutationFn: async (data: { presetId: number; name: string; topic: string; selectedSourceUrls: string[] }) => {
+    mutationFn: async (data: { presetId: number; name: string; topic: string; selectedSourceUrls: string[]; customSources?: SuggestedSource[] }) => {
       return apiRequest("POST", "/api/bots/from-preset", data);
     },
     onSuccess: async (response) => {
@@ -164,12 +167,35 @@ export default function Profiles() {
     setSelectedTopic("");
     setBotName("");
     setSelectedSourceUrls(new Set());
+    setCustomSources([]);
+    setCustomSourceUrl("");
+    setCustomSourceName("");
   };
 
-  const pickDefaultSources = (allSources: SuggestedSource[], topic: string, maxDefault = 2): Set<string> => {
+  const pickDefaultSources = (allSources: SuggestedSource[], topic: string): Set<string> => {
     const topicSources = allSources.filter(s => s.topic === topic);
-    const picked = topicSources.slice(0, maxDefault);
-    return new Set(picked.map(s => s.url));
+    return new Set(topicSources.map(s => s.url));
+  };
+
+  const addCustomSource = () => {
+    const url = customSourceUrl.trim();
+    if (!url) return;
+    if (selectedSourceUrls.has(url) || customSources.some(s => s.url === url)) {
+      toast({ title: "This source URL is already added", variant: "destructive" });
+      return;
+    }
+    try {
+      new URL(url);
+    } catch {
+      toast({ title: "Please enter a valid URL", variant: "destructive" });
+      return;
+    }
+    const name = customSourceName.trim() || new URL(url).hostname;
+    const newSource: SuggestedSource = { name, url, topic: selectedTopic };
+    setCustomSources(prev => [...prev, newSource]);
+    setSelectedSourceUrls(prev => new Set([...Array.from(prev), url]));
+    setCustomSourceUrl("");
+    setCustomSourceName("");
   };
 
   const handlePresetSelect = (preset: Preset) => {
@@ -206,6 +232,7 @@ export default function Profiles() {
       name: botName,
       topic: selectedTopic,
       selectedSourceUrls: Array.from(selectedSourceUrls),
+      customSources: customSources.filter(s => selectedSourceUrls.has(s.url)),
     });
   };
 
@@ -325,7 +352,7 @@ export default function Profiles() {
             <BotIcon className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
             <h1 className="text-2xl font-bold mb-2" data-testid="text-page-title">Welcome to Makelr</h1>
             <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              Create your first bot from a template. Each template comes with recommended settings and sources - you can customize everything later.
+              Create your first bot from a template. Each template sets up a complete workflow — schedule, format, and basic public sources. Add your own specialized sources anytime.
             </p>
           </div>
         </div>
@@ -333,7 +360,7 @@ export default function Profiles() {
 
       <div className="mb-4">
         <h2 className="text-xl font-bold" data-testid="text-gallery-title">Template Gallery</h2>
-        <p className="text-muted-foreground text-sm">Pick a starting point and make it yours</p>
+        <p className="text-muted-foreground text-sm">Each template provides a complete workflow — you bring the sources</p>
       </div>
 
       {presetsLoading && (
@@ -444,7 +471,7 @@ export default function Profiles() {
             <DialogDescription>
               {wizardStep === "preset" && "Pick a template to start with. You can customize everything later."}
               {wizardStep === "topic" && `This template supports multiple topics. Choose which area to focus on for ${selectedPreset?.name}.`}
-              {wizardStep === "configure" && "Name your bot and select which sources to include."}
+              {wizardStep === "configure" && "Set up your bot's workflow. Default sources are general public channels — add your own for more specialized coverage."}
             </DialogDescription>
           </DialogHeader>
 
@@ -532,15 +559,11 @@ export default function Profiles() {
                 </div>
               )}
 
-              {selectedPreset.defaultConfigJson?.suggestedSources && selectedPreset.defaultConfigJson.suggestedSources.length > 0 && (() => {
-                const allSources = selectedPreset.defaultConfigJson.suggestedSources!;
+              {(() => {
+                const allSources = selectedPreset.defaultConfigJson?.suggestedSources || [];
                 const topicSources = allSources.filter(s => s.topic === selectedTopic);
-                const recommended = topicSources.slice(0, 2);
-                const optional = [
-                  ...topicSources.slice(2),
-                  ...allSources.filter(s => s.topic !== selectedTopic),
-                ];
-                const renderSourceRow = (source: SuggestedSource) => (
+                const allDisplaySources = [...topicSources, ...customSources];
+                const renderSourceRow = (source: SuggestedSource, isCustom = false) => (
                   <div
                     key={source.url}
                     className="flex items-center gap-3 p-2 rounded-md border border-border"
@@ -551,31 +574,87 @@ export default function Profiles() {
                       onCheckedChange={() => toggleSourceUrl(source.url)}
                       id={`source-${source.url}`}
                     />
-                    <label htmlFor={`source-${source.url}`} className="flex-1 cursor-pointer">
+                    <label htmlFor={`source-${source.url}`} className="flex-1 cursor-pointer min-w-0">
                       <span className="text-sm font-medium">{source.name}</span>
-                      <span className="text-xs text-muted-foreground ml-2">({source.topic})</span>
+                      {isCustom && <Badge variant="outline" className="ml-2 text-xs">custom</Badge>}
                     </label>
+                    {isCustom && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 shrink-0"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setCustomSources(prev => prev.filter(s => s.url !== source.url));
+                          setSelectedSourceUrls(prev => {
+                            const next = new Set(prev);
+                            next.delete(source.url);
+                            return next;
+                          });
+                        }}
+                        data-testid={`button-remove-custom-source-${source.name.replace(/\s/g, '-').toLowerCase()}`}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    )}
                   </div>
                 );
                 return (
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-1.5">
-                    <Rss className="h-4 w-4" />
-                    Sources
-                  </Label>
-                  <p className="text-xs text-muted-foreground">Select which sources to include. You can add more later.</p>
-                  {recommended.length > 0 && (
-                    <div className="space-y-1.5">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Recommended</p>
-                      {recommended.map(renderSourceRow)}
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-1.5">
+                      <Rss className="h-4 w-4" />
+                      Default Sources
+                    </Label>
+                    <p className="text-xs text-muted-foreground" data-testid="text-source-disclaimer">
+                      Default sources are widely used public channels. You can add your own specialized sources below.
+                    </p>
+                    {allDisplaySources.length > 0 ? (
+                      <div className="space-y-1.5">
+                        {topicSources.map(s => renderSourceRow(s, false))}
+                        {customSources.map(s => renderSourceRow(s, true))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground italic">No default sources for this topic. Add your own below.</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2 pt-1 border-t border-border">
+                    <Label className="flex items-center gap-1.5 text-sm">
+                      <Link2 className="h-4 w-4" />
+                      Add your own source
+                    </Label>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Source name (optional)"
+                        value={customSourceName}
+                        onChange={(e) => setCustomSourceName(e.target.value)}
+                        className="flex-1"
+                        data-testid="input-custom-source-name"
+                      />
                     </div>
-                  )}
-                  {optional.length > 0 && (
-                    <div className="space-y-1.5 mt-2">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Optional</p>
-                      {optional.map(renderSourceRow)}
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="https://example.com/feed.xml"
+                        value={customSourceUrl}
+                        onChange={(e) => setCustomSourceUrl(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomSource(); } }}
+                        className="flex-1"
+                        data-testid="input-custom-source-url"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={addCustomSource}
+                        disabled={!customSourceUrl.trim()}
+                        data-testid="button-add-custom-source"
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add
+                      </Button>
                     </div>
-                  )}
+                    <p className="text-xs text-muted-foreground">You can also add more sources after creating the bot.</p>
+                  </div>
                 </div>
                 );
               })()}

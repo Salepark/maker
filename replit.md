@@ -16,19 +16,25 @@ The frontend is a React 18 TypeScript single-page application using Wouter for r
 ### Multi-User Bot Management
 The system supports multiple user-defined bots, each associated with a specific topic (e.g., AI art, investing). Bots are created from presets via a Template Gallery with a guided wizard flow, allowing users to customize schedules, report sections, verbosity, markdown level, and content filters. This architecture includes dedicated database tables for bots, bot settings, and source linkages, ensuring strict topic isolation for data processing and report generation.
 
-### Preset Gallery & Onboarding (Phase 4)
-The system features a Preset Gallery with 8 templates across 6 categories (Information, Business, Compliance, Research, Commerce, Engagement). Each preset includes `defaultConfigJson` with schedule, sections, format, suggested sources, and topic variants. Bot creation from presets is atomic (using DB transactions via `createBotFromPreset()` in storage). The wizard flow: Select Template → Choose Topic (if multi-topic) → Configure (name, source checkboxes) → Create. Pre-filled settings are fully customizable post-creation.
+### Preset Gallery & Onboarding (Phase 4 + 4.0.1)
+The system features a Preset Gallery with 8 templates across 6+ categories (Information, Business, Compliance, Research, Commerce, Engagement, Finance). Each preset includes `defaultConfigJson` with schedule, sections, format, default sources, and topic variants. Bot creation from presets is atomic (using DB transactions via `createBotFromPreset()` in storage). The wizard flow: Select Template → Choose Topic (if multi-topic) → Configure (name, sources) → Create. Pre-filled settings are fully customizable post-creation.
 
-**Key Policies:**
+**Source Policy (Phase 4.0.1 — "Default is normal, details are user's"):**
+- **Positioning**: The app is a "source management tool", NOT a "source recommendation service".
+- **Default sources**: 3-7 well-known, non-controversial public channels per topic (e.g., Reuters, Hacker News, ArXiv, CNBC). All default sources are checked ON by default.
+- **No Recommended/Optional split**: Removed in 4.0.1. All topic-matching default sources are shown equally.
+- **Custom sources**: Users can add their own RSS URLs during wizard setup via "Add your own source" input. Custom sources are also persisted via the same `createBotFromPreset()` transaction.
+- **Responsibility boundary**: "Default sources are widely used public channels. More specialized sources can be added by the user. Results from custom sources are the user's responsibility."
 - **Source creation policy**: Reuse existing sources by URL; create new ones only if URL not found. Bot-source links are always created fresh per bot.
-- **Anti-uniformity**: Only the first 2 topic-matching sources are pre-checked as "Recommended"; remaining appear as "Optional" unchecked.
+
+**Other Policies:**
 - **Seed safety**: Presets have UNIQUE key constraint; seeds check by key, add new and update existing without duplication.
 - **LLM selection priority**: Bot-specific LLM provider > System default (LLM_API_KEY env var) > Error with actionable Korean message ("Settings에서 AI Provider를 추가하세요").
 - **Navigation**: Sidebar uses `/bots` route; `/profiles` is kept as alias for backward compatibility.
 
 **Endpoints:**
 - `GET /api/presets` — List all preset templates
-- `POST /api/bots/from-preset` — Atomic bot creation (bot + settings + sources in one transaction)
+- `POST /api/bots/from-preset` — Atomic bot creation (bot + settings + sources in one transaction). Accepts `customSources` array for user-added URLs.
 
 **E2E coverage**: Login → browse gallery → create bot from preset → verify redirect → delete bot
 
