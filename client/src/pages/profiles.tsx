@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Bot as BotIcon, Trash2, Settings, Loader2, Newspaper, Eye, Scale, GraduationCap, ShoppingBag, MessageSquare, TrendingUp, Users, Sparkles, ArrowLeft, Rss, Clock, FileText, ChevronRight, Link2 } from "lucide-react";
+import { Plus, Bot as BotIcon, Trash2, Settings, Loader2, Newspaper, Eye, Scale, GraduationCap, ShoppingBag, MessageSquare, TrendingUp, Users, Sparkles, ArrowLeft, Rss, Clock, FileText, ChevronRight, Link2, Search } from "lucide-react";
 
 interface SuggestedSource {
   name: string;
@@ -30,6 +30,9 @@ interface PresetConfig {
   sections?: Record<string, boolean>;
   filters?: Record<string, number>;
   suggestedSources?: SuggestedSource[];
+  requireHumanApproval?: boolean;
+  promotionLevel?: string;
+  linkPolicy?: string;
 }
 
 interface Preset {
@@ -68,7 +71,7 @@ interface BotData {
 }
 
 const iconMap: Record<string, typeof Newspaper> = {
-  Newspaper, Eye, Scale, GraduationCap, ShoppingBag, MessageSquare, TrendingUp, Users,
+  Newspaper, Eye, Scale, GraduationCap, ShoppingBag, MessageSquare, TrendingUp, Users, Search,
 };
 
 const categoryLabels: Record<string, string> = {
@@ -87,6 +90,7 @@ const topicColors: Record<string, string> = {
   tech: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
   crypto: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
   creative: "bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200",
+  community_research: "bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200",
 };
 
 const outputTypeColors: Record<string, string> = {

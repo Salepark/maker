@@ -53,6 +53,9 @@ export interface PresetDefaultConfig {
     type?: string;
     topic: string;
   }>;
+  requireHumanApproval?: boolean;
+  promotionLevel?: "none" | "subtle" | "moderate";
+  linkPolicy?: "no-links" | "allowed" | "cautious";
 }
 
 // ============================================

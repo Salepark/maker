@@ -794,7 +794,12 @@ export async function registerRoutes(
           markdownLevel: config.markdownLevel || "minimal",
           verbosity: config.verbosity || "normal",
           sectionsJson: config.sections || { tldr: true, drivers: true, risk: true, checklist: true, sources: true },
-          filtersJson: config.filters || { minImportanceScore: 0 },
+          filtersJson: {
+            ...(config.filters || { minImportanceScore: 0 }),
+            ...(config.requireHumanApproval !== undefined && { requireHumanApproval: config.requireHumanApproval }),
+            ...(config.promotionLevel && { promotionLevel: config.promotionLevel }),
+            ...(config.linkPolicy && { linkPolicy: config.linkPolicy }),
+          },
         },
         sourceData,
       });

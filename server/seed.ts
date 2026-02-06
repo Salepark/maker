@@ -231,6 +231,34 @@ const presetData: Array<{
       ],
     },
   },
+  {
+    key: "community_research_helper",
+    name: "Community Research Helper",
+    outputType: "draft",
+    description: "커뮤니티에서 오가는 주요 논의와 트렌드를 모니터링하고, 홍보 없이 도움이 되는 요약/초안을 만들어주는 워크플로우 시작 템플릿입니다.",
+    variantsJson: ["community_research"],
+    icon: "Search",
+    category: "engagement",
+    defaultConfigJson: {
+      timezone: "Asia/Seoul",
+      scheduleRule: "DAILY",
+      scheduleTimeLocal: "09:00",
+      markdownLevel: "minimal",
+      verbosity: "normal",
+      sections: { tldr: true, drivers: true, risk: true, checklist: false, sources: true },
+      filters: { minImportanceScore: 0 },
+      requireHumanApproval: true,
+      promotionLevel: "none",
+      linkPolicy: "no-links",
+      suggestedSources: [
+        { name: "Reddit AI", url: "https://www.reddit.com/r/ArtificialInteligence/.rss", topic: "community_research" },
+        { name: "Hacker News", url: "https://news.ycombinator.com/rss", topic: "community_research" },
+        { name: "TechCrunch", url: "https://techcrunch.com/feed/", topic: "community_research" },
+        { name: "Ars Technica", url: "https://feeds.arstechnica.com/arstechnica/index", topic: "community_research" },
+        { name: "MIT Technology Review", url: "https://www.technologyreview.com/feed/", topic: "community_research" },
+      ],
+    },
+  },
 ];
 
 export async function seedDefaultSources() {

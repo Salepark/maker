@@ -132,8 +132,9 @@ export async function draftForAnalyzed(): Promise<number> {
     const sourceRules = (item.rulesJson as SourceRules) || {};
     const allowLink = shouldAllowLink(riskFlags) && (sourceRules.allowLinks !== false);
 
-    // Use AI Art community draft prompt for ai_art topic (0% promo, pure helpful replies)
-    const prompt = item.sourceTopic === "ai_art"
+    const isCommunityContribution = item.sourceTopic === "ai_art" || item.sourceTopic === "community_research";
+
+    const prompt = isCommunityContribution
       ? buildAiArtCommunityDraftPrompt({
           title: item.title ?? "",
           body: item.contentText ?? "",
@@ -157,14 +158,12 @@ export async function draftForAnalyzed(): Promise<number> {
       let savedCount = 0;
 
       for (const draft of result.drafts || []) {
-        // For ai_art community mode: validate draft has no links or promo content
-        if (item.sourceTopic === "ai_art") {
+        if (isCommunityContribution) {
           const validation = validateCommunityDraft(draft.text);
           if (!validation.valid) {
-            console.log(`[DraftJob] Rejected ai_art draft variant ${draft.variant}: ${validation.reason}`);
+            console.log(`[DraftJob] Rejected ${item.sourceTopic} draft variant ${draft.variant}: ${validation.reason}`);
             continue;
           }
-          // Force includesLink to false for ai_art community mode
           draft.includes_link = false;
         }
 
