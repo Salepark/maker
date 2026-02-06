@@ -1,5 +1,6 @@
 import { LayoutDashboard, FileText, Rss, CheckCircle, Settings, Eye, FileBarChart, MessageCircle, Bot } from "lucide-react";
 import { Link, useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import {
   Sidebar,
   SidebarContent,
@@ -12,6 +13,7 @@ import {
   SidebarHeader,
   SidebarFooter,
 } from "@/components/ui/sidebar";
+import { Badge } from "@/components/ui/badge";
 
 const menuItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
@@ -25,8 +27,25 @@ const menuItems = [
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
+interface BotInfo {
+  id: number;
+  key: string;
+  name: string;
+  isEnabled: boolean;
+}
+
 export function AppSidebar() {
   const [location] = useLocation();
+
+  const { data: botsResponse } = useQuery<{ bots: BotInfo[] }>({
+    queryKey: ["/api/bots"],
+    queryFn: () => fetch("/api/bots", { credentials: "include" }).then(r => {
+      if (!r.ok) return { bots: [] };
+      return r.json();
+    }),
+  });
+
+  const activeBots = (botsResponse?.bots ?? []).filter(b => b.isEnabled);
 
   return (
     <Sidebar>
@@ -42,6 +61,26 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
       <SidebarContent>
+        {activeBots.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Active Bots</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <div className="px-2 pb-1 flex flex-wrap gap-1" data-testid="active-bots-list">
+                {activeBots.map(bot => (
+                  <Link key={bot.id} href={`/bots/${bot.id}`}>
+                    <Badge
+                      variant="secondary"
+                      className="cursor-pointer text-xs"
+                      data-testid={`badge-bot-${bot.key}`}
+                    >
+                      {bot.key}
+                    </Badge>
+                  </Link>
+                ))}
+              </div>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
         <SidebarGroup>
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>

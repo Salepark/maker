@@ -90,9 +90,13 @@ export async function callLLMWithConfigJson<T>(
 // These fall back to env-var LLM_API_KEY when no bot LLM is configured
 // ============================================
 
+export function hasSystemLLMKey(): boolean {
+  return !!(process.env.LLM_API_KEY);
+}
+
 function getSystemConfig(): LLMConfig {
   const apiKey = process.env.LLM_API_KEY || "";
-  if (!apiKey) throw new Error("No LLM configured: set LLM_API_KEY or assign an LLM provider to your bot");
+  if (!apiKey) throw new Error("LLM_API_KEY is not set. System-level AI features are unavailable. Each bot can still use its own LLM provider configured in Settings.");
   return {
     providerType: "anthropic",
     apiKey,

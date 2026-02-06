@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Save, Loader2, Brain } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Brain, Clock, FileText, Filter, Rss, AlertTriangle } from "lucide-react";
 
 interface BotSettings {
   id: number;
@@ -55,6 +55,30 @@ interface SourceLink {
   isEnabled: boolean;
 }
 
+const MODEL_HINTS: Record<string, string[]> = {
+  anthropic: ["claude-sonnet-4-5-20250929", "claude-3-5-haiku-latest", "claude-3-5-sonnet-latest"],
+  openai: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o1-mini"],
+  google: ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"],
+  custom: [],
+};
+
+const SCHEDULE_TIMES = [
+  { value: "06:00", label: "6:00 AM" },
+  { value: "07:00", label: "7:00 AM" },
+  { value: "08:00", label: "8:00 AM" },
+  { value: "09:00", label: "9:00 AM" },
+  { value: "10:00", label: "10:00 AM" },
+  { value: "12:00", label: "12:00 PM" },
+  { value: "14:00", label: "2:00 PM" },
+  { value: "16:00", label: "4:00 PM" },
+  { value: "18:00", label: "6:00 PM" },
+  { value: "19:00", label: "7:00 PM" },
+  { value: "20:00", label: "8:00 PM" },
+  { value: "21:00", label: "9:00 PM" },
+  { value: "22:00", label: "10:00 PM" },
+  { value: "23:00", label: "11:00 PM" },
+];
+
 export default function BotDetail() {
   const [, params] = useRoute("/bots/:id");
   const [, setLocation] = useLocation();
@@ -65,7 +89,7 @@ export default function BotDetail() {
   const [isEnabled, setIsEnabled] = useState(true);
   const [timezone, setTimezone] = useState("Asia/Seoul");
   const [scheduleRule, setScheduleRule] = useState("DAILY");
-  const [scheduleTimeLocal, setScheduleTimeLocal] = useState("07:00");
+  const [scheduleTimeLocal, setScheduleTimeLocal] = useState("21:00");
   const [verbosity, setVerbosity] = useState("normal");
   const [markdownLevel, setMarkdownLevel] = useState("minimal");
   const [sections, setSections] = useState({
@@ -103,6 +127,14 @@ export default function BotDetail() {
   const botSources = sourcesResponse?.links ?? [];
   const availableProviders = providersResponse?.providers ?? [];
 
+  const selectedProvider = availableProviders.find(p => String(p.id) === llmProviderId);
+  const providerType = selectedProvider?.providerType || "anthropic";
+  const modelHints = MODEL_HINTS[providerType] || [];
+
+  const providerWasDeleted = botSettings?.llmProviderId != null
+    && llmProviderId === "system"
+    && !availableProviders.some(p => p.id === botSettings?.llmProviderId);
+
   useEffect(() => {
     if (bot) {
       setName(bot.name);
@@ -123,10 +155,15 @@ export default function BotDetail() {
       if (botSettings.filtersJson?.minImportanceScore != null) {
         setMinImportanceScore(botSettings.filtersJson.minImportanceScore);
       }
-      setLlmProviderId(botSettings.llmProviderId ? String(botSettings.llmProviderId) : "system");
+      if (botSettings.llmProviderId) {
+        const providerExists = availableProviders.some(p => p.id === botSettings.llmProviderId);
+        setLlmProviderId(providerExists ? String(botSettings.llmProviderId) : "system");
+      } else {
+        setLlmProviderId("system");
+      }
       setModelOverride(botSettings.modelOverride || "");
     }
-  }, [botSettings]);
+  }, [botSettings, availableProviders]);
 
   const saveBotMutation = useMutation({
     mutationFn: async () => {
@@ -175,13 +212,18 @@ export default function BotDetail() {
 
   return (
     <div className="container mx-auto p-6 max-w-4xl">
-      <div className="flex items-center gap-4 mb-6">
+      <div className="flex items-center gap-4 mb-6 flex-wrap">
         <Button variant="ghost" size="icon" onClick={() => setLocation("/profiles")} data-testid="button-back">
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <h1 className="text-2xl font-bold" data-testid="text-bot-title">Bot Settings</h1>
-          <p className="text-muted-foreground">{bot.key}</p>
+          <div className="flex items-center gap-2 mt-1">
+            <Badge variant="outline" data-testid="badge-bot-topic">{bot.key}</Badge>
+            <span className="text-sm text-muted-foreground">
+              {isEnabled ? "Active" : "Paused"}
+            </span>
+          </div>
         </div>
         <Button onClick={() => saveBotMutation.mutate()} disabled={saveBotMutation.isPending} data-testid="button-save">
           {saveBotMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
@@ -199,7 +241,7 @@ export default function BotDetail() {
               <Label htmlFor="bot-name">Bot Name</Label>
               <Input id="bot-name" value={name} onChange={(e) => setName(e.target.value)} data-testid="input-bot-name" />
             </div>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <Label htmlFor="bot-enabled">Enabled</Label>
               <Switch id="bot-enabled" checked={isEnabled} onCheckedChange={setIsEnabled} data-testid="toggle-bot-enabled" />
             </div>
@@ -217,6 +259,12 @@ export default function BotDetail() {
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
+            {providerWasDeleted && (
+              <div className="flex items-start gap-2 p-3 rounded-md bg-destructive/10 text-destructive text-sm" data-testid="warning-provider-deleted">
+                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                <span>The previously assigned provider was deleted. This bot has been reset to System Default. Save to confirm.</span>
+              </div>
+            )}
             <div className="grid gap-2">
               <Label>LLM Provider</Label>
               <Select value={llmProviderId} onValueChange={setLlmProviderId}>
@@ -245,18 +293,33 @@ export default function BotDetail() {
                 placeholder="Leave blank to use provider's default"
                 data-testid="input-model-override"
               />
+              {modelHints.length > 0 && (
+                <p className="text-xs text-muted-foreground" data-testid="text-model-hints">
+                  Available for {providerType}: {modelHints.join(", ")}
+                </p>
+              )}
+              {modelOverride && selectedProvider && !modelHints.includes(modelOverride) && modelHints.length > 0 && (
+                <p className="text-xs text-yellow-600 dark:text-yellow-400 flex items-center gap-1" data-testid="warning-model-mismatch">
+                  <AlertTriangle className="h-3 w-3" />
+                  This model name is not in the known list for {providerType}. Make sure it's correct.
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Schedule</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              Schedule
+            </CardTitle>
+            <CardDescription>When this bot generates reports</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
             <div className="grid gap-2">
               <Label>Run Days</Label>
-              <Select value={scheduleRule} onValueChange={setScheduleRule} data-testid="select-schedule-rule">
+              <Select value={scheduleRule} onValueChange={setScheduleRule}>
                 <SelectTrigger data-testid="select-schedule-rule">
                   <SelectValue />
                 </SelectTrigger>
@@ -269,28 +332,27 @@ export default function BotDetail() {
             </div>
             <div className="grid gap-2">
               <Label>Run Time</Label>
-              <Select value={scheduleTimeLocal} onValueChange={setScheduleTimeLocal} data-testid="select-schedule-time">
+              <Select value={scheduleTimeLocal} onValueChange={setScheduleTimeLocal}>
                 <SelectTrigger data-testid="select-schedule-time">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="07:00">7:00 AM</SelectItem>
-                  <SelectItem value="08:00">8:00 AM</SelectItem>
-                  <SelectItem value="09:00">9:00 AM</SelectItem>
-                  <SelectItem value="18:00">6:00 PM</SelectItem>
-                  <SelectItem value="22:00">10:00 PM</SelectItem>
+                  {SCHEDULE_TIMES.map(t => (
+                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="grid gap-2">
               <Label>Timezone</Label>
-              <Select value={timezone} onValueChange={setTimezone} data-testid="select-timezone">
+              <Select value={timezone} onValueChange={setTimezone}>
                 <SelectTrigger data-testid="select-timezone">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Asia/Seoul">Asia/Seoul (KST)</SelectItem>
-                  <SelectItem value="America/New_York">America/New_York (EST)</SelectItem>
+                  <SelectItem value="America/New_York">America/New_York (ET)</SelectItem>
+                  <SelectItem value="America/Los_Angeles">America/Los_Angeles (PT)</SelectItem>
                   <SelectItem value="Europe/London">Europe/London (GMT)</SelectItem>
                   <SelectItem value="UTC">UTC</SelectItem>
                 </SelectContent>
@@ -301,12 +363,16 @@ export default function BotDetail() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Report Format</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Report Format
+            </CardTitle>
+            <CardDescription>Control how reports are written</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
             <div className="grid gap-2">
               <Label>Report Length</Label>
-              <Select value={verbosity} onValueChange={setVerbosity} data-testid="select-verbosity">
+              <Select value={verbosity} onValueChange={setVerbosity}>
                 <SelectTrigger data-testid="select-verbosity">
                   <SelectValue />
                 </SelectTrigger>
@@ -318,14 +384,14 @@ export default function BotDetail() {
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label>Markdown Style</Label>
-              <Select value={markdownLevel} onValueChange={setMarkdownLevel} data-testid="select-markdown">
+              <Label>Writing Style</Label>
+              <Select value={markdownLevel} onValueChange={setMarkdownLevel}>
                 <SelectTrigger data-testid="select-markdown">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="minimal">Minimal (Less formatting)</SelectItem>
-                  <SelectItem value="normal">Normal (Standard formatting)</SelectItem>
+                  <SelectItem value="minimal">Conversational (News anchor tone, minimal symbols)</SelectItem>
+                  <SelectItem value="normal">Structured (Markdown headers and formatting)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -341,7 +407,7 @@ export default function BotDetail() {
                   />
                   <Label htmlFor={`section-${key}`} className="font-normal">
                     {key === "tldr" ? "TL;DR Summary" :
-                     key === "drivers" ? "Market Drivers" :
+                     key === "drivers" ? "Market Drivers / Key Trends" :
                      key === "risk" ? "Risk Radar" :
                      key === "checklist" ? "Action Checklist" :
                      "Source References"}
@@ -354,7 +420,11 @@ export default function BotDetail() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Filters</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Filter className="h-5 w-5" />
+              Filters
+            </CardTitle>
+            <CardDescription>Control which content gets included</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
             <div className="grid gap-2">
@@ -367,30 +437,48 @@ export default function BotDetail() {
                 step={10}
                 data-testid="slider-importance"
               />
+              <p className="text-xs text-muted-foreground">
+                Items scoring below this threshold will be excluded from reports.
+                {minImportanceScore > 0 && ` Currently filtering out items below ${minImportanceScore}/100.`}
+              </p>
             </div>
           </CardContent>
         </Card>
 
-        {botSources.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Linked Sources ({botSources.length})</CardTitle>
-            </CardHeader>
-            <CardContent>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Rss className="h-5 w-5" />
+              Linked Sources ({botSources.length})
+            </CardTitle>
+            <CardDescription>Sources feeding data to this bot</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {botSources.length === 0 ? (
+              <div className="text-center py-6 text-muted-foreground" data-testid="text-no-sources">
+                <p>No sources linked yet.</p>
+                <p className="text-xs mt-1">Go to Sources page to add RSS feeds, then link them here.</p>
+              </div>
+            ) : (
               <div className="grid gap-2">
-                {botSources.map((source: any) => (
-                  <div key={source.id} className="flex items-center justify-between p-2 rounded-md border">
-                    <div>
+                {botSources.map((source: SourceLink) => (
+                  <div key={source.id} className="flex items-center justify-between gap-2 p-3 rounded-md border" data-testid={`source-link-${source.id}`}>
+                    <div className="min-w-0 flex-1">
                       <span className="font-medium">{source.name}</span>
-                      <span className="text-muted-foreground text-sm ml-2">weight: {source.weight}</span>
+                      <Badge variant="secondary" className="ml-2">{source.topic}</Badge>
                     </div>
-                    <span className="text-sm text-muted-foreground">{source.isEnabled ? "Active" : "Disabled"}</span>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className="text-xs text-muted-foreground">weight: {source.weight}</span>
+                      <Badge variant={source.isEnabled ? "default" : "secondary"}>
+                        {source.isEnabled ? "Active" : "Off"}
+                      </Badge>
+                    </div>
                   </div>
                 ))}
               </div>
-            </CardContent>
-          </Card>
-        )}
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

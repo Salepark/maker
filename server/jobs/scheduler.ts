@@ -4,6 +4,7 @@ import { analyzeNewItems } from "./analyze_items";
 import { draftForAnalyzed } from "./draft_replies";
 import { generateDailyBrief } from "./generate_daily_brief";
 import { generateReportsForDueProfiles, generateReportForProfile } from "./report";
+import { hasSystemLLMKey } from "../llm/client";
 
 let collectTask: ReturnType<typeof cron.schedule> | null = null;
 let analyzeTask: ReturnType<typeof cron.schedule> | null = null;
@@ -36,6 +37,7 @@ export function startScheduler() {
   });
 
   analyzeTask = cron.schedule("*/5 * * * *", async () => {
+    if (!hasSystemLLMKey()) return;
     console.log("🔍 Running analysis job...");
     try {
       const count = await analyzeNewItems();
@@ -47,6 +49,7 @@ export function startScheduler() {
   });
 
   draftTask = cron.schedule("*/5 * * * *", async () => {
+    if (!hasSystemLLMKey()) return;
     console.log("✏️ Running draft generation job...");
     try {
       const count = await draftForAnalyzed();
@@ -63,6 +66,7 @@ export function startScheduler() {
   console.log(`[Scheduler] Daily Brief scheduled: "${dailyBriefCron}" (${tz})`);
   
   dailyBriefTask = cron.schedule(dailyBriefCron, async () => {
+    if (!hasSystemLLMKey()) { console.log("[DailyBrief] Skipped: no system LLM key"); return; }
     console.log("📊 Running Daily Brief generation job...");
     try {
       const result = await generateDailyBrief({
@@ -78,6 +82,7 @@ export function startScheduler() {
   }, { timezone: tz });
 
   reportTask = cron.schedule("* * * * *", async () => {
+    if (!hasSystemLLMKey()) return;
     console.log("📊 Running Profile Report generation job...");
     try {
       const results = await generateReportsForDueProfiles();
@@ -91,6 +96,9 @@ export function startScheduler() {
   });
 
   isRunning = true;
+  if (!hasSystemLLMKey()) {
+    console.log("[Scheduler] LLM_API_KEY not set. Collect job runs normally. Analyze/Draft/Report/DailyBrief jobs paused until system key is provided or bots use their own providers.");
+  }
   console.log("🕒 Scheduler started");
 }
 
@@ -110,13 +118,15 @@ export function stopScheduler() {
 }
 
 export function getSchedulerStatus() {
+  const systemLLMAvailable = hasSystemLLMKey();
   return {
     isRunning,
+    systemLLMAvailable,
     collectInterval: "10 minutes",
-    analyzeInterval: "5 minutes",
-    draftInterval: "5 minutes",
+    analyzeInterval: systemLLMAvailable ? "5 minutes" : "paused (no system LLM key)",
+    draftInterval: systemLLMAvailable ? "5 minutes" : "paused (no system LLM key)",
     reportInterval: "1 minute (profile-based)",
-    dailyBriefSchedule: process.env.DAILY_BRIEF_CRON || "0 22 * * * (KST)",
+    dailyBriefSchedule: systemLLMAvailable ? (process.env.DAILY_BRIEF_CRON || "0 22 * * * (KST)") : "paused (no system LLM key)",
     lastCollect: lastCollect?.toISOString(),
     lastAnalyze: lastAnalyze?.toISOString(),
     lastDraft: lastDraft?.toISOString(),
@@ -133,6 +143,7 @@ export async function runCollectNow() {
 }
 
 export async function runAnalyzeNow() {
+  if (!hasSystemLLMKey()) throw new Error("LLM_API_KEY is not configured. Set it in environment or assign an LLM provider to your bot.");
   console.log("🔍 Manual analysis triggered...");
   const count = await analyzeNewItems();
   lastAnalyze = new Date();
@@ -140,6 +151,7 @@ export async function runAnalyzeNow() {
 }
 
 export async function runDraftNow() {
+  if (!hasSystemLLMKey()) throw new Error("LLM_API_KEY is not configured. Set it in environment or assign an LLM provider to your bot.");
   console.log("✏️ Manual draft generation triggered...");
   const count = await draftForAnalyzed();
   lastDraft = new Date();
@@ -147,6 +159,7 @@ export async function runDraftNow() {
 }
 
 export async function runDailyBriefNow(topic: string = "ai_art", lookbackHours: number = 24, maxItems: number = 12) {
+  if (!hasSystemLLMKey()) throw new Error("LLM_API_KEY is not configured. Set it in environment or assign an LLM provider to your bot.");
   console.log(`📊 Manual Daily Brief generation triggered for topic=${topic}, lookback=${lookbackHours}h, max=${maxItems}...`);
   const result = await generateDailyBrief({
     lookbackHours,
@@ -159,6 +172,7 @@ export async function runDailyBriefNow(topic: string = "ai_art", lookbackHours: 
 }
 
 export async function runReportNow(profileId?: number, userId?: string) {
+  if (!hasSystemLLMKey()) throw new Error("LLM_API_KEY is not configured. Set it in environment or assign an LLM provider to your bot.");
   console.log(`📊 Manual Report generation triggered${profileId ? ` for profile ${profileId}` : " for all due profiles"}...`);
   if (profileId) {
     const result = await generateReportForProfile(profileId, userId);
