@@ -1,4 +1,4 @@
-import { LayoutDashboard, FileText, Rss, CheckCircle, Settings, Eye, FileBarChart, MessageCircle, Bot } from "lucide-react";
+import { LayoutDashboard, FileText, Rss, CheckCircle, Settings, Eye, FileBarChart, MessageCircle, Bot, BookOpen } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -24,6 +24,7 @@ const menuItems = [
   { title: "Items", url: "/items", icon: FileText },
   { title: "Observe", url: "/observe", icon: Eye },
   { title: "Console", url: "/chat", icon: MessageCircle },
+  { title: "Guide", url: "/guide", icon: BookOpen },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 

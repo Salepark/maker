@@ -26,6 +26,7 @@ import Profiles from "@/pages/profiles";
 import ProfileDetail from "@/pages/profile-detail";
 import BotDetail from "@/pages/bot-detail";
 import Landing from "@/pages/landing";
+import Guide from "@/pages/guide";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -44,6 +45,7 @@ function Router() {
       <Route path="/sources" component={Sources} />
       <Route path="/settings" component={Settings} />
       <Route path="/chat" component={Chat} />
+      <Route path="/guide" component={Guide} />
       <Route component={NotFound} />
     </Switch>
   );
