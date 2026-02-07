@@ -1,0 +1,151 @@
+물론입니다 — **일반 사용자용 컨텐츠 프리셋에 들어갈 기본 소스의 URL(RSS/피드) 리스트**를 정리해드릴게요.
+
+※ 일부 웹사이트는 RSS를 기본 페이지에서 표시하지 않지만, 검색 가능한 RSS 혹은 피드 형태로 접근 가능한 링크를 넣었습니다. (실제 RSS 수집이 가능한 URL 위주)
+
+---
+
+## 📌 🔹 Workflows Content Preset — 기본 소스 링크 8개
+
+### ✍️ 1) Medium – Popular & Writing
+
+* Medium 전체 공식 피드 (모든 주제)
+  👉 [https://medium.com/feed/](https://medium.com/feed/)
+
+* Medium **Writing** 태그 피드
+  👉 [https://medium.com/feed/tag/writing](https://medium.com/feed/tag/writing)
+
+* Medium **Content Marketing** 태그 피드
+  👉 [https://medium.com/feed/tag/content-marketing](https://medium.com/feed/tag/content-marketing)
+
+---
+
+### ✍️ 2) Substack – Discover (지역/주요 섹션)
+
+Substack 자체는 RSS가 명확히 공개되지 않지만, 각 섹션 인기 구독 피드는 다음으로 수집 가능:
+
+* Substack Trending (일반)
+  👉 [https://substack.com/feed](https://substack.com/feed)
+
+> (Substack은 개별 뉴스레터마다 RSS 존재 – 사용자가 직접 추가 가능)
+
+---
+
+### ✍️ 3) Reddit – 커뮤니티
+
+* r/writing
+  👉 [https://www.reddit.com/r/writing/.rss](https://www.reddit.com/r/writing/.rss)
+
+* r/blogging
+  👉 [https://www.reddit.com/r/blogging/.rss](https://www.reddit.com/r/blogging/.rss)
+
+* r/contentmarketing
+  👉 [https://www.reddit.com/r/contentmarketing/.rss](https://www.reddit.com/r/contentmarketing/.rss)
+
+---
+
+### ✍️ 4) Google News:
+
+* **Content Marketing / Writing** 검색 기준 RSS
+  👉 [https://news.google.com/rss/search?q=content+marketing+OR+writing](https://news.google.com/rss/search?q=content+marketing+OR+writing)
+
+가령:
+
+* “writing ideas”
+  👉 [https://news.google.com/rss/search?q=writing+ideas](https://news.google.com/rss/search?q=writing+ideas)
+
+* “blog topic ideas”
+  👉 [https://news.google.com/rss/search?q=blog+topic+ideas](https://news.google.com/rss/search?q=blog+topic+ideas)
+
+---
+
+### ✍️ 5) Lifehacker – Productivity / Tools
+
+* Lifehacker 메인 RSS
+  👉 [https://lifehacker.com/rss](https://lifehacker.com/rss)
+
+* Lifehacker Productivity 태그 RSS
+  👉 [https://lifehacker.com/tag/productivity/rss](https://lifehacker.com/tag/productivity/rss)
+
+---
+
+### ✍️ 6) Zapier Blog – Workflow / Automation
+
+* Zapier Blog RSS
+  👉 [https://zapier.com/blog/rss](https://zapier.com/blog/rss)
+
+---
+
+### ✍️ 7) HubSpot Blog – Marketing / Content / Sales
+
+* HubSpot 전체 블로그 RSS
+  👉 [https://blog.hubspot.com/marketing/rss.xml](https://blog.hubspot.com/marketing/rss.xml)
+
+※ HubSpot이 콘텐츠/마케팅 분야 중심이라 일반 실무자에게 적합합니다.
+
+---
+
+### ✍️ 8) Indie Hackers – Stories / Insights
+
+* Indie Hackers Podcast / Stories RSS
+  👉 [https://www.indiehackers.com/feed](https://www.indiehackers.com/feed)
+
+---
+
+## ✅ (옵션) 한국 사용자용 추천 피드
+
+### 🇰🇷 9) 브런치 인기 태그
+
+브런치는 공식 RSS는 공개되지 않지만 JVM 기반 자동 피드 이용 가능한 링크:
+
+* 브런치 전체 인기
+  👉 [https://brunch.co.kr/rss](https://brunch.co.kr/rss)
+
+* 브런치 콘텐츠 태그 (예: 생산성)
+  👉 [https://brunch.co.kr/rss/tag/생산성](https://brunch.co.kr/rss/tag/생산성)
+
+※ 정확도는 플랫폼 정책에 따라 다소 상이할 수 있습니다.
+
+---
+
+## 📌 구성 요약 (프리셋 기본값)
+
+| Category        | Source                          | RSS/Feed URL                                                                                                                           |
+| --------------- | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| 🎯 Writing      | Medium – tag: writing           | [https://medium.com/feed/tag/writing](https://medium.com/feed/tag/writing)                                                             |
+| 🎯 Marketing    | Medium – tag: content-marketing | [https://medium.com/feed/tag/content-marketing](https://medium.com/feed/tag/content-marketing)                                         |
+| 📚 General      | Medium Feed                     | [https://medium.com/feed/](https://medium.com/feed/)                                                                                   |
+| 👥 Community    | Reddit: /r/writing              | [https://www.reddit.com/r/writing/.rss](https://www.reddit.com/r/writing/.rss)                                                         |
+| 👥 Community    | Reddit: /r/blogging             | [https://www.reddit.com/r/blogging/.rss](https://www.reddit.com/r/blogging/.rss)                                                       |
+| 🧑‍💼 Business  | Reddit: /r/contentmarketing     | [https://www.reddit.com/r/contentmarketing/.rss](https://www.reddit.com/r/contentmarketing/.rss)                                       |
+| 🧠 Productivity | Lifehacker RSS                  | [https://lifehacker.com/rss](https://lifehacker.com/rss)                                                                               |
+| 💡 Workflow     | Zapier Blog RSS                 | [https://zapier.com/blog/rss](https://zapier.com/blog/rss)                                                                             |
+| 📈 Marketing    | HubSpot Blog RSS                | [https://blog.hubspot.com/marketing/rss.xml](https://blog.hubspot.com/marketing/rss.xml)                                               |
+| 📖 Indie        | Indie Hackers Feed              | [https://www.indiehackers.com/feed](https://www.indiehackers.com/feed)                                                                 |
+| 📰 News         | Google News content search      | [https://news.google.com/rss/search?q=content+marketing+OR+writing](https://news.google.com/rss/search?q=content+marketing+OR+writing) |
+
+---
+
+## 🧠 프리셋 소스 설명 (웹사이트용 설명 기재)
+
+> **기본 소스**는 누구나 접근 가능한 공개 채널입니다.
+> 블로그 작성, 콘텐츠 아이디어, 마케팅/생산성 통찰을 얻기 쉬운 소스들입니다.
+> 필요시 “나만의 소스 URL”을 추가해 더 세부적인 영역으로 확장할 수 있습니다.
+
+---
+
+## 📍 팁 — RSS 추가 시 유의사항
+
+✔ URL이 `.rss`/`feed` 형태로 끝나야 수집 정확도 UP
+✔ Google News 검색 기반 피드는 트렌드를 넓게 커버
+✔ 서브스크립션 기반 플랫폼 (Substack)은 개별 RSS를 추가 권장
+
+---
+
+원하시면 제가 이어서:
+
+🔹 **투자/시장 브리핑 프리셋용 RSS 리스트**
+🔹 **업무/생산성 프리셋용 RSS 리스트 (위외 소스)**
+🔹 **한국 사용자 특화 리소스 리스트** (국문 뉴스/포털 등)
+
+정리해서 드릴게요.
+어떤 순서로 만들까요?

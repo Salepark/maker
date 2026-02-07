@@ -312,7 +312,9 @@ const presetData: Array<{
         { name: "Reddit r/Entrepreneur", url: "https://www.reddit.com/r/Entrepreneur/.rss", topic: "work_productivity" },
         { name: "Reddit r/smallbusiness", url: "https://www.reddit.com/r/smallbusiness/.rss", topic: "work_productivity" },
         { name: "Reddit r/marketing", url: "https://www.reddit.com/r/marketing/.rss", topic: "work_productivity" },
-        { name: "Indie Hackers", url: "https://www.indiehackers.com/feed.xml", topic: "work_productivity" },
+        { name: "Lifehacker", url: "https://lifehacker.com/rss", topic: "work_productivity" },
+        { name: "Zapier Blog", url: "https://zapier.com/blog/feeds/latest/", topic: "work_productivity" },
+        { name: "HubSpot Marketing Blog", url: "https://blog.hubspot.com/marketing/rss.xml", topic: "work_productivity" },
         { name: "Medium Productivity", url: "https://medium.com/feed/tag/productivity", topic: "work_productivity" },
       ],
     },
@@ -365,11 +367,15 @@ const presetData: Array<{
       promotionLevel: "none",
       linkPolicy: "no-links",
       suggestedSources: [
-        { name: "Medium Trending", url: "https://medium.com/feed/trending", topic: "content_research" },
+        { name: "Medium Writing", url: "https://medium.com/feed/tag/writing", topic: "content_research" },
+        { name: "Medium Content Marketing", url: "https://medium.com/feed/tag/content-marketing", topic: "content_research" },
         { name: "Reddit Writing", url: "https://www.reddit.com/r/writing/.rss", topic: "content_research" },
         { name: "Reddit Blogging", url: "https://www.reddit.com/r/Blogging/.rss", topic: "content_research" },
-        { name: "Reddit Content Marketing", url: "https://www.reddit.com/r/content_marketing/.rss", topic: "content_research" },
-        { name: "Hacker News", url: "https://news.ycombinator.com/rss", topic: "content_research" },
+        { name: "Reddit Content Marketing", url: "https://www.reddit.com/r/contentmarketing/.rss", topic: "content_research" },
+        { name: "Lifehacker", url: "https://lifehacker.com/rss", topic: "content_research" },
+        { name: "Zapier Blog", url: "https://zapier.com/blog/feeds/latest/", topic: "content_research" },
+        { name: "HubSpot Marketing Blog", url: "https://blog.hubspot.com/marketing/rss.xml", topic: "content_research" },
+        { name: "Google News Content", url: "https://news.google.com/rss/search?q=content+marketing+OR+writing", topic: "content_research" },
       ],
     },
   },
@@ -404,14 +410,10 @@ const presetData: Array<{
 ];
 
 export async function seedDefaultSources() {
-  const existingDefaults = await db.select().from(sources).where(eq(sources.isDefault, true));
-  
-  if (existingDefaults.length > 0) {
-    console.log(`[seed] Default sources already exist (${existingDefaults.length} found), skipping seed`);
-    return;
-  }
+  const existingSources = await db.select().from(sources);
+  const existingUrls = new Set(existingSources.map(s => s.url));
 
-  console.log("[seed] Seeding default sources...");
+  console.log("[seed] Checking default sources...");
 
   const defaultSources = [
     {
@@ -438,9 +440,128 @@ export async function seedDefaultSources() {
       isDefault: true,
       enabled: true,
     },
+    {
+      name: "Medium Writing",
+      type: "rss",
+      url: "https://medium.com/feed/tag/writing",
+      topic: "content_research",
+      isDefault: true,
+      enabled: true,
+    },
+    {
+      name: "Medium Content Marketing",
+      type: "rss",
+      url: "https://medium.com/feed/tag/content-marketing",
+      topic: "content_research",
+      isDefault: true,
+      enabled: true,
+    },
+    {
+      name: "Reddit Writing",
+      type: "rss",
+      url: "https://www.reddit.com/r/writing/.rss",
+      topic: "content_research",
+      isDefault: true,
+      enabled: true,
+    },
+    {
+      name: "Reddit Blogging",
+      type: "rss",
+      url: "https://www.reddit.com/r/Blogging/.rss",
+      topic: "content_research",
+      isDefault: true,
+      enabled: true,
+    },
+    {
+      name: "Reddit Content Marketing",
+      type: "rss",
+      url: "https://www.reddit.com/r/contentmarketing/.rss",
+      topic: "content_research",
+      isDefault: true,
+      enabled: true,
+    },
+    {
+      name: "Lifehacker",
+      type: "rss",
+      url: "https://lifehacker.com/rss",
+      topic: "content_research",
+      isDefault: true,
+      enabled: true,
+    },
+    {
+      name: "Zapier Blog",
+      type: "rss",
+      url: "https://zapier.com/blog/feeds/latest/",
+      topic: "content_research",
+      isDefault: true,
+      enabled: true,
+    },
+    {
+      name: "HubSpot Marketing Blog",
+      type: "rss",
+      url: "https://blog.hubspot.com/marketing/rss.xml",
+      topic: "content_research",
+      isDefault: true,
+      enabled: true,
+    },
+    {
+      name: "Google News Content",
+      type: "rss",
+      url: "https://news.google.com/rss/search?q=content+marketing+OR+writing",
+      topic: "content_research",
+      isDefault: true,
+      enabled: true,
+    },
+    {
+      name: "Reddit r/productivity",
+      type: "rss",
+      url: "https://www.reddit.com/r/productivity/.rss",
+      topic: "work_productivity",
+      isDefault: true,
+      enabled: true,
+    },
+    {
+      name: "Reddit r/Entrepreneur",
+      type: "rss",
+      url: "https://www.reddit.com/r/Entrepreneur/.rss",
+      topic: "work_productivity",
+      isDefault: true,
+      enabled: true,
+    },
+    {
+      name: "Reddit r/smallbusiness",
+      type: "rss",
+      url: "https://www.reddit.com/r/smallbusiness/.rss",
+      topic: "work_productivity",
+      isDefault: true,
+      enabled: true,
+    },
+    {
+      name: "Reddit r/marketing",
+      type: "rss",
+      url: "https://www.reddit.com/r/marketing/.rss",
+      topic: "work_productivity",
+      isDefault: true,
+      enabled: true,
+    },
+    {
+      name: "Medium Productivity",
+      type: "rss",
+      url: "https://medium.com/feed/tag/productivity",
+      topic: "work_productivity",
+      isDefault: true,
+      enabled: true,
+    },
   ];
 
-  for (const source of defaultSources) {
+  const newSources = defaultSources.filter(s => !existingUrls.has(s.url));
+  
+  if (newSources.length === 0) {
+    console.log(`[seed] All ${defaultSources.length} default sources already exist, skipping`);
+    return;
+  }
+
+  for (const source of newSources) {
     try {
       await db.insert(sources).values(source);
     } catch (err: any) {
@@ -452,7 +573,7 @@ export async function seedDefaultSources() {
     }
   }
   
-  console.log(`[seed] Created default sources`);
+  console.log(`[seed] Added ${newSources.length} new default sources (total: ${defaultSources.length})`);
 }
 
 export async function runAllSeeds() {

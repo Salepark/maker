@@ -1,0 +1,13 @@
+| Category        | Source                          | RSS/Feed URL                                                                                                                           |
+| --------------- | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| 🎯 Writing      | Medium – tag: writing           | [https://medium.com/feed/tag/writing](https://medium.com/feed/tag/writing)                                                             |
+| 🎯 Marketing    | Medium – tag: content-marketing | [https://medium.com/feed/tag/content-marketing](https://medium.com/feed/tag/content-marketing)                                         |
+| 📚 General      | Medium Feed                     | [https://medium.com/feed/](https://medium.com/feed/)                                                                                   |
+| 👥 Community    | Reddit: /r/writing              | [https://www.reddit.com/r/writing/.rss](https://www.reddit.com/r/writing/.rss)                                                         |
+| 👥 Community    | Reddit: /r/blogging             | [https://www.reddit.com/r/blogging/.rss](https://www.reddit.com/r/blogging/.rss)                                                       |
+| 🧑‍💼 Business  | Reddit: /r/contentmarketing     | [https://www.reddit.com/r/contentmarketing/.rss](https://www.reddit.com/r/contentmarketing/.rss)                                       |
+| 🧠 Productivity | Lifehacker RSS                  | [https://lifehacker.com/rss](https://lifehacker.com/rss)                                                                               |
+| 💡 Workflow     | Zapier Blog RSS                 | [https://zapier.com/blog/rss](https://zapier.com/blog/rss)                                                                             |
+| 📈 Marketing    | HubSpot Blog RSS                | [https://blog.hubspot.com/marketing/rss.xml](https://blog.hubspot.com/marketing/rss.xml)                                               |
+| 📖 Indie        | Indie Hackers Feed              | [https://www.indiehackers.com/feed](https://www.indiehackers.com/feed)                                                                 |
+| 📰 News         | Google News content search      | [https://news.google.com/rss/search?q=content+marketing+OR+writing](https://news.google.com/rss/search?q=content+marketing+OR+writing) |
