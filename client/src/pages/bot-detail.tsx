@@ -96,7 +96,7 @@ export default function BotDetail() {
     tldr: true, drivers: true, risk: true, checklist: true, sources: true,
   });
   const [minImportanceScore, setMinImportanceScore] = useState(0);
-  const [llmProviderId, setLlmProviderId] = useState<string>("system");
+  const [llmProviderId, setLlmProviderId] = useState<string>("");
   const [modelOverride, setModelOverride] = useState("");
 
   const { data: botResponse, isLoading } = useQuery<{ bot: BotData }>({
@@ -140,7 +140,7 @@ export default function BotDetail() {
   const modelHints = MODEL_HINTS[providerType] || [];
 
   const providerWasDeleted = botSettings?.llmProviderId != null
-    && llmProviderId === "system"
+    && llmProviderId === ""
     && !availableProviders.some(p => p.id === botSettings?.llmProviderId);
 
   useEffect(() => {
@@ -165,9 +165,9 @@ export default function BotDetail() {
       }
       if (botSettings.llmProviderId) {
         const providerExists = availableProviders.some(p => p.id === botSettings.llmProviderId);
-        setLlmProviderId(providerExists ? String(botSettings.llmProviderId) : "system");
+        setLlmProviderId(providerExists ? String(botSettings.llmProviderId) : "");
       } else {
-        setLlmProviderId("system");
+        setLlmProviderId("");
       }
       setModelOverride(botSettings.modelOverride || "");
     }
@@ -215,7 +215,7 @@ export default function BotDetail() {
         markdownLevel,
         sectionsJson: sections,
         filtersJson: { minImportanceScore },
-        llmProviderId: llmProviderId === "system" ? null : parseInt(llmProviderId),
+        llmProviderId: llmProviderId ? parseInt(llmProviderId) : null,
         modelOverride: modelOverride || null,
       });
     },
@@ -351,10 +351,9 @@ export default function BotDetail() {
               <Label>LLM Provider</Label>
               <Select value={llmProviderId} onValueChange={setLlmProviderId}>
                 <SelectTrigger data-testid="select-llm-provider">
-                  <SelectValue />
+                  <SelectValue placeholder="Select your AI provider" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="system">System Default (Anthropic Claude)</SelectItem>
                   {availableProviders.map((p) => (
                     <SelectItem key={p.id} value={String(p.id)}>{p.name} ({p.providerType})</SelectItem>
                   ))}
@@ -362,7 +361,7 @@ export default function BotDetail() {
               </Select>
               {availableProviders.length === 0 && (
                 <p className="text-xs text-muted-foreground">
-                  No custom providers yet. Add one in Settings to use your own API keys.
+                  No AI providers yet. Go to Settings to add your own API key first.
                 </p>
               )}
             </div>
