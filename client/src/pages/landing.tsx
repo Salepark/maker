@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Bot, Layers, Rss, Settings, Zap, ArrowRight, TrendingUp, BookOpen, Building2, Newspaper, ChevronDown, Key, MessageSquare } from "lucide-react";
+import { Bot, Layers, Rss, Settings, Zap, ArrowRight, TrendingUp, BookOpen, Building2, Newspaper, ChevronDown, Key, MessageSquare, PenTool } from "lucide-react";
 import { ShareButton } from "@/components/share-button";
 
 const useCases = [
@@ -24,6 +24,11 @@ const useCases = [
     icon: Newspaper,
     title: "Community Research",
     description: "Follow Reddit, Hacker News, and niche communities. Understand emerging trends and community sentiment in your space.",
+  },
+  {
+    icon: PenTool,
+    title: "Content Ideas & Research",
+    description: "Automatically collect trending topics, blog ideas, and content inspiration from Medium, Reddit, and more. Perfect for bloggers, newsletter writers, and content planners.",
   },
   {
     icon: MessageSquare,

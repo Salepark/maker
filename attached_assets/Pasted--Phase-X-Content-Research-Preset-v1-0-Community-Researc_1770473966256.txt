@@ -1,0 +1,189 @@
+✅ Phase X — Content Research Preset (유저 유입용) 추가 지시서 v1.0
+🎯 목표
+
+기존 “Community Research Helper” 대신,
+일반 콘텐츠 제작자(블로거, 뉴스레터, 기획자)가 바로 쓸 수 있는 프리셋을 추가한다.
+
+프리셋 이름:
+
+Content Ideas & Research Assistant
+
+포지션:
+
+“글 쓸 재료를 자동으로 모아주고, 요약하고, 아이디어로 정리해주는 AI 비서”
+
+1️⃣ 프리셋 메타데이터 추가
+
+Preset Gallery에 새 프리셋 1개 추가:
+
+key: content_research
+
+name: Content Ideas & Research Assistant
+
+category: Research 또는 Content
+
+description (Korean):
+
+블로그, 뉴스레터, 콘텐츠 기획을 위한 자료를 자동으로 수집하고,
+요즘 사람들이 무엇에 관심 있는지 요약해 주는 리서치 보조 AI 비서입니다.
+글감 찾기, 트렌드 파악, 초안 준비까지 자동화할 수 있습니다.
+
+
+badge color: 콘텐츠 계열용 (예: purple 또는 indigo)
+
+2️⃣ 기본 워크플로우 설정 (defaultConfigJson)
+
+이 프리셋으로 봇 생성 시 기본값:
+
+schedule:
+
+type: daily
+
+time: 09:00 (사용자 로컬 기준)
+
+outputFormat:
+
+type: brief + ideas
+
+style: neutral, simple
+
+behavior:
+
+promotional: false
+
+links: optional
+
+tone: “정리해주는 리서치 어시스턴트”
+
+approval:
+
+requireHumanApproval: true
+
+요약하면:
+
+매일 한 번, 콘텐츠 트렌드 + 아이디어 요약 리포트를 만들고,
+반드시 사람 검토 후 사용하게 한다.
+
+3️⃣ 기본 소스(Default Sources) 구성 (전부 체크 ON)
+
+“기술 커뮤니티”가 아니라, 콘텐츠 만드는 사람들이 실제로 모이는 곳 위주:
+
+영어권 기준 예시 (RSS/공개 피드)
+
+Medium – Trending / Popular
+
+Substack – Discover / Trending (가능한 공개 피드)
+
+Reddit:
+
+r/writing
+
+r/blogging
+
+r/contentmarketing
+
+Google News – Topic: “Content Marketing” or “Writing”
+
+이 소스들은:
+
+평가자가 아니라 “쓰는 사람”이 있는 곳
+
+글감, 고민, 트렌드가 자연스럽게 올라오는 곳
+
+UI에서는:
+
+섹션 제목: Default Sources
+
+설명 문구:
+
+기본 소스는 일반적으로 널리 사용되는 공개 채널입니다.
+더 전문적인 소스는 직접 추가할 수 있습니다.
+
+모든 기본 소스: 기본 체크 ON
+
+4️⃣ Wizard UI 동작
+
+Configure 단계에서:
+
+✅ “Recommended / Optional” 구분 제거
+
+✅ “Default Sources”만 표시
+
+✅ 모두 체크된 상태로 시작
+
+✅ 하단에:
+
+“Add your own source” 입력칸 (Name + URL)
+
+✅ 사용자가 커스텀 소스 추가 가능
+
+✅ 생성 시:
+
+기본 소스 + 커스텀 소스 모두 함께 연결
+
+5️⃣ 생성된 봇의 기본 역할 문구
+
+Bot Detail 상단 “이 봇의 워크플로우” 요약에:
+
+역할:
+
+콘텐츠 아이디어와 트렌드를 수집하고 요약하는 리서치 보조 AI
+
+하는 일:
+
+요즘 많이 이야기되는 주제 수집
+
+글감 후보 요약
+
+“이걸로 글 쓰면 좋겠다” 아이디어 정리
+
+6️⃣ 콘솔(Command) 사용 예시 가이드 문구 추가
+
+Console placeholder 또는 Help 텍스트에 예시 추가:
+
+“오늘 수집한 자료 요약해줘”
+
+“요즘 블로그 글감으로 좋은 주제 정리해줘”
+
+“이걸 뉴스레터 아이디어로 정리해줘”
+
+“콘텐츠 기획 회의용 메모로 바꿔줘”
+
+7️⃣ 랜딩/대시보드 카드 문구 (있다면)
+
+카드 제목:
+
+✍️ Content Ideas & Research Assistant
+
+서브텍스트:
+
+매일 글감과 트렌드를 자동으로 모아주는 콘텐츠 리서치 AI 비서
+
+CTA:
+
+이 구성으로 시작하기
+
+8️⃣ 성공 기준 (Acceptance Criteria)
+
+Preset Gallery에 “Content Ideas & Research Assistant” 표시됨
+
+클릭 → Wizard → Default Sources 전부 체크된 상태로 보임
+
+커스텀 소스 추가 가능
+
+생성 후 Bot Detail에서 워크플로우 요약 정상 표시
+
+Console에서 명령어 입력 시 정상 동작
+
+Draft/Report 생성 → 승인 플로우 유지
+
+🔥 이 프리셋의 역할 (전략적으로)
+
+이건:
+
+❌ “기술적으로 멋진 데모”가 아니라
+
+✅ “아, 이거 나 쓰겠다” 소리 나오게 만드는 입구 상품
+
+즉,
+Makelr의 ‘첫인상’과 ‘입문자 경험’을 책임지는 대표 프리셋입니다.

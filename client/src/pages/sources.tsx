@@ -90,6 +90,7 @@ const TOPICS = [
   { value: "health", label: "Health" },
   { value: "science", label: "Science" },
   { value: "education", label: "Education" },
+  { value: "content_research", label: "Content Research" },
   { value: "gaming", label: "Gaming" },
   { value: "sustainability", label: "Sustainability" },
   { value: "other", label: "Other" },

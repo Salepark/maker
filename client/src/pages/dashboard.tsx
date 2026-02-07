@@ -8,7 +8,7 @@ import {
   FileText, Search, Edit, CheckCircle, Send, XCircle, Clock, RefreshCw,
   Activity, AlertTriangle, Zap, Bot as BotIcon, ArrowRight, Settings,
   Newspaper, Eye, Scale, GraduationCap, ShoppingBag, MessageSquare, TrendingUp, Users, Sparkles,
-  Layers, Rss, FileBarChart, Briefcase, BookOpen, Building2, Key, CircleDot
+  Layers, Rss, FileBarChart, Briefcase, BookOpen, Building2, Key, CircleDot, PenTool
 } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { Link, useLocation } from "wouter";
@@ -89,7 +89,7 @@ interface Preset {
 }
 
 const iconMap: Record<string, typeof Newspaper> = {
-  Newspaper, Eye, Scale, GraduationCap, ShoppingBag, MessageSquare, TrendingUp, Users, Search, Briefcase, BookOpen, Building2,
+  Newspaper, Eye, Scale, GraduationCap, ShoppingBag, MessageSquare, TrendingUp, Users, Search, Briefcase, BookOpen, Building2, PenTool,
 };
 
 const topicColors: Record<string, string> = {
@@ -102,6 +102,7 @@ const topicColors: Record<string, string> = {
   market_brief: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200",
   research_watch: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200",
   competitor_watch: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
+  content_research: "bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200",
 };
 
 const statusIcons: Record<string, React.ReactNode> = {
