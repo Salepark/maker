@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Save, Loader2, Brain, Clock, FileText, Filter, Rss, AlertTriangle, Layers } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Brain, Clock, FileText, Filter, Rss, AlertTriangle, Layers, Plus, X } from "lucide-react";
 
 interface BotSettings {
   id: number;
@@ -117,6 +117,10 @@ export default function BotDetail() {
     enabled: !!botId,
   });
 
+  const { data: allSourcesResponse } = useQuery<{ id: number; name: string; url: string; topic: string }[]>({
+    queryKey: ["/api/sources"],
+  });
+
   const { data: providersResponse } = useQuery<{ providers: LlmProviderSafe[] }>({
     queryKey: ["/api/llm-providers"],
     queryFn: () => fetch("/api/llm-providers", { credentials: "include" }).then(r => r.json()),
@@ -125,7 +129,11 @@ export default function BotDetail() {
   const bot = botResponse?.bot;
   const botSettings = settingsResponse?.settings;
   const botSources = sourcesResponse?.links ?? [];
+  const allSources = allSourcesResponse ?? [];
   const availableProviders = providersResponse?.providers ?? [];
+
+  const linkedSourceIds = new Set(botSources.map(s => s.id));
+  const unlinkedSources = allSources.filter(s => !linkedSourceIds.has(s.id));
 
   const selectedProvider = availableProviders.find(p => String(p.id) === llmProviderId);
   const providerType = selectedProvider?.providerType || "anthropic";
@@ -164,6 +172,37 @@ export default function BotDetail() {
       setModelOverride(botSettings.modelOverride || "");
     }
   }, [botSettings, availableProviders]);
+
+  const addSourceMutation = useMutation({
+    mutationFn: async (sourceId: number) => {
+      const currentLinks = botSources.map(s => ({ sourceId: s.id, weight: s.weight, isEnabled: s.isEnabled }));
+      currentLinks.push({ sourceId, weight: 3, isEnabled: true });
+      await apiRequest("PUT", `/api/bots/${botId}/sources`, { links: currentLinks });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bots", botId, "sources"] });
+      toast({ title: "Source linked to bot" });
+    },
+    onError: () => {
+      toast({ title: "Failed to link source", variant: "destructive" });
+    },
+  });
+
+  const removeSourceMutation = useMutation({
+    mutationFn: async (sourceId: number) => {
+      const currentLinks = botSources
+        .filter(s => s.id !== sourceId)
+        .map(s => ({ sourceId: s.id, weight: s.weight, isEnabled: s.isEnabled }));
+      await apiRequest("PUT", `/api/bots/${botId}/sources`, { links: currentLinks });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bots", botId, "sources"] });
+      toast({ title: "Source removed from bot" });
+    },
+    onError: () => {
+      toast({ title: "Failed to remove source", variant: "destructive" });
+    },
+  });
 
   const saveBotMutation = useMutation({
     mutationFn: async () => {
@@ -496,11 +535,11 @@ export default function BotDetail() {
             </CardTitle>
             <CardDescription>Sources feeding data to this bot</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="grid gap-4">
             {botSources.length === 0 ? (
-              <div className="text-center py-6 text-muted-foreground" data-testid="text-no-sources">
+              <div className="text-center py-4 text-muted-foreground" data-testid="text-no-sources">
                 <p>No sources linked yet.</p>
-                <p className="text-xs mt-1">Go to Sources page to add RSS feeds, then link them here.</p>
+                <p className="text-xs mt-1">Add sources below to start collecting data for this bot.</p>
               </div>
             ) : (
               <div className="grid gap-2">
@@ -512,12 +551,50 @@ export default function BotDetail() {
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
                       <span className="text-xs text-muted-foreground">weight: {source.weight}</span>
-                      <Badge variant={source.isEnabled ? "default" : "secondary"}>
-                        {source.isEnabled ? "Active" : "Off"}
-                      </Badge>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => removeSourceMutation.mutate(source.id)}
+                        disabled={removeSourceMutation.isPending}
+                        data-testid={`button-unlink-source-${source.id}`}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {unlinkedSources.length > 0 && (
+              <div className="grid gap-2">
+                <p className="text-sm font-medium text-muted-foreground">Available Sources</p>
+                {unlinkedSources.map(source => (
+                  <div key={source.id} className="flex items-center justify-between gap-2 p-3 rounded-md border border-dashed" data-testid={`available-source-${source.id}`}>
+                    <div className="min-w-0 flex-1">
+                      <span className="font-medium">{source.name}</span>
+                      <Badge variant="secondary" className="ml-2">{source.topic}</Badge>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => addSourceMutation.mutate(source.id)}
+                      disabled={addSourceMutation.isPending}
+                      data-testid={`button-link-source-${source.id}`}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {unlinkedSources.length === 0 && botSources.length === 0 && (
+              <div className="text-center py-2">
+                <Button variant="outline" onClick={() => setLocation("/sources")} data-testid="button-go-to-sources">
+                  Go to Sources Page
+                </Button>
               </div>
             )}
           </CardContent>
