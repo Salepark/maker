@@ -125,9 +125,8 @@ async function execRunNow(userId: string, cmd: ChatCommand): Promise<ExecutionRe
           const allPresets = await storage.listPresets();
           const reportPresets = allPresets.filter(p => p.outputType === "report");
           const matchingPreset = reportPresets.find(p => {
-            const cfg = (p.defaultConfigJson as any) || {};
-            const topics = cfg.topicVariants?.map((v: any) => v.key) || [];
-            return topics.includes(topic) || p.key === topic;
+            const variants = (p.variantsJson as string[]) || [];
+            return variants.includes(topic) || p.key === topic;
           }) || reportPresets[0];
 
           if (!matchingPreset) {
@@ -166,11 +165,16 @@ async function execRunNow(userId: string, cmd: ChatCommand): Promise<ExecutionRe
               userId,
               botSources.map(s => ({ sourceId: s.id, weight: s.weight, isEnabled: s.isEnabled }))
             );
+          } else {
+            return { ok: false, assistantMessage: `Bot '${bot.name}' has no sources. Please add sources first using 'add source' command or from the Sources page.`, executed: cmd, result: null };
           }
         }
         result = await runReportNow(profile.id, userId);
+        if (!result) {
+          return { ok: false, assistantMessage: `Report generation failed. The bot may have no sources or no recent items to analyze. Add sources and run collection first.`, executed: cmd, result: null };
+        }
         const topicLabel = topic === "ai_art" ? "AI Art" : topic;
-        message = `${topicLabel} report generated. Check the Reports page to view it.`;
+        message = `${topicLabel} report generated. (${result.itemsCount} item(s) analyzed)\nCheck the Reports page to view it.`;
         break;
       }
       default:

@@ -346,10 +346,66 @@ export async function registerRoutes(
         return res.status(401).json({ ok: false, error: "Unauthorized" });
       }
 
-      const profileId = req.body?.profileId ? parseInt(req.body.profileId) : undefined;
+      let profileId = req.body?.profileId ? parseInt(req.body.profileId) : undefined;
+      const botId = req.body?.botId ? parseInt(req.body.botId) : undefined;
+
+      if (!profileId && botId) {
+        const bot = await storage.getBot(botId, userId);
+        if (!bot) {
+          return res.status(404).json({ ok: false, error: "Bot not found" });
+        }
+        let profile = await storage.getProfileByUserAndTopic(userId, bot.key);
+        if (!profile) {
+          const allPresets = await storage.listPresets();
+          const reportPresets = allPresets.filter(p => p.outputType === "report");
+          const matchingPreset = reportPresets.find(p => {
+            const variants = (p.variantsJson as string[]) || [];
+            return variants.includes(bot.key) || p.key === bot.key;
+          }) || reportPresets[0];
+
+          if (!matchingPreset) {
+            return res.status(400).json({ ok: false, error: "No report template found." });
+          }
+
+          const settings = bot.settings;
+          const scheduleCron = settings
+            ? `${settings.scheduleTimeLocal?.split(":")[1] || "0"} ${settings.scheduleTimeLocal?.split(":")[0] || "7"} * * ${settings.scheduleRule === "WEEKDAYS" ? "1-5" : settings.scheduleRule === "WEEKENDS" ? "0,6" : "*"}`
+            : "0 7 * * *";
+
+          profile = await storage.createProfile({
+            userId,
+            presetId: matchingPreset.id,
+            name: bot.name,
+            topic: bot.key,
+            timezone: settings?.timezone || "Asia/Seoul",
+            scheduleCron,
+            configJson: {
+              sections: settings?.sectionsJson || { tldr: true, drivers: true, risk: true, checklist: true, sources: true },
+              filters: settings?.filtersJson || { minImportanceScore: 0 },
+              verbosity: settings?.verbosity || "normal",
+              markdownLevel: settings?.markdownLevel || "minimal",
+              scheduleRule: settings?.scheduleRule || "DAILY",
+              scheduleTimeLocal: settings?.scheduleTimeLocal || "07:00",
+            },
+            isActive: bot.isEnabled,
+          });
+
+          const botSources = await storage.getBotSources(botId);
+          if (botSources.length === 0) {
+            await storage.deleteProfile(profile.id, userId);
+            return res.status(400).json({ ok: false, error: "This bot has no sources. Please add sources first from the Sources page or using the Console." });
+          }
+          await storage.setProfileSources(
+            profile.id,
+            userId,
+            botSources.map(s => ({ sourceId: s.id, weight: s.weight, isEnabled: s.isEnabled }))
+          );
+        }
+        profileId = profile.id;
+      }
       
       if (!profileId) {
-        return res.status(400).json({ ok: false, error: "profileId is required" });
+        return res.status(400).json({ ok: false, error: "profileId or botId is required" });
       }
 
       const profile = await storage.getProfile(profileId, userId);
@@ -361,9 +417,12 @@ export async function registerRoutes(
       res.json({ ok: true, result });
     } catch (error: any) {
       console.error("Error generating report:", error);
-      const msg = error?.message?.includes("LLM_API_KEY")
-        ? "AI key not configured. Please add an AI Provider in Settings."
-        : `Report generation failed: ${error?.message ?? "Unknown error"}`;
+      let msg = error?.message ?? "Unknown error";
+      if (msg.includes("LLM_API_KEY")) {
+        msg = "AI key not configured. Please add an AI Provider in Settings.";
+      } else if (msg.includes("No sources linked")) {
+        msg = "This bot has no sources linked. Please add sources first from the Sources page.";
+      }
       res.status(500).json({ ok: false, error: msg });
     }
   });

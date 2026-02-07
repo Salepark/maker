@@ -244,19 +244,19 @@ export async function generateReportForProfile(profileId: number, userId?: strin
 
   if (!profile) {
     console.error(`[ReportJob] Profile ${profileId} not found`);
-    return null;
+    throw new Error(`Profile not found. Please create a bot from the Template Gallery first.`);
   }
 
   if (userId && profile.userId !== userId) {
     console.error(`[ReportJob] Profile ${profileId} does not belong to user ${userId}`);
-    return null;
+    throw new Error(`Profile does not belong to this user.`);
   }
 
   const sourceIds = await storage.getProfileSourceIds(profile.id);
   
   if (sourceIds.length === 0) {
     console.error(`[ReportJob] Profile ${profileId} has no sources linked`);
-    return null;
+    throw new Error(`No sources linked to this bot. Add sources first using 'add source' command or from the Sources page.`);
   }
 
   const now = new Date();

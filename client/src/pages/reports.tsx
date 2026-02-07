@@ -32,6 +32,14 @@ interface Profile {
   presetName: string;
 }
 
+interface BotInfo {
+  id: number;
+  key: string;
+  name: string;
+  isEnabled: boolean;
+  settings?: any;
+}
+
 function formatDateTime(iso: string) {
   try {
     return new Intl.DateTimeFormat("en-US", {
@@ -60,19 +68,56 @@ function getTopicColor(topic: string) {
 export default function Reports() {
   const { toast } = useToast();
   const [selectedReportId, setSelectedReportId] = useState<number | null>(null);
-  const [selectedProfileId, setSelectedProfileId] = useState<string>("all");
+  const [selectedFilter, setSelectedFilter] = useState<string>("all");
   const [copied, setCopied] = useState(false);
 
   const { data: profiles = [] } = useQuery<Profile[]>({
     queryKey: ["/api/profiles"],
   });
 
+  const { data: botsData } = useQuery<{ bots: BotInfo[] }>({
+    queryKey: ["/api/bots"],
+  });
+  const bots = botsData?.bots || [];
+
+  const filterOptions = useMemo(() => {
+    const options: { value: string; label: string; type: "profile" | "bot" }[] = [];
+    
+    const profileTopics = new Set(profiles.map(p => p.topic));
+    
+    profiles.filter(p => p.isActive).forEach(profile => {
+      options.push({
+        value: `profile:${profile.id}`,
+        label: profile.name,
+        type: "profile",
+      });
+    });
+    
+    bots.filter(b => b.isEnabled && !profileTopics.has(b.key)).forEach(bot => {
+      options.push({
+        value: `bot:${bot.id}`,
+        label: bot.name,
+        type: "bot",
+      });
+    });
+    
+    return options;
+  }, [profiles, bots]);
+
+  const selectedProfileIdForQuery = useMemo(() => {
+    if (selectedFilter === "all") return undefined;
+    if (selectedFilter.startsWith("profile:")) {
+      return parseInt(selectedFilter.split(":")[1]);
+    }
+    return undefined;
+  }, [selectedFilter]);
+
   const { data: reports, isLoading, refetch } = useQuery<Report[]>({
-    queryKey: ["/api/reports", selectedProfileId],
+    queryKey: ["/api/reports", selectedProfileIdForQuery],
     queryFn: async () => {
-      const url = selectedProfileId === "all" 
-        ? "/api/reports" 
-        : `/api/reports?profileId=${selectedProfileId}`;
+      const url = selectedProfileIdForQuery 
+        ? `/api/reports?profileId=${selectedProfileIdForQuery}` 
+        : "/api/reports";
       const res = await fetch(url, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch reports");
       return res.json();
@@ -108,15 +153,20 @@ export default function Reports() {
   }, [selectedReport, toast]);
 
   const generateMutation = useMutation({
-    mutationFn: async (profileId?: number) => {
-      const res = await apiRequest("POST", "/api/reports/generate", { profileId });
-      return res.json();
+    mutationFn: async (params: { profileId?: number; botId?: number }) => {
+      const res = await apiRequest("POST", "/api/reports/generate", params);
+      const data = await res.json();
+      if (!data.ok && data.error) {
+        throw new Error(data.error);
+      }
+      return data;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/reports"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/profiles"] });
       toast({
         title: "Report Generated",
-        description: data.result ? `Report created successfully` : "Reports generated for due profiles",
+        description: data.result ? `Report created successfully (${data.result.itemsCount} items analyzed)` : "Report generation complete",
       });
     },
     onError: (error: any) => {
@@ -128,11 +178,22 @@ export default function Reports() {
     },
   });
 
-  const activeProfiles = profiles.filter(p => p.isActive);
+  const handleGenerate = useCallback(() => {
+    if (selectedFilter === "all") return;
+    
+    if (selectedFilter.startsWith("profile:")) {
+      generateMutation.mutate({ profileId: parseInt(selectedFilter.split(":")[1]) });
+    } else if (selectedFilter.startsWith("bot:")) {
+      generateMutation.mutate({ botId: parseInt(selectedFilter.split(":")[1]) });
+    }
+  }, [selectedFilter, generateMutation]);
+
+  const canGenerate = selectedFilter !== "all";
 
   const getProfileName = (profileId: number) => {
     const profile = profiles.find(p => p.id === profileId);
-    return profile?.name || `Profile #${profileId}`;
+    if (profile) return profile.name;
+    return `Profile #${profileId}`;
   };
 
   return (
@@ -148,17 +209,17 @@ export default function Reports() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <Select value={selectedProfileId} onValueChange={setSelectedProfileId}>
+          <Select value={selectedFilter} onValueChange={setSelectedFilter}>
             <SelectTrigger className="w-48" data-testid="select-profile">
-              <SelectValue placeholder="Select profile" />
+              <SelectValue placeholder="Select bot" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Reports</SelectItem>
-              {activeProfiles.map((profile) => (
-                <SelectItem key={profile.id} value={String(profile.id)}>
+              {filterOptions.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
                   <div className="flex items-center gap-2">
                     <Bot className="h-3 w-3" />
-                    {profile.name}
+                    {opt.label}
                   </div>
                 </SelectItem>
               ))}
@@ -173,12 +234,8 @@ export default function Reports() {
             <RefreshCw className="h-4 w-4" />
           </Button>
           <Button
-            onClick={() => {
-              if (selectedProfileId !== "all") {
-                generateMutation.mutate(parseInt(selectedProfileId));
-              }
-            }}
-            disabled={generateMutation.isPending || selectedProfileId === "all"}
+            onClick={handleGenerate}
+            disabled={generateMutation.isPending || !canGenerate}
             data-testid="button-generate-report"
           >
             {generateMutation.isPending ? (
@@ -210,11 +267,11 @@ export default function Reports() {
                 <div className="p-6 text-center">
                   <FileText className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
                   <p className="text-sm text-muted-foreground">No reports yet.</p>
-                  {selectedProfileId !== "all" && (
+                  {canGenerate && (
                     <Button
                       size="sm"
                       className="mt-3"
-                      onClick={() => generateMutation.mutate(parseInt(selectedProfileId))}
+                      onClick={handleGenerate}
                       disabled={generateMutation.isPending}
                       data-testid="button-generate-first-report"
                     >
@@ -225,6 +282,16 @@ export default function Reports() {
                       )}
                       Generate Report
                     </Button>
+                  )}
+                  {!canGenerate && bots.length > 0 && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Select a bot from the dropdown above to generate a report.
+                    </p>
+                  )}
+                  {!canGenerate && bots.length === 0 && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Create a bot first from the Template Gallery.
+                    </p>
                   )}
                 </div>
               )}
