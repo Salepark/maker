@@ -1,5 +1,5 @@
 import type { ChatCommand } from "@shared/chatCommand";
-import { runCollectNow, runAnalyzeNow, runDraftNow, runDailyBriefNow } from "../jobs/scheduler";
+import { runCollectNow, runAnalyzeNow, runDraftNow, runReportNow } from "../jobs/scheduler";
 import { storage } from "../storage";
 
 export interface ExecutionResult {
@@ -115,11 +115,62 @@ async function execRunNow(userId: string, cmd: ChatCommand): Promise<ExecutionRe
         break;
       case "report": {
         const topic = cmd.botKey || "ai_art";
-        const lookback = clamp(cmd.args?.lookbackHours || 24, 1, 168);
-        const maxItems = clamp(cmd.args?.maxItems || 12, 5, 30);
-        result = await runDailyBriefNow(topic, lookback, maxItems);
+        let profile = await storage.getProfileByUserAndTopic(userId, topic);
+        if (!profile) {
+          const bot = await storage.getBotByKey(userId, topic);
+          if (!bot) {
+            return { ok: false, assistantMessage: `No bot found for topic '${topic}'. Create a bot first from the Template Gallery.`, executed: cmd, result: null };
+          }
+          const fullBot = await storage.getBot(bot.id, userId);
+          const allPresets = await storage.listPresets();
+          const reportPresets = allPresets.filter(p => p.outputType === "report");
+          const matchingPreset = reportPresets.find(p => {
+            const cfg = (p.defaultConfigJson as any) || {};
+            const topics = cfg.topicVariants?.map((v: any) => v.key) || [];
+            return topics.includes(topic) || p.key === topic;
+          }) || reportPresets[0];
+
+          if (!matchingPreset) {
+            return { ok: false, assistantMessage: `No report template found. Please create a bot from the Template Gallery first.`, executed: cmd, result: null };
+          }
+
+          const settings = fullBot?.settings;
+          const scheduleCron = settings
+            ? `${settings.scheduleTimeLocal?.split(":")[1] || "0"} ${settings.scheduleTimeLocal?.split(":")[0] || "7"} * * ${settings.scheduleRule === "WEEKDAYS" ? "1-5" : settings.scheduleRule === "WEEKENDS" ? "0,6" : "*"}`
+            : "0 7 * * *";
+
+          const defaultSections = { tldr: true, drivers: true, risk: true, checklist: true, sources: true };
+          const defaultFilters = { minImportanceScore: 0 };
+          profile = await storage.createProfile({
+            userId,
+            presetId: matchingPreset.id,
+            name: bot.name,
+            topic,
+            timezone: settings?.timezone || "Asia/Seoul",
+            scheduleCron,
+            configJson: {
+              sections: settings?.sectionsJson || defaultSections,
+              filters: settings?.filtersJson || defaultFilters,
+              verbosity: settings?.verbosity || "normal",
+              markdownLevel: settings?.markdownLevel || "minimal",
+              scheduleRule: settings?.scheduleRule || "DAILY",
+              scheduleTimeLocal: settings?.scheduleTimeLocal || "07:00",
+            },
+            isActive: bot.isEnabled,
+          });
+
+          const botSources = await storage.getBotSources(bot.id);
+          if (botSources.length > 0) {
+            await storage.setProfileSources(
+              profile.id,
+              userId,
+              botSources.map(s => ({ sourceId: s.id, weight: s.weight, isEnabled: s.isEnabled }))
+            );
+          }
+        }
+        result = await runReportNow(profile.id, userId);
         const topicLabel = topic === "ai_art" ? "AI Art" : topic;
-        message = `${topicLabel} report generated. (${result.itemsCount} item(s) analyzed)`;
+        message = `${topicLabel} report generated. Check the Reports page to view it.`;
         break;
       }
       default:

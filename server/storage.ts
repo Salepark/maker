@@ -78,6 +78,7 @@ export interface IStorage {
   listProfiles(userId: string): Promise<(Profile & { presetName: string })[]>;
   getProfile(id: number, userId: string): Promise<(Profile & { presetName: string }) | undefined>;
   getProfileById(id: number): Promise<Profile | undefined>;
+  getProfileByUserAndTopic(userId: string, topic: string): Promise<Profile | undefined>;
   createProfile(data: InsertProfile): Promise<Profile>;
   updateProfile(id: number, userId: string, patch: Partial<InsertProfile>): Promise<Profile | undefined>;
   deleteProfile(id: number, userId: string): Promise<void>;
@@ -659,6 +660,16 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(profiles)
       .where(eq(profiles.id, id));
+    return result;
+  }
+
+  async getProfileByUserAndTopic(userId: string, topic: string): Promise<Profile | undefined> {
+    const [result] = await db
+      .select()
+      .from(profiles)
+      .where(and(eq(profiles.userId, userId), eq(profiles.topic, topic)))
+      .orderBy(desc(profiles.createdAt))
+      .limit(1);
     return result;
   }
 

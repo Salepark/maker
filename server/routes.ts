@@ -782,27 +782,63 @@ export async function registerRoutes(
         }
       }
 
+      const botTimezone = config.timezone || "Asia/Seoul";
+      const botScheduleRule = config.scheduleRule || "DAILY";
+      const botScheduleTime = config.scheduleTimeLocal || "07:00";
+      const botFilters = {
+        ...(config.filters || { minImportanceScore: 0 }),
+        ...(config.requireHumanApproval !== undefined && { requireHumanApproval: config.requireHumanApproval }),
+        ...(config.promotionLevel && { promotionLevel: config.promotionLevel }),
+        ...(config.linkPolicy && { linkPolicy: config.linkPolicy }),
+      };
+
       const bot = await storage.createBotFromPreset({
         userId,
         key: topic,
         name: String(name).trim(),
         settings: {
-          timezone: config.timezone || "Asia/Seoul",
-          scheduleRule: config.scheduleRule || "DAILY",
-          scheduleTimeLocal: config.scheduleTimeLocal || "07:00",
+          timezone: botTimezone,
+          scheduleRule: botScheduleRule,
+          scheduleTimeLocal: botScheduleTime,
           format: "clean",
           markdownLevel: config.markdownLevel || "minimal",
           verbosity: config.verbosity || "normal",
           sectionsJson: config.sections || { tldr: true, drivers: true, risk: true, checklist: true, sources: true },
-          filtersJson: {
-            ...(config.filters || { minImportanceScore: 0 }),
-            ...(config.requireHumanApproval !== undefined && { requireHumanApproval: config.requireHumanApproval }),
-            ...(config.promotionLevel && { promotionLevel: config.promotionLevel }),
-            ...(config.linkPolicy && { linkPolicy: config.linkPolicy }),
-          },
+          filtersJson: botFilters,
         },
         sourceData,
       });
+
+      const timeParts = botScheduleTime.split(":");
+      const cronMinute = timeParts[1] || "0";
+      const cronHour = timeParts[0] || "7";
+      const cronDow = botScheduleRule === "WEEKDAYS" ? "1-5" : botScheduleRule === "WEEKENDS" ? "0,6" : "*";
+      const scheduleCron = `${cronMinute} ${cronHour} * * ${cronDow}`;
+
+      const newProfile = await storage.createProfile({
+        userId,
+        presetId,
+        name: String(name).trim(),
+        topic,
+        timezone: botTimezone,
+        scheduleCron,
+        configJson: {
+          sections: config.sections || {},
+          filters: botFilters,
+          verbosity: config.verbosity || "normal",
+          markdownLevel: config.markdownLevel || "minimal",
+        },
+        isActive: true,
+      });
+
+      const botSources = await storage.getBotSources(bot.id);
+      if (botSources.length > 0) {
+        await storage.setProfileSources(
+          newProfile.id,
+          userId,
+          botSources.map(s => ({ sourceId: s.id, weight: s.weight, isEnabled: s.isEnabled }))
+        );
+      }
 
       const full = await storage.getBot(bot.id, userId);
       res.json({ bot: full });

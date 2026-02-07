@@ -53,12 +53,15 @@ The backend is built with Node.js and TypeScript using Express.js, providing RES
 ### Data Storage
 PostgreSQL is used as the primary database, managed with Drizzle ORM. Key tables include `users`, `sessions`, `sources`, `items`, `analysis`, `drafts`, `outputs`, and `llm_providers`. A universal `outputs` table stores various generated content, linked to specific users and profiles.
 
+### Bot-Profile Synchronization
+When a bot is created from a preset (`POST /api/bots/from-preset`), a matching profile is automatically created and linked with the bot's sources. This ensures reports generated via Console or Reports page are saved to the `outputs` table (the single source of truth for the Reports page). If a bot exists without a profile (legacy data), the Console's `run_now report` command auto-creates a profile on demand.
+
 ### Background Jobs
 Scheduled tasks, managed by node-cron, include:
 - **Collect Job**: Fetches new items from RSS feeds.
 - **Analyze Job**: Performs LLM-based analysis on collected items.
 - **Draft Job**: Generates reply drafts for analyzed items.
-- **Daily Brief Job**: Generates a daily market summary report in Korean.
+- **Report Job**: Generates reports for profiles with due schedules, saved to the `outputs` table.
 
 ### LLM Integration
 The system features a multi-provider LLM architecture, allowing users to "Bring Your Own LLM" (BYO LLM). It supports Anthropic, OpenAI, Google AI, and custom (OpenAI-compatible) providers. API keys are encrypted, and users can assign specific LLM providers and models to their bots. System-level jobs use a default LLM, while bot-specific operations can leverage user-configured providers. Prompts are topic-based, and outputs are structured JSON.
