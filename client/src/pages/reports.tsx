@@ -154,10 +154,15 @@ export default function Reports() {
 
   const generateMutation = useMutation({
     mutationFn: async (params: { profileId?: number; botId?: number }) => {
-      const res = await apiRequest("POST", "/api/reports/generate", params);
+      const res = await fetch("/api/reports/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(params),
+        credentials: "include",
+      });
       const data = await res.json();
-      if (!data.ok && data.error) {
-        throw new Error(data.error);
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || "Report generation failed");
       }
       return data;
     },

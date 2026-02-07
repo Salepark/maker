@@ -423,7 +423,8 @@ export async function registerRoutes(
       } else if (msg.includes("No sources linked")) {
         msg = "This bot has no sources linked. Please add sources first from the Sources page.";
       }
-      res.status(500).json({ ok: false, error: msg });
+      const statusCode = msg.includes("sources") || msg.includes("AI key") ? 400 : 500;
+      res.status(statusCode).json({ ok: false, error: msg });
     }
   });
 
