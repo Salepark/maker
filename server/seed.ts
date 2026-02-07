@@ -17,7 +17,7 @@ export async function seedPresets() {
     for (const p of presetData) {
       if (existingKeys.has(p.key)) {
         await db.update(presets)
-          .set({ defaultConfigJson: p.defaultConfigJson, icon: p.icon, category: p.category, description: p.description })
+          .set({ name: p.name, defaultConfigJson: p.defaultConfigJson, icon: p.icon, category: p.category, description: p.description, variantsJson: p.variantsJson })
           .where(eq(presets.key, p.key));
       }
     }
@@ -261,29 +261,59 @@ const presetData: Array<{
   },
   {
     key: "daily_market_brief_safe",
-    name: "Daily Market Brief (Safe)",
+    name: "Daily Market Brief Assistant",
     outputType: "report",
-    description: "A report workflow that safely summarizes market/industry news each morning. Focuses on information summary only — no promotion or links. This template is a starting point.",
+    description: "주식, 경제, 크립토 등 주요 시장 뉴스를 자동으로 수집해 오늘 무엇이 중요한지 한 눈에 볼 수 있는 요약 브리핑을 만들어주는 AI 비서입니다. 매일 아침 시장 흐름을 빠르게 파악하는 용도로 사용할 수 있습니다.",
     variantsJson: ["market_brief"],
     icon: "Briefcase",
     category: "finance",
     defaultConfigJson: {
       timezone: "Asia/Seoul",
       scheduleRule: "DAILY",
-      scheduleTimeLocal: "09:00",
+      scheduleTimeLocal: "08:00",
       markdownLevel: "minimal",
       verbosity: "normal",
-      sections: { tldr: true, drivers: true, risk: true, checklist: false, sources: true },
+      sections: { tldr: true, marketHighlights: true, whyItMatters: true, watchlist: true, sources: true },
       filters: { minImportanceScore: 30 },
       requireHumanApproval: true,
       promotionLevel: "none",
-      linkPolicy: "no-links",
+      linkPolicy: "optional",
       suggestedSources: [
         { name: "Reuters Business", url: "https://www.reutersagency.com/feed/", topic: "market_brief" },
+        { name: "Yahoo Finance", url: "https://finance.yahoo.com/news/rssindex", topic: "market_brief" },
+        { name: "Investing.com News", url: "https://www.investing.com/rss/news.rss", topic: "market_brief" },
+        { name: "Reddit r/investing", url: "https://www.reddit.com/r/investing/.rss", topic: "market_brief" },
+        { name: "Reddit r/stocks", url: "https://www.reddit.com/r/stocks/.rss", topic: "market_brief" },
         { name: "CNBC Top News", url: "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=100003114", topic: "market_brief" },
-        { name: "Bloomberg Markets", url: "https://feeds.bloomberg.com/markets/news.rss", topic: "market_brief" },
-        { name: "Financial Times", url: "https://www.ft.com/?format=rss", topic: "market_brief" },
-        { name: "WSJ Markets", url: "https://feeds.a.dj.com/rss/RSSMarketsMain.xml", topic: "market_brief" },
+      ],
+    },
+  },
+  {
+    key: "work_productivity",
+    name: "Work & Productivity Research Assistant",
+    outputType: "report",
+    description: "업무 생산성, 운영 노하우, 실무 아이디어, 도구 활용 사례 등을 자동으로 수집해 오늘의 업무 개선 힌트로 정리해 주는 리서치 보조 AI 비서입니다. 기획, 마케팅, 운영, 1인 비즈니스 실무에 바로 활용할 수 있습니다.",
+    variantsJson: ["work_productivity"],
+    icon: "Laptop",
+    category: "business",
+    defaultConfigJson: {
+      timezone: "Asia/Seoul",
+      scheduleRule: "DAILY",
+      scheduleTimeLocal: "09:00",
+      markdownLevel: "minimal",
+      verbosity: "normal",
+      sections: { todaysInsights: true, usefulIdeasTools: true, howToApply: true, quickSummary: true, sources: true },
+      filters: { minImportanceScore: 30 },
+      requireHumanApproval: true,
+      promotionLevel: "none",
+      linkPolicy: "optional",
+      suggestedSources: [
+        { name: "Reddit r/productivity", url: "https://www.reddit.com/r/productivity/.rss", topic: "work_productivity" },
+        { name: "Reddit r/Entrepreneur", url: "https://www.reddit.com/r/Entrepreneur/.rss", topic: "work_productivity" },
+        { name: "Reddit r/smallbusiness", url: "https://www.reddit.com/r/smallbusiness/.rss", topic: "work_productivity" },
+        { name: "Reddit r/marketing", url: "https://www.reddit.com/r/marketing/.rss", topic: "work_productivity" },
+        { name: "Indie Hackers", url: "https://www.indiehackers.com/feed.xml", topic: "work_productivity" },
+        { name: "Medium Productivity", url: "https://medium.com/feed/tag/productivity", topic: "work_productivity" },
       ],
     },
   },

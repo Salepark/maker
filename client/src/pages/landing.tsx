@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Bot, Layers, Rss, Settings, Zap, ArrowRight, TrendingUp, BookOpen, Building2, Newspaper, ChevronDown, Key, MessageSquare, PenTool } from "lucide-react";
+import { Bot, Layers, Rss, Settings, Zap, ArrowRight, TrendingUp, BookOpen, Building2, Newspaper, ChevronDown, Key, MessageSquare, PenTool, Laptop } from "lucide-react";
 import { ShareButton } from "@/components/share-button";
 
 const useCases = [
   {
     icon: TrendingUp,
     title: "Daily Market Brief",
-    description: "Aggregate financial news from Reuters, CNBC, Bloomberg and more. Get an AI-summarized market overview delivered every morning.",
+    description: "Collect market news from Reuters, Yahoo Finance, Reddit, and more. Get a concise AI-summarized briefing every morning before the market opens.",
   },
   {
     icon: BookOpen,
@@ -29,6 +29,11 @@ const useCases = [
     icon: PenTool,
     title: "Content Ideas & Research",
     description: "Automatically collect trending topics, blog ideas, and content inspiration from Medium, Reddit, and more. Perfect for bloggers, newsletter writers, and content planners.",
+  },
+  {
+    icon: Laptop,
+    title: "Work & Productivity Research",
+    description: "Automatically gather productivity tips, business ideas, and practical tools from Reddit, Indie Hackers, and Medium. A daily research memo for marketers, planners, and solopreneurs.",
   },
   {
     icon: MessageSquare,

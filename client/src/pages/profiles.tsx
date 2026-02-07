@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Bot as BotIcon, Trash2, Settings, Loader2, Newspaper, Eye, Scale, GraduationCap, ShoppingBag, MessageSquare, TrendingUp, Users, Sparkles, ArrowLeft, Rss, Clock, FileText, ChevronRight, Link2, Search, Briefcase, BookOpen, Building2, PenTool } from "lucide-react";
+import { Plus, Bot as BotIcon, Trash2, Settings, Loader2, Newspaper, Eye, Scale, GraduationCap, ShoppingBag, MessageSquare, TrendingUp, Users, Sparkles, ArrowLeft, Rss, Clock, FileText, ChevronRight, Link2, Search, Briefcase, BookOpen, Building2, PenTool, Laptop } from "lucide-react";
 
 interface SuggestedSource {
   name: string;
@@ -71,7 +71,7 @@ interface BotData {
 }
 
 const iconMap: Record<string, typeof Newspaper> = {
-  Newspaper, Eye, Scale, GraduationCap, ShoppingBag, MessageSquare, TrendingUp, Users, Search, Briefcase, BookOpen, Building2, PenTool,
+  Newspaper, Eye, Scale, GraduationCap, ShoppingBag, MessageSquare, TrendingUp, Users, Search, Briefcase, BookOpen, Building2, PenTool, Laptop,
 };
 
 const categoryLabels: Record<string, string> = {
@@ -82,6 +82,7 @@ const categoryLabels: Record<string, string> = {
   commerce: "Commerce",
   engagement: "Engagement",
   finance: "Finance",
+  work: "Work",
 };
 
 const topicColors: Record<string, string> = {
@@ -95,6 +96,7 @@ const topicColors: Record<string, string> = {
   research_watch: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200",
   competitor_watch: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
   content_research: "bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200",
+  work_productivity: "bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200",
 };
 
 const outputTypeColors: Record<string, string> = {

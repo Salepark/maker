@@ -43,6 +43,7 @@ export interface PresetDefaultConfig {
     risk?: boolean;
     checklist?: boolean;
     sources?: boolean;
+    [key: string]: boolean | undefined;
   };
   filters?: {
     minImportanceScore?: number;
@@ -55,7 +56,7 @@ export interface PresetDefaultConfig {
   }>;
   requireHumanApproval?: boolean;
   promotionLevel?: "none" | "subtle" | "moderate";
-  linkPolicy?: "no-links" | "allowed" | "cautious";
+  linkPolicy?: "no-links" | "allowed" | "cautious" | "optional";
 }
 
 // ============================================
