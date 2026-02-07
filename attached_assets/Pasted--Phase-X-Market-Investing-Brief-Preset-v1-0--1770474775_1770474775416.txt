@@ -1,0 +1,208 @@
+✅ Phase X — Market & Investing Brief Preset 추가 지시서 v1.0
+🎯 목표
+
+일반 개인 투자자 / 시장 팔로워가
+매일 아침 시장 요약 브리핑을 자동으로 받아보는 봇을
+클릭 몇 번으로 만들 수 있게 한다.
+
+프리셋 이름:
+
+Daily Market Brief Assistant
+
+포지션:
+
+“아침에 오늘 시장에서 중요한 것만 요약해 주는 투자 브리핑 AI 비서”
+
+1️⃣ 프리셋 메타데이터 추가
+
+Preset Gallery에 새 프리셋 1개 추가:
+
+key: market_brief
+
+name: Daily Market Brief Assistant
+
+category: Finance 또는 Research
+
+description (Korean):
+
+주식, 경제, 크립토 등 주요 시장 뉴스를 자동으로 수집해
+오늘 무엇이 중요한지 한 눈에 볼 수 있는 요약 브리핑을 만들어주는 AI 비서입니다.
+매일 아침 시장 흐름을 빠르게 파악하는 용도로 사용할 수 있습니다.
+
+
+badge color: finance 계열 (예: green 또는 emerald)
+
+2️⃣ 기본 워크플로우 설정 (defaultConfigJson)
+
+이 프리셋으로 봇 생성 시 기본값:
+
+schedule:
+
+type: daily
+
+time: 08:00 (사용자 로컬 기준, “장 시작 전에” 컨셉)
+
+outputFormat:
+
+type: brief
+
+sections:
+
+TL;DR (한 줄 요약)
+
+Market Highlights (주요 이슈)
+
+Why it matters (왜 중요한지)
+
+Watchlist (오늘 주목할 포인트)
+
+style: clean, simple, news-anchor tone
+
+behavior:
+
+promotional: false
+
+sensational: false
+
+links: optional
+
+tone: “차분한 뉴스 브리핑”
+
+approval:
+
+requireHumanApproval: true
+
+요약:
+
+매일 아침, 시장 요약 리포트 생성 → 사람 검토 후 사용
+
+3️⃣ 기본 소스(Default Sources) 구성 (전부 체크 ON)
+
+전문 투자자용이 아니라, 일반인이 많이 보는 “무난한 공용 소스” 위주
+
+예시 (영어권 기준, RSS/공개 피드)
+
+Reuters – Business / Markets
+
+Yahoo Finance – Top News / Markets
+
+Investing.com – Market News
+
+Google News – Topic: Business / Markets
+
+Reddit:
+
+r/investing
+
+r/stocks
+
+(선택) CNBC / Bloomberg 공개 뉴스 피드 중 접근 가능한 것
+
+UI 정책:
+
+섹션 제목: Default Sources
+
+설명 문구:
+
+기본 소스는 일반적으로 널리 사용되는 공개 시장 뉴스 채널입니다.
+더 전문적인 소스는 직접 추가할 수 있습니다.
+
+모든 기본 소스: 기본 체크 ON
+
+Recommended / Optional 구분 ❌ (없앰)
+
+4️⃣ Wizard UI 동작
+
+Configure 단계에서:
+
+✅ “Default Sources”만 표시
+
+✅ 모두 체크된 상태로 시작
+
+✅ “Add your own source” 입력칸 제공 (Name + URL)
+
+✅ 사용자가:
+
+자신이 보는 증권사 리서치
+
+특정 블로그
+
+특정 뉴스 피드
+등을 직접 추가 가능
+
+✅ 생성 시:
+
+기본 소스 + 커스텀 소스 모두 함께 연결
+
+5️⃣ 생성된 봇의 기본 역할 문구
+
+Bot Detail 상단 “이 봇의 워크플로우” 요약에:
+
+역할:
+
+매일 시장 뉴스와 주요 이슈를 요약해 주는 투자 브리핑 AI
+
+하는 일:
+
+주요 시장 뉴스 수집
+
+오늘의 핵심 이슈 요약
+
+투자 관점에서 왜 중요한지 정리
+
+오늘 주목할 포인트 목록화
+
+6️⃣ 콘솔(Command) 사용 예시 가이드 문구 추가
+
+Console placeholder / Help 예시:
+
+“오늘 시장 브리핑 요약해줘”
+
+“주식 시장 관점에서 핵심만 정리해줘”
+
+“오늘 투자자가 주목할 포인트 뽑아줘”
+
+“이걸 아침 브리핑 메모로 정리해줘”
+
+7️⃣ 대시보드 / 갤러리 카드 문구
+
+카드 제목:
+
+📈 Daily Market Brief Assistant
+
+서브텍스트:
+
+매일 아침, 시장에서 중요한 것만 요약해 주는 투자 브리핑 AI
+
+CTA:
+
+이 구성으로 시작하기
+
+8️⃣ 성공 기준 (Acceptance Criteria)
+
+Preset Gallery에 “Daily Market Brief Assistant” 표시됨
+
+Wizard에서 Default Sources 전부 체크된 상태로 보임
+
+커스텀 소스 추가 가능
+
+생성 후 Bot Detail에 워크플로우 요약 정상 표시
+
+매뉴얼 실행 / 스케줄 실행 시 브리핑 초안 생성됨
+
+승인 플로우 유지됨
+
+🧠 전략적 의미
+
+이 프리셋은:
+
+❌ “트레이딩 자동화”가 아니라
+
+✅ “정보 정리 자동화”에 집중
+
+✅ 일반인도 매일 쓰는 습관을 만들 수 있는 용도
+
+✅ “아침에 열어보는 이유”를 만들어 주는 프리셋
+
+즉,
+Makelr의 ‘데일리 유틸리티’ 포지션을 대표하는 프리셋입니다.
