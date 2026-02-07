@@ -355,7 +355,7 @@ export default function Sources() {
                         <Badge variant={source.enabled ? "default" : "secondary"}>
                           {source.enabled ? "Active" : "Disabled"}
                         </Badge>
-                        <Badge variant="outline">{source.topic === "ai_art" ? "AI Art" : "Investing"}</Badge>
+                        <Badge variant="outline">{TOPICS.find(t => t.value === source.topic)?.label ?? source.topic}</Badge>
                         <Badge variant="outline">
                           <Shield className="h-3 w-3 mr-1" />
                           {source.trustLevel}
