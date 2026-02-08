@@ -18,7 +18,7 @@ async function fetchRSS(feedUrl: string): Promise<string> {
   return response.text();
 }
 
-export async function collectFromSource(sourceId: number, feedUrl: string): Promise<number> {
+export async function collectFromSource(sourceId: number, feedUrl: string, sourceTopic?: string): Promise<number> {
   let collected = 0;
 
   try {
@@ -43,6 +43,7 @@ export async function collectFromSource(sourceId: number, feedUrl: string): Prom
           contentText: content || title,
           publishedAt,
           status: "new",
+          ...(sourceTopic ? { topic: sourceTopic } : {}),
         });
         collected++;
       } catch (error: any) {
@@ -68,7 +69,7 @@ export async function collectAllSources(): Promise<{ totalCollected: number; sou
     if (!source.enabled) continue;
 
     console.log(`Collecting from: ${source.name} (${source.url})`);
-    const collected = await collectFromSource(source.id, source.url);
+    const collected = await collectFromSource(source.id, source.url, source.topic);
     totalCollected += collected;
     sourcesProcessed++;
     console.log(`Collected ${collected} new items from ${source.name}`);

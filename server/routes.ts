@@ -162,7 +162,7 @@ export async function registerRoutes(
       if (!source) {
         return res.status(404).json({ error: "Source not found" });
       }
-      const count = await collectFromSource(id, source.url);
+      const count = await collectFromSource(id, source.url, source.topic);
       res.json({ collected: count });
     } catch (error) {
       console.error("Error collecting from source:", error);
