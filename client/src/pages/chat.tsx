@@ -135,7 +135,7 @@ const COMMUNITY_RESEARCH_HINTS: BotHint[] = [
 ];
 
 const BOT_SPECIFIC_HINTS: Record<string, BotHint[]> = {
-  community_research: COMMUNITY_RESEARCH_HINTS,
+  content_research: COMMUNITY_RESEARCH_HINTS,
 };
 
 const ALL_HINTS: Hint[] = [
