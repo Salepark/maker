@@ -108,6 +108,13 @@ export async function generateReportsForDueProfiles(): Promise<ReportJobResult[]
 
       console.log(`[ReportJob] Processing profile: ${profile.name} (id=${profile.id}, topic=${profile.topic})`);
 
+      const userBots = await storage.listBots(profile.userId);
+      const matchingBot = userBots.find(b => b.key === profile.topic);
+      if (matchingBot && !matchingBot.isEnabled) {
+        console.log(`[ReportJob] Bot '${matchingBot.name}' is disabled, skipping profile ${profile.id}`);
+        continue;
+      }
+
       const sourceIds = await storage.getProfileSourceIds(profile.id);
       
       if (sourceIds.length === 0) {

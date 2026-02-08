@@ -131,7 +131,10 @@ async function execRunNow(userId: string, cmd: ChatCommand): Promise<ExecutionRe
         message = `Drafting complete: ${result} draft(s) generated.`;
         break;
       case "report": {
-        const topic = cmd.botKey || "ai_art";
+        if (!cmd.botKey) {
+          return { ok: false, assistantMessage: "활성 봇이 없습니다. 먼저 봇을 선택해주세요.\n\n예: 'switch to community_research'", executed: cmd, result: null };
+        }
+        const topic = cmd.botKey;
         let profile = await storage.getProfileByUserAndTopic(userId, topic);
         if (!profile) {
           const bot = await storage.getBotByKey(userId, topic);

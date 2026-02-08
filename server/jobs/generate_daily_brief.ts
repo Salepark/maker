@@ -15,7 +15,7 @@ interface DailyBriefResult {
 }
 
 export async function generateDailyBrief(options: DailyBriefOptions = {}): Promise<DailyBriefResult> {
-  const { lookbackHours = 24, maxItems = 12, topic = "ai_art" } = options;
+  const { lookbackHours = 24, maxItems = 12, topic = "general" } = options;
 
   console.log(`[DailyBrief] Generating report for topic=${topic}, lookback=${lookbackHours}h, maxItems=${maxItems}`);
 

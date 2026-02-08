@@ -37,6 +37,7 @@ export interface IStorage {
   getObserveItems(limit?: number): Promise<any[]>;
   getItem(id: number): Promise<(Item & { sourceName: string; analysis?: Analysis; drafts: Draft[] }) | undefined>;
   getItemsByStatus(status: string, limit?: number): Promise<(Item & { sourceName: string; sourceTopic: string; rulesJson?: unknown })[]>;
+  getItemsByStatusAndSourceIds(status: string, sourceIds: number[], limit?: number): Promise<(Item & { sourceName: string; sourceTopic: string; rulesJson?: unknown })[]>;
   createItem(data: InsertItem): Promise<Item>;
   updateItemStatus(id: number, status: string): Promise<void>;
 
@@ -389,7 +390,33 @@ export class DatabaseStorage implements IStorage {
     return result.map((r) => ({
       ...r.item,
       sourceName: r.sourceName || "Unknown",
-      sourceTopic: r.sourceTopic || "ai_art",
+      sourceTopic: r.sourceTopic || "general",
+      rulesJson: r.rulesJson,
+    }));
+  }
+
+  async getItemsByStatusAndSourceIds(status: string, sourceIds: number[], limit: number = 50): Promise<(Item & { sourceName: string; sourceTopic: string; rulesJson?: unknown })[]> {
+    if (sourceIds.length === 0) return [];
+    const result = await db
+      .select({
+        item: items,
+        sourceName: sources.name,
+        sourceTopic: sources.topic,
+        rulesJson: sources.rulesJson,
+      })
+      .from(items)
+      .leftJoin(sources, eq(items.sourceId, sources.id))
+      .where(and(
+        eq(items.status, status),
+        inArray(items.sourceId, sourceIds)
+      ))
+      .orderBy(desc(items.insertedAt))
+      .limit(limit);
+
+    return result.map((r) => ({
+      ...r.item,
+      sourceName: r.sourceName || "Unknown",
+      sourceTopic: r.sourceTopic || "general",
       rulesJson: r.rulesJson,
     }));
   }

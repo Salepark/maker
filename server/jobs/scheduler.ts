@@ -154,7 +154,7 @@ export async function runDraftNow() {
   return count;
 }
 
-export async function runDailyBriefNow(topic: string = "ai_art", lookbackHours: number = 24, maxItems: number = 12) {
+export async function runDailyBriefNow(topic: string = "general", lookbackHours: number = 24, maxItems: number = 12) {
   if (!hasSystemLLMKey()) throw new Error("LLM_API_KEY is not configured. Set it in environment or assign an LLM provider to your bot.");
   console.log(`📊 Manual Daily Brief generation triggered for topic=${topic}, lookback=${lookbackHours}h, max=${maxItems}...`);
   const result = await generateDailyBrief({

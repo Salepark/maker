@@ -8,9 +8,8 @@ import {
 
 export async function analyzeNewItemsBySourceIds(sourceIds: number[], limit: number = 50): Promise<number> {
   console.log(`[AnalyzeJob] Starting bot-scoped analysis for ${sourceIds.length} sources...`);
-  const allItems = await storage.getItemsByStatus("new", limit);
-  const items = allItems.filter(item => item.sourceId != null && sourceIds.includes(item.sourceId));
-  console.log(`[AnalyzeJob] Found ${items.length} items from bot sources (out of ${allItems.length} total new)`);
+  const items = await storage.getItemsByStatusAndSourceIds("new", sourceIds, limit);
+  console.log(`[AnalyzeJob] Found ${items.length} new items from bot sources`);
   let analyzed = 0;
 
   for (const item of items) {

@@ -549,6 +549,12 @@ const TOPIC_META: Record<string, { label: string; role: string; focus: string; d
     focus: "competitor moves, product launches, strategic shifts, market positioning changes, and industry signals.",
     disclaimer: "This report summarizes competitive intelligence insights.",
   },
+  community_research: {
+    label: "Community Research Brief",
+    role: "a community research analyst monitoring online discussions and trends",
+    focus: "community discussions, emerging topics, user sentiment, notable threads, and actionable insights from online communities and forums.",
+    disclaimer: "This report summarizes community research insights.",
+  },
 };
 
 export function getTopicLabel(topic: string): string {

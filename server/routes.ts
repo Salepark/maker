@@ -115,7 +115,7 @@ export async function registerRoutes(
 
   app.post("/api/sources", isAuthenticated, async (req, res) => {
     try {
-      const { name, url, type = "rss", topic = "ai_art", trustLevel = "medium", region = "global" } = req.body;
+      const { name, url, type = "rss", topic = "general", trustLevel = "medium", region = "global" } = req.body;
       if (!name || !url) {
         return res.status(400).json({ error: "Name and URL are required" });
       }
@@ -327,7 +327,7 @@ export async function registerRoutes(
 
   app.post("/api/debug/generate-daily-brief", isAuthenticated, async (req, res) => {
     try {
-      const topic = req.body?.topic || "ai_art";
+      const topic = req.body?.topic || "general";
       const result = await runDailyBriefNow(topic);
       res.json({ ok: true, reportId: result.id, itemsCount: result.itemsCount, topic });
     } catch (error: any) {
