@@ -11,6 +11,9 @@ const COMMAND_HINT_KEYWORDS = [
   "bot", "source", "collect", "analyze", "draft", "report",
   "stop", "halt", "start", "enable", "disable",
   "remove",
+  "수집", "분석", "리포트", "보고서", "제출", "모아", "정리",
+  "스케줄", "매일", "아침", "저녁", "오전", "오후",
+  "pipeline", "자동", "실행", "돌려",
 ];
 
 function isCommandCandidate(message: string): boolean {
@@ -100,7 +103,8 @@ export async function parseCommand(
 function isValidType(type: string): type is ChatCommandType {
   return [
     "list_bots", "switch_bot", "bot_status", "run_now",
-    "pause_bot", "resume_bot", "add_source", "remove_source", "chat",
+    "pause_bot", "resume_bot", "add_source", "remove_source",
+    "pipeline_run", "chat",
   ].includes(type);
 }
 
@@ -108,6 +112,10 @@ function getDefaultConfirmText(cmd: ChatCommand): string {
   const bot = cmd.botKey || "current bot";
   switch (cmd.type) {
     case "run_now": return `${bot}: run ${cmd.args?.job || "job"}`;
+    case "pipeline_run": {
+      const schedule = cmd.args?.scheduleTimeLocal ? ` (${cmd.args.scheduleTimeLocal} schedule)` : "";
+      return `${bot}: 자료 수집 → 분석 → 리포트 생성${schedule}`;
+    }
     case "pause_bot": return `Pause ${bot}`;
     case "resume_bot": return `Resume ${bot}`;
     case "add_source": return `Add source to ${bot}: ${cmd.args?.url || ""}`;

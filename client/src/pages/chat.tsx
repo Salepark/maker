@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MessageCircle, Send, Loader2, Bot, User, HelpCircle, Check, X, Zap } from "lucide-react";
+import { MessageCircle, Send, Loader2, Bot, User, HelpCircle, Check, X, Zap, Play, CheckCircle2, AlertCircle } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { MessageKind } from "@shared/chatCommand";
@@ -38,14 +38,23 @@ interface ActiveBotInfo {
 }
 
 const exampleCommands = [
+  "자료 수집하고 분석해서 리포트 만들어줘",
+  "매일 아침 9시에 자동으로 리포트 제출해",
+  "데이터 모아서 분석 후 보고서 작성해줘",
   "Show my bot list",
-  "Switch to investing",
   "Show bot status",
-  "Run collection now",
   "Add source https://example.com/feed.xml",
-  "Pause bot",
-  "Resume bot",
 ];
+
+function getPipelineStepLabel(step: string): string {
+  switch (step) {
+    case "collect": return "Step 1: Data Collection";
+    case "analyze": return "Step 2: Analysis";
+    case "report": return "Step 3: Report";
+    case "schedule": return "Schedule Updated";
+    default: return step;
+  }
+}
 
 function ConfirmButtons({
   messageId,
@@ -122,7 +131,19 @@ function MessageBubble({
         <p className="text-sm whitespace-pre-wrap">{message.contentText}</p>
         {kind === "command_result" && message.commandJson && (
           <Badge variant="outline" className="mt-2 text-xs">
-            {message.commandJson.type || message.commandJson.action}
+            {message.commandJson.type === "pipeline_step" ? (
+              <span className="flex items-center gap-1">
+                {message.resultJson?.ok ? <CheckCircle2 className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+                {getPipelineStepLabel(message.commandJson.step)}
+              </span>
+            ) : message.commandJson.type === "pipeline_run" ? (
+              <span className="flex items-center gap-1">
+                <Play className="h-3 w-3" />
+                Pipeline
+              </span>
+            ) : (
+              message.commandJson.type || message.commandJson.action
+            )}
           </Badge>
         )}
         {kind === "pending_command" && isPending && (
@@ -154,6 +175,7 @@ export default function Chat() {
   const [input, setInput] = useState("");
   const [confirmingId, setConfirmingId] = useState<number | null>(null);
   const [threadId, setThreadId] = useState<number | null>(null);
+  const [pipelineRunning, setPipelineRunning] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { data: threads, isLoading: threadsLoading } = useQuery<ChatThread[]>({
@@ -194,8 +216,23 @@ export default function Chat() {
       return res.json();
     },
     enabled: !!threadId,
-    refetchInterval: 5000,
+    refetchInterval: pipelineRunning ? 2000 : 5000,
   });
+
+  useEffect(() => {
+    if (pipelineRunning && messages && messages.length > 0) {
+      const recentMsgs = messages.slice(-5);
+      const hasFinalPipelineMsg = recentMsgs.some(
+        m => m.commandJson?.type === "pipeline_run" && m.kind === "command_result"
+      );
+      const hasFailedStep = recentMsgs.some(
+        m => m.commandJson?.type === "pipeline_step" && m.resultJson?.ok === false
+      );
+      if (hasFinalPipelineMsg || hasFailedStep) {
+        setPipelineRunning(false);
+      }
+    }
+  }, [messages, pipelineRunning]);
 
   const { data: activeBotInfo } = useQuery<ActiveBotInfo | null>({
     queryKey: ["/api/chat/threads", threadId, "activeBot"],
@@ -235,8 +272,11 @@ export default function Chat() {
       const res = await apiRequest("POST", `/api/chat/threads/${threadId}/confirm`, { pendingMessageId, approve });
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       setConfirmingId(null);
+      if (data?.mode === "pipeline_started") {
+        setPipelineRunning(true);
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/chat/threads", threadId, "messages"] });
       queryClient.invalidateQueries({ queryKey: ["/api/chat/threads"] });
     },
@@ -286,7 +326,7 @@ export default function Chat() {
         </h1>
         <div className="flex items-center gap-2 mt-1 flex-wrap">
           <p className="text-sm text-muted-foreground" data-testid="text-chat-description">
-            A console for controlling your bots. Type commands like "add source" or "run now".
+            Tell your bot what to do in one sentence. It handles the rest.
           </p>
           {activeBotInfo ? (
             <Badge variant="secondary" data-testid="badge-active-bot">
@@ -315,7 +355,7 @@ export default function Chat() {
                 <MessageCircle className="h-12 w-12 text-muted-foreground mb-4" />
                 <h3 className="text-lg font-medium" data-testid="text-chat-empty">Start a conversation</h3>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Use natural language commands like list bots, check status, or add sources
+                  Try: "자료 수집하고 분석해서 리포트 만들어줘"
                 </p>
               </div>
             ) : (
@@ -332,13 +372,19 @@ export default function Chat() {
             <div ref={messagesEndRef} />
           </div>
 
+          {pipelineRunning && (
+            <div className="px-4 py-2 border-t border-border bg-muted/50 flex items-center gap-2" data-testid="pipeline-running-indicator">
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              <span className="text-sm text-muted-foreground">Pipeline running... Steps will appear as they complete.</span>
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="p-4 border-t border-border shrink-0">
             <div className="flex gap-2">
               <Input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder={activeBotInfo ? `e.g. "Add this RSS to ${activeBotInfo.name}"` : 'e.g. "Add RSS to my investing bot"'}
-                disabled={sendMutation.isPending}
+                placeholder={activeBotInfo ? `e.g. "자료 수집하고 분석해서 리포트 만들어줘"` : 'e.g. "자료 수집하고 분석해서 리포트 만들어줘"'}
+                disabled={sendMutation.isPending || pipelineRunning}
                 data-testid="input-chat-message"
               />
               <Button
@@ -377,16 +423,14 @@ export default function Chat() {
           </div>
 
           <div className="mt-6 pt-4 border-t border-border">
-            <p className="text-xs text-muted-foreground mb-2">Supported commands:</p>
+            <p className="text-xs text-muted-foreground mb-2">What you can do:</p>
             <div className="flex flex-wrap gap-1">
-              <Badge variant="secondary" className="text-xs">List bots</Badge>
-              <Badge variant="secondary" className="text-xs">Switch bot</Badge>
+              <Badge variant="secondary" className="text-xs">Full pipeline</Badge>
+              <Badge variant="secondary" className="text-xs">Schedule</Badge>
+              <Badge variant="secondary" className="text-xs">Bot list</Badge>
               <Badge variant="secondary" className="text-xs">Bot status</Badge>
-              <Badge variant="secondary" className="text-xs">Run job</Badge>
-              <Badge variant="secondary" className="text-xs">Pause</Badge>
-              <Badge variant="secondary" className="text-xs">Resume</Badge>
               <Badge variant="secondary" className="text-xs">Add source</Badge>
-              <Badge variant="secondary" className="text-xs">Remove source</Badge>
+              <Badge variant="secondary" className="text-xs">Pause / Resume</Badge>
             </div>
           </div>
         </div>

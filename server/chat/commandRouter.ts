@@ -1,5 +1,6 @@
-import type { ChatCommand } from "@shared/chatCommand";
+import type { ChatCommand, PipelineRunArgs } from "@shared/chatCommand";
 import { runCollectNow, runAnalyzeNow, runDraftNow, runReportNow } from "../jobs/scheduler";
+import { hasSystemLLMKey } from "../llm/client";
 import { storage } from "../storage";
 
 export interface ExecutionResult {
@@ -187,6 +188,249 @@ async function execRunNow(userId: string, cmd: ChatCommand): Promise<ExecutionRe
   }
 }
 
+export interface PipelineStepResult {
+  step: "collect" | "analyze" | "report" | "schedule";
+  ok: boolean;
+  message: string;
+  data?: any;
+}
+
+async function execPipelineRun(
+  userId: string,
+  cmd: ChatCommand,
+  onStepComplete?: (step: PipelineStepResult) => Promise<void>
+): Promise<ExecutionResult> {
+  const args = (cmd.args || {}) as PipelineRunArgs;
+  const bot = await resolveBot(userId, cmd.botKey);
+  if (!bot) {
+    return {
+      ok: false,
+      assistantMessage: cmd.botKey
+        ? `'${cmd.botKey}' 봇을 찾을 수 없습니다.\n\n봇 목록을 확인하시거나, 템플릿 갤러리에서 새 봇을 만들어보세요.`
+        : "활성 봇이 없습니다. 먼저 봇을 선택하거나 템플릿 갤러리에서 새 봇을 만들어주세요.",
+      executed: cmd,
+      result: null,
+    };
+  }
+
+  const botSources = await storage.getBotSources(bot.id);
+  if (botSources.length === 0) {
+    return {
+      ok: false,
+      assistantMessage: `'${bot.name}' 봇에 연결된 소스가 없습니다.\n\n다음 중 하나를 시도해보세요:\n• "add source https://..." 명령으로 소스 추가\n• Sources 페이지에서 소스 관리\n• 봇 설정에서 추천 소스 활성화`,
+      executed: cmd,
+      result: null,
+    };
+  }
+
+  const botLLM = await storage.resolveLLMForBot(bot.id);
+  if (!hasSystemLLMKey() && !botLLM) {
+    return {
+      ok: false,
+      assistantMessage: "AI Provider가 설정되지 않았습니다.\n\nSettings 페이지에서 AI Provider를 추가해주세요. (API 키가 필요합니다)",
+      executed: cmd,
+      result: null,
+    };
+  }
+
+  const steps: PipelineStepResult[] = [];
+
+  try {
+    const collectResult = await runCollectNow();
+    const collectStep: PipelineStepResult = {
+      step: "collect",
+      ok: true,
+      message: `자료 수집 완료 — ${collectResult.totalCollected}건의 새 자료를 ${collectResult.sourcesProcessed}개 소스에서 가져왔습니다.`,
+      data: collectResult,
+    };
+    steps.push(collectStep);
+    if (onStepComplete) await onStepComplete(collectStep);
+  } catch (error: any) {
+    const collectStep: PipelineStepResult = {
+      step: "collect",
+      ok: false,
+      message: "자료 수집 중 문제가 발생했습니다.\n\nSources 페이지에서 소스 URL이 올바른지 확인해주세요.",
+    };
+    steps.push(collectStep);
+    if (onStepComplete) await onStepComplete(collectStep);
+    return {
+      ok: false,
+      assistantMessage: collectStep.message,
+      executed: cmd,
+      result: { steps },
+    };
+  }
+
+  try {
+    const analyzeCount = await runAnalyzeNow();
+    const analyzeStep: PipelineStepResult = {
+      step: "analyze",
+      ok: true,
+      message: `분석 완료 — ${analyzeCount}건의 자료를 분석했습니다.`,
+      data: { analyzedCount: analyzeCount },
+    };
+    steps.push(analyzeStep);
+    if (onStepComplete) await onStepComplete(analyzeStep);
+  } catch (error: any) {
+    const analyzeStep: PipelineStepResult = {
+      step: "analyze",
+      ok: false,
+      message: "분석 중 문제가 발생했습니다.\n\nSettings에서 AI Provider 설정을 확인해주세요.",
+    };
+    steps.push(analyzeStep);
+    if (onStepComplete) await onStepComplete(analyzeStep);
+    return {
+      ok: false,
+      assistantMessage: analyzeStep.message,
+      executed: cmd,
+      result: { steps },
+    };
+  }
+
+  const topic = bot.key;
+  let profile = await storage.getProfileByUserAndTopic(userId, topic);
+  if (!profile) {
+    const fullBot = await storage.getBot(bot.id, userId);
+    const allPresets = await storage.listPresets();
+    const reportPresets = allPresets.filter(p => p.outputType === "report");
+    const matchingPreset = reportPresets.find(p => {
+      const variants = (p.variantsJson as string[]) || [];
+      return variants.includes(topic) || p.key === topic;
+    }) || reportPresets[0];
+
+    if (!matchingPreset) {
+      return {
+        ok: false,
+        assistantMessage: "리포트 템플릿을 찾을 수 없습니다.\n\n템플릿 갤러리에서 봇을 다시 만들어주세요.",
+        executed: cmd,
+        result: { steps },
+      };
+    }
+
+    const settings = fullBot?.settings;
+    const scheduleCron = settings
+      ? `${settings.scheduleTimeLocal?.split(":")[1] || "0"} ${settings.scheduleTimeLocal?.split(":")[0] || "7"} * * ${settings.scheduleRule === "WEEKDAYS" ? "1-5" : settings.scheduleRule === "WEEKENDS" ? "0,6" : "*"}`
+      : "0 7 * * *";
+
+    const defaultSections = { tldr: true, drivers: true, risk: true, checklist: true, sources: true };
+    const defaultFilters = { minImportanceScore: 0 };
+    profile = await storage.createProfile({
+      userId,
+      presetId: matchingPreset.id,
+      name: bot.name,
+      topic,
+      timezone: settings?.timezone || "Asia/Seoul",
+      scheduleCron,
+      configJson: {
+        sections: settings?.sectionsJson || defaultSections,
+        filters: settings?.filtersJson || defaultFilters,
+        verbosity: settings?.verbosity || "normal",
+        markdownLevel: settings?.markdownLevel || "minimal",
+        scheduleRule: settings?.scheduleRule || "DAILY",
+        scheduleTimeLocal: settings?.scheduleTimeLocal || "07:00",
+      },
+      isActive: bot.isEnabled,
+    });
+
+    if (botSources.length > 0) {
+      await storage.setProfileSources(
+        profile.id,
+        userId,
+        botSources.map(s => ({ sourceId: s.id, weight: s.weight, isEnabled: s.isEnabled }))
+      );
+    }
+  }
+
+  try {
+    const reportResult = await runReportNow(profile.id, userId);
+    if (!reportResult) {
+      const reportStep: PipelineStepResult = {
+        step: "report",
+        ok: false,
+        message: "리포트를 생성할 수 없습니다.\n\n분석된 자료가 부족할 수 있습니다. 잠시 후 다시 시도해주세요.",
+      };
+      steps.push(reportStep);
+      if (onStepComplete) await onStepComplete(reportStep);
+      return {
+        ok: false,
+        assistantMessage: reportStep.message,
+        executed: cmd,
+        result: { steps },
+      };
+    }
+
+    const reportStep: PipelineStepResult = {
+      step: "report",
+      ok: true,
+      message: `리포트 생성 완료 — ${Array.isArray(reportResult) ? reportResult.length : reportResult.itemsCount}건의 자료로 리포트를 만들었습니다.\n\nReports 페이지에서 확인하세요.`,
+      data: reportResult,
+    };
+    steps.push(reportStep);
+    if (onStepComplete) await onStepComplete(reportStep);
+  } catch (error: any) {
+    const reportStep: PipelineStepResult = {
+      step: "report",
+      ok: false,
+      message: "리포트 생성 중 문제가 발생했습니다.\n\nSettings에서 AI Provider 설정을 확인해주세요.",
+    };
+    steps.push(reportStep);
+    if (onStepComplete) await onStepComplete(reportStep);
+    return {
+      ok: false,
+      assistantMessage: reportStep.message,
+      executed: cmd,
+      result: { steps },
+    };
+  }
+
+  if (args.scheduleTimeLocal) {
+    try {
+      const scheduleRule = args.scheduleRule || "DAILY";
+      await storage.updateBotSettings(bot.id, {
+        scheduleTimeLocal: args.scheduleTimeLocal,
+        scheduleRule,
+      });
+
+      if (profile) {
+        const [hour, minute] = args.scheduleTimeLocal.split(":");
+        const cronRule = scheduleRule === "WEEKDAYS" ? "1-5" : scheduleRule === "WEEKENDS" ? "0,6" : "*";
+        const newCron = `${minute || "0"} ${hour || "7"} * * ${cronRule}`;
+        await storage.updateProfile(profile.id, userId, { scheduleCron: newCron });
+      }
+
+      const scheduleStep: PipelineStepResult = {
+        step: "schedule",
+        ok: true,
+        message: `스케줄 설정 완료 — 매일 ${args.scheduleTimeLocal}에 자동으로 실행됩니다.`,
+      };
+      steps.push(scheduleStep);
+      if (onStepComplete) await onStepComplete(scheduleStep);
+    } catch (error: any) {
+      const scheduleStep: PipelineStepResult = {
+        step: "schedule",
+        ok: false,
+        message: "스케줄 저장에 실패했습니다. 봇 설정 페이지에서 직접 설정해주세요.",
+      };
+      steps.push(scheduleStep);
+      if (onStepComplete) await onStepComplete(scheduleStep);
+    }
+  }
+
+  const summaryLines = steps
+    .filter(s => s.ok)
+    .map(s => s.message);
+  const scheduleNote = args.scheduleTimeLocal
+    ? `\n\n앞으로 매일 ${args.scheduleTimeLocal}에 자동 실행됩니다.`
+    : "";
+
+  return {
+    ok: true,
+    assistantMessage: `파이프라인 실행 완료!\n\n${summaryLines.join("\n")}${scheduleNote}`,
+    executed: cmd,
+    result: { steps },
+  };
+}
+
 async function execPauseBot(userId: string, cmd: ChatCommand): Promise<ExecutionResult> {
   const bot = await resolveBot(userId, cmd.botKey);
   if (!bot) {
@@ -324,6 +568,8 @@ export async function routeCommand(userId: string, cmd: ChatCommand, threadId?: 
       return execAddSource(userId, cmd);
     case "remove_source":
       return execRemoveSource(userId, cmd);
+    case "pipeline_run":
+      return execPipelineRun(userId, cmd);
     case "chat":
       return {
         ok: true,
@@ -341,4 +587,4 @@ export async function routeCommand(userId: string, cmd: ChatCommand, threadId?: 
   }
 }
 
-export { routeCommand as executeCommand };
+export { routeCommand as executeCommand, execPipelineRun };

@@ -69,29 +69,38 @@ The system features a multi-provider LLM architecture, allowing users to "Bring 
 ### AI Art Community Contribution Mode
 For the 'ai_art' topic, the system enforces a strict "community contribution mode" to prevent promotional content. This involves LLM prompt instructions, server-side validation using regex checks to reject forbidden content (URLs, specific brand mentions, promotional phrases), and forcing `includesLink=false` for all AI art drafts.
 
-### Command Chat (Phase 6 v1.0)
-A natural language interface, powered by Claude AI, allows users to control bots via chat commands. The system supports 8 bot-centric commands: `list_bots`, `switch_bot`, `bot_status`, `run_now`, `pause_bot`, `resume_bot`, `add_source`, `remove_source`. Commands are parsed by LLM into a structured JSON schema `{type, botKey, args, confidence, needsConfirm, confirmText}`.
+### Command Chat (Phase 6 v1.0 + Phase 9 Pipeline)
+A natural language interface, powered by Claude AI, allows users to control bots via chat commands. The system supports 9 bot-centric commands: `list_bots`, `switch_bot`, `bot_status`, `run_now`, `pause_bot`, `resume_bot`, `add_source`, `remove_source`, `pipeline_run`. Commands are parsed by LLM into a structured JSON schema `{type, botKey, args, confidence, needsConfirm, confirmText}`.
+
+**Single-Command Pipeline (Phase 9):**
+Users can execute the full pipeline (collect → analyze → report) with a single natural language command. The `pipeline_run` command type handles multi-step execution:
+- Parses intent from natural language (Korean/English): "자료 수집하고 분석해서 아침 9시에 리포트 제출해"
+- Executes sequentially: collect → analyze → report
+- Optional schedule: If time is mentioned (e.g., "아침 9시"), saves schedule to bot settings and profile
+- Step-by-step progress: Each step writes an interim message to the thread (polled by frontend at 2s during pipeline)
+- User-friendly error messages with actionable suggestions (no technical jargon)
+- `PipelineRunArgs`: `{ scheduleTimeLocal?: "HH:MM", scheduleRule?: "DAILY"|"WEEKDAYS"|"WEEKENDS", lookbackHours?, maxItems? }`
 
 **Two-step execution flow (semi-automatic):**
 - `POST /api/chat/threads` — Create a new chat thread
 - `GET /api/chat/threads` — List user's threads
 - `GET /api/chat/threads/:threadId/messages` — List messages in a thread
 - `POST /api/chat/threads/:threadId/message` — Parses user input, returns confirm payload for data-changing commands
-- `POST /api/chat/threads/:threadId/confirm` — Executes on approval, marks pending message as confirmed/cancelled
+- `POST /api/chat/threads/:threadId/confirm` — Executes on approval; for `pipeline_run`, responds immediately and writes step messages asynchronously
 
 **Active bot context:** Per-thread active bot stored in `chat_threads.activeBotId`. Commands without explicit botKey use the thread's active bot. UI shows active bot indicator at the top.
 
-**Confirmation UX:** Data-modifying commands (run_now, pause_bot, resume_bot, add_source, remove_source) show approve/cancel buttons. Read-only commands (list_bots, bot_status, switch_bot) execute immediately. confidence < 0.7 triggers a clarifying question instead of execution.
+**Confirmation UX:** Data-modifying commands (run_now, pipeline_run, pause_bot, resume_bot, add_source, remove_source) show approve/cancel buttons. Read-only commands (list_bots, bot_status, switch_bot) execute immediately. confidence < 0.7 triggers a clarifying question instead of execution.
 
 **Chat messages are user-scoped** (userId column) with `kind` field (`text`, `pending_command`, `command_result`) and status tracking (done, pending_confirm, confirmed, cancelled).
 
-**Shared types:** `shared/chatCommand.ts` exports `ChatCommandType`, `ChatCommand`, `RunNowTarget`, `MessageKind` for frontend/backend consistency.
+**Shared types:** `shared/chatCommand.ts` exports `ChatCommandType`, `ChatCommand`, `RunNowTarget`, `PipelineRunArgs`, `MessageKind` for frontend/backend consistency.
 
 **File structure:**
-- `shared/chatCommand.ts` — Shared command types
-- `server/llm/prompts_chat.ts` — LLM prompt templates for command parsing and clarification
-- `server/chat/command-parser.ts` — Keyword detection + LLM-based command parsing
-- `server/chat/commandRouter.ts` — Command execution router (8 commands)
+- `shared/chatCommand.ts` — Shared command types (including `pipeline_run` and `PipelineRunArgs`)
+- `server/llm/prompts_chat.ts` — LLM prompt templates for command parsing (with Korean pipeline detection rules)
+- `server/chat/command-parser.ts` — Keyword detection (Korean + English) + LLM-based command parsing
+- `server/chat/commandRouter.ts` — Command execution router (9 commands, including `execPipelineRun` with step callbacks)
 - `server/chat/executor.ts` — Re-export shim for backward compatibility
 
 **E2E coverage**: Login → browse gallery → create bot from preset → chat commands (list, switch, status) → verify active bot persistence → delete bot

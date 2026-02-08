@@ -7,9 +7,17 @@ export type ChatCommandType =
   | "resume_bot"
   | "add_source"
   | "remove_source"
+  | "pipeline_run"
   | "chat";
 
 export type RunNowTarget = "collect" | "analyze" | "draft" | "report";
+
+export interface PipelineRunArgs {
+  scheduleTimeLocal?: string;
+  scheduleRule?: "DAILY" | "WEEKDAYS" | "WEEKENDS";
+  lookbackHours?: number;
+  maxItems?: number;
+}
 
 export type ChatCommand = {
   type: ChatCommandType;

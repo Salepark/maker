@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { collectFromSource, collectAllSources } from "./services/rss";
 import { startScheduler, stopScheduler, getSchedulerStatus, runCollectNow, runAnalyzeNow, runDraftNow, runDailyBriefNow, runReportNow } from "./jobs/scheduler";
 import { parseCommand } from "./chat/command-parser";
-import { routeCommand } from "./chat/commandRouter";
+import { routeCommand, execPipelineRun } from "./chat/commandRouter";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { runAllSeeds } from "./seed";
 
@@ -590,6 +590,36 @@ export async function registerRoutes(
       }
 
       const command = pendingMsg.commandJson as any;
+
+      if (command.type === "pipeline_run") {
+        res.json({ ok: true, mode: "pipeline_started" });
+
+        const result = await execPipelineRun(userId, command, async (step) => {
+          await storage.addThreadMessage({
+            threadId,
+            userId,
+            role: "assistant",
+            contentText: step.message,
+            kind: "command_result",
+            commandJson: { type: "pipeline_step", step: step.step },
+            resultJson: { ok: step.ok, data: step.data },
+          });
+        });
+
+        await storage.addThreadMessage({
+          threadId,
+          userId,
+          role: "assistant",
+          contentText: result.assistantMessage,
+          kind: "command_result",
+          commandJson: result.executed,
+          resultJson: result.result,
+        });
+
+        await storage.clearPendingCommand(pendingMessageId, userId);
+        return;
+      }
+
       const result = await routeCommand(userId, command, threadId);
 
       await storage.addThreadMessage({

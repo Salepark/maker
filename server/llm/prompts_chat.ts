@@ -14,7 +14,7 @@ Output JSON only. No explanatory sentences.
 
 [Output Schema]
 {
-  "type": "list_bots | switch_bot | bot_status | run_now | pause_bot | resume_bot | add_source | remove_source | chat",
+  "type": "list_bots | switch_bot | bot_status | run_now | pause_bot | resume_bot | add_source | remove_source | pipeline_run | chat",
   "botKey": "bot key (null if none)",
   "args": {},
   "confidence": 0.0~1.0,
@@ -26,18 +26,25 @@ Output JSON only. No explanatory sentences.
 1) list_bots: View my bot list. args: {}
 2) switch_bot: Switch the active bot for conversation. args: {}. botKey required.
 3) bot_status: Bot status/schedule/source summary. args: {}. botKey needed (uses active bot if not specified).
-4) run_now: Run collect/analyze/draft/report. args: { "job": "collect" | "analyze" | "draft" | "report", "lookbackHours": number (report only), "maxItems": number (report only) }. botKey needed (uses active bot if not specified).
+4) run_now: Run a SINGLE step only (collect/analyze/draft/report). args: { "job": "collect" | "analyze" | "draft" | "report", "lookbackHours": number (report only), "maxItems": number (report only) }. botKey needed (uses active bot if not specified).
 5) pause_bot: Pause bot schedule. args: {}. botKey required.
 6) resume_bot: Resume bot schedule. args: {}. botKey required.
 7) add_source: Add RSS source. args: { "url": "RSS URL", "name": "source name (optional)" }. botKey needed (uses active bot if not specified).
 8) remove_source: Remove source. args: { "sourceName": "source name or URL" }. botKey needed (uses active bot if not specified).
-9) chat: General conversation or when the request does not match any command above. args: { "reply": "natural language response" }
+9) pipeline_run: Run the FULL pipeline (collect → analyze → report) in one command. Use this when the user wants to collect data AND analyze AND generate a report in a single request. If the user also mentions a schedule time, include it in args. args: { "scheduleTimeLocal": "HH:MM" (optional), "scheduleRule": "DAILY" | "WEEKDAYS" | "WEEKENDS" (optional, default DAILY), "lookbackHours": number (optional), "maxItems": number (optional) }. botKey needed (uses active bot if not specified).
+10) chat: General conversation or when the request does not match any command above. args: { "reply": "natural language response" }
+
+[Pipeline Detection Rules]
+- If the user mentions TWO or MORE of: collecting/gathering data, analyzing, generating report → use pipeline_run
+- Korean examples: "수집하고 분석해서 리포트", "자료 모아서 정리해줘", "데이터 수집 후 보고서 만들어줘"
+- Schedule parsing: "아침 9시" → scheduleTimeLocal: "09:00", "오후 3시" → "15:00", "저녁 7시" → "19:00", "매일 아침" → scheduleRule: "DAILY"
+- If ONLY one step is mentioned (e.g., just "수집해줘" or just "리포트 만들어줘"), use run_now instead
 
 [Rules]
 - If botKey is not specified and there is an active bot, use the active bot's key
 - confidence: 0.9 or higher if the request is clear, 0.5~0.7 if ambiguous
-- needsConfirm: true for data-changing commands (run_now, pause_bot, resume_bot, add_source, remove_source). false for read-only commands (list_bots, bot_status). false for switch_bot.
-- confirmText: Keep it concise, e.g. "Adding source to ai_art bot: Reuters Business"
+- needsConfirm: true for data-changing commands (run_now, pause_bot, resume_bot, add_source, remove_source, pipeline_run). false for read-only commands (list_bots, bot_status). false for switch_bot.
+- confirmText: Keep it concise and user-friendly. For pipeline_run, use format like "자료 수집 → 분석 → 리포트 생성 (09:00 매일)"
 - For ambiguous or disallowed requests, use type="chat"
 
 [Current State]
