@@ -465,19 +465,30 @@ function getSectionInstructions(sections: ReportConfig["sections"], topic: strin
   const defaultSections = { tldr: true, drivers: true, risk: true, checklist: true, sources: true };
   const s = { ...defaultSections, ...sections };
   
-  const sectionMap = topic === "investing" ? {
+  const sectionMaps: Record<string, Record<string, string>> = {
+    investing: {
+      tldr: "TL;DR (One-line summary of today)",
+      drivers: "Market Drivers (3~5 Key Issues) + Cross-Market View",
+      risk: "Risk Radar (Key Risks)",
+      checklist: "Checklist (Today/This Week Checkpoints)",
+      sources: "Sources (Source List)",
+    },
+    ai_art: {
+      tldr: "TL;DR (One-line summary of today)",
+      drivers: "Key Trends (3~5) + Tools/Technology Updates + Community Highlights",
+      risk: "Cautions/Risks",
+      checklist: "Weekly Checkpoints",
+      sources: "Sources (Source List)",
+    },
+  };
+  const defaultSectionMap = {
     tldr: "TL;DR (One-line summary of today)",
-    drivers: "Market Drivers (3~5 Key Issues) + Cross-Market View",
-    risk: "Risk Radar (Key Risks)",
-    checklist: "Checklist (Today/This Week Checkpoints)",
-    sources: "Sources (Source List)",
-  } : {
-    tldr: "TL;DR (One-line summary of today)",
-    drivers: "Key Trends (3~5) + Tools/Technology Updates + Community Highlights",
-    risk: "Cautions/Risks",
-    checklist: "Weekly Checkpoints",
+    drivers: "Key Developments (3~5 Key Topics)",
+    risk: "Risks & Cautions",
+    checklist: "Action Items / Checkpoints",
     sources: "Sources (Source List)",
   };
+  const sectionMap = sectionMaps[topic] || defaultSectionMap;
 
   const includedSections = Object.entries(sectionMap)
     .filter(([key]) => s[key as keyof typeof s])
@@ -496,11 +507,65 @@ function getSectionInstructions(sections: ReportConfig["sections"], topic: strin
   return instructions;
 }
 
+const TOPIC_META: Record<string, { label: string; role: string; focus: string; disclaimer: string; excludeFilter?: string }> = {
+  investing: {
+    label: "Daily Market Brief",
+    role: "a senior macro & markets research analyst",
+    focus: "market trends, policy impact, macro context, and cross-market linkages. Prioritize credibility and analytical rigor.",
+    disclaimer: "This report is for informational purposes only and does not constitute investment advice.",
+    excludeFilter: "Exclude AI art, image generation, creative tools, Reddit community discussions, and Show HN projects. Only cover stocks, interest rates, currencies, crypto, commodities, and macroeconomics.",
+  },
+  ai_art: {
+    label: "AI Art Daily Brief",
+    role: "a researcher analyzing the AI Art marketplace and creator community",
+    focus: "trends, tools, and community developments in the AI art ecosystem. Focus on technical advancements, new tools, community reactions, and market opportunities.",
+    disclaimer: "This report is intended for informational purposes about AI art ecosystem trends.",
+    excludeFilter: "Exclude investment/finance-related content. Focus on AI art creation, editing, and workflow-related content.",
+  },
+  content_research: {
+    label: "Content Research Brief",
+    role: "a content strategist and research analyst",
+    focus: "content trends, creative ideas, research insights, and emerging topics. Focus on actionable insights for content creators and researchers.",
+    disclaimer: "This report summarizes content research trends and insights.",
+  },
+  market_brief: {
+    label: "Market Brief",
+    role: "a market research analyst",
+    focus: "market movements, economic indicators, sector performance, and notable business developments.",
+    disclaimer: "This report is for informational purposes only.",
+  },
+  research_watch: {
+    label: "Research Watch Brief",
+    role: "an academic research analyst",
+    focus: "notable research papers, technical breakthroughs, methodology advances, and emerging research directions.",
+    disclaimer: "This report summarizes recent research developments.",
+  },
+  competitor_watch: {
+    label: "Competitor Watch Brief",
+    role: "a competitive intelligence analyst",
+    focus: "competitor moves, product launches, strategic shifts, market positioning changes, and industry signals.",
+    disclaimer: "This report summarizes competitive intelligence insights.",
+  },
+};
+
+export function getTopicLabel(topic: string): string {
+  return getTopicMeta(topic).label;
+}
+
+function getTopicMeta(topic: string) {
+  return TOPIC_META[topic] || {
+    label: `${topic.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())} Brief`,
+    role: "a research analyst",
+    focus: `trends, developments, and key insights related to ${topic.replace(/_/g, " ")}. Provide actionable, well-sourced analysis.`,
+    disclaimer: "This report is for informational purposes only.",
+  };
+}
+
 export function buildDailyBriefPrompt(items: any[], date: string, topic: string, config?: ReportConfig): string {
   if (topic === "investing") {
     return buildInvestingBriefPromptWithConfig(items, date, config);
   }
-  return buildAIArtBriefPromptWithConfig(items, date, config);
+  return buildGenericBriefPrompt(items, date, topic, config);
 }
 
 function buildInvestingBriefPromptWithConfig(items: any[], date: string, config?: ReportConfig): string {
@@ -565,10 +630,11 @@ Writing Rules:
 - No exaggerated, emotional, or clickbait tone`;
 }
 
-function buildAIArtBriefPromptWithConfig(items: any[], date: string, config?: ReportConfig): string {
+function buildGenericBriefPrompt(items: any[], date: string, topic: string, config?: ReportConfig): string {
   const verbosity = config?.verbosity || "normal";
   const markdownLevel = config?.markdownLevel || "minimal";
   const sections = config?.sections;
+  const meta = getTopicMeta(topic);
 
   const itemsData = items.map((item) => ({
     title: item.title,
@@ -581,19 +647,20 @@ function buildAIArtBriefPromptWithConfig(items: any[], date: string, config?: Re
     confidence: item.confidence,
   }));
 
-  return `You are a researcher analyzing the AI Art marketplace and creator community.
-Your goal is to write a Daily Brief summarizing **trends, tools, and community developments** in the AI art ecosystem.
-Focus on technical advancements, new tools, community reactions, and market opportunities.
+  const filterBlock = meta.excludeFilter ? `\nImportant - Data Filtering:\n${meta.excludeFilter}\n` : "";
+
+  return `You are ${meta.role}.
+Your goal is to write a Daily Brief summarizing ${meta.focus}
 Include sources (URLs) and avoid exaggeration/speculation/definitive statements.
 
 User Settings:
 ${getVerbosityInstructions(verbosity)}
 ${getMarkdownInstructions(markdownLevel)}
 
-${getSectionInstructions(sections, "ai_art")}
-
+${getSectionInstructions(sections, topic)}
+${filterBlock}
 Input Data:
-The following is a list of AI Art-related posts collected and analyzed over the past 24 hours:
+The following is a list of posts collected and analyzed over the past 24 hours:
 
 ${JSON.stringify(itemsData, null, 2)}
 
@@ -601,16 +668,16 @@ Today's date: ${date}
 
 Output Format:
 
-AI Art Daily Brief - ${date}
+${meta.label} - ${date}
 
-This report is intended for informational purposes about AI art ecosystem trends.
+${meta.disclaimer}
 
 (Output only the configured sections)
 
 Writing Rules:
-- Focus on AI art creation, editing, and workflow-related content
-- Provide practical insights from a creator's perspective
-- Balance coverage of technical advancements and community reactions
-- Exclude investment/finance-related content
-- Write factually without exaggeration`;
+- Provide practical, actionable insights
+- Balance coverage of developments and their implications
+- Write factually without exaggeration
+- Reduce weight for items with risk_flags like rumor, low_credibility, opinion_only
+- Do not promote items with low confidence to key issues`;
 }

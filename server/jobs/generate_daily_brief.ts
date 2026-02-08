@@ -1,6 +1,6 @@
 import { storage } from "../storage";
 import { callLLM } from "../llm/client";
-import { buildDailyBriefPrompt } from "../llm/prompts";
+import { buildDailyBriefPrompt, getTopicLabel } from "../llm/prompts";
 
 interface DailyBriefOptions {
   lookbackHours?: number;
@@ -23,10 +23,11 @@ export async function generateDailyBrief(options: DailyBriefOptions = {}): Promi
   
   if (items.length === 0) {
     console.log("[DailyBrief] No analyzed items found for the lookback period");
+    const noDataLabel = getTopicLabel(topic);
     const report = await storage.createReport({
       topic,
-      title: `Daily Brief - No Data`,
-      content: `# Daily Market Brief\n\n> No analyzed items found. Please try again after data collection.`,
+      title: `${noDataLabel} - No Data`,
+      content: `# ${noDataLabel}\n\n> No analyzed items found. Please try again after data collection.`,
       itemsCount: 0,
       itemIdsJson: [],
     });
@@ -47,9 +48,11 @@ export async function generateDailyBrief(options: DailyBriefOptions = {}): Promi
   
   const content = await callLLM(prompt, 3, 4000);
 
+  const topicLabel = getTopicLabel(topic);
+
   const report = await storage.createReport({
     topic,
-    title: `Daily Brief - ${today}`,
+    title: `${topicLabel} - ${today}`,
     content,
     itemsCount: items.length,
     itemIdsJson: items.map((i) => i.id),
