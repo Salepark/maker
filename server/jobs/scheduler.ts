@@ -67,15 +67,11 @@ export function startScheduler() {
   
   dailyBriefTask = cron.schedule(dailyBriefCron, async () => {
     if (!hasSystemLLMKey()) { console.log("[DailyBrief] Skipped: no system LLM key"); return; }
-    console.log("📊 Running Daily Brief generation job...");
+    console.log("📊 Running Daily Brief generation job (delegated to profile-based report job)...");
     try {
-      const result = await generateDailyBrief({
-        lookbackHours: 24,
-        maxItems: 12,
-        topic: "ai_art",
-      });
+      const results = await generateReportsForDueProfiles();
       lastDailyBrief = new Date();
-      console.log(`✓ Generated Daily Brief: reportId=${result.id}, items=${result.itemsCount}`);
+      console.log(`✓ Generated ${results.length} report(s) via profile-based system`);
     } catch (error) {
       console.error("Daily Brief generation failed:", error);
     }

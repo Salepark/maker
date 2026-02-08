@@ -3,14 +3,17 @@ export function buildAnalyzePrompt(input: {
   body: string;
   sourceName: string;
   sourceRules: string;
+  topic?: string;
 }) {
+  const topicLabel = (input.topic || "general").replace(/_/g, " ");
   return `
-You are an "AI Art community contributor + researcher."
-Your goal is to provide helpful information to questions, not spam promotions.
-Community rules are the top priority.
+You are a research analyst specializing in ${topicLabel}.
+Your goal is to analyze content, extract key insights, and assess relevance.
+Source community rules are the top priority.
 
 [Input]
 - Source: ${input.sourceName}
+- Topic: ${topicLabel}
 - Rules(JSON): ${input.sourceRules}
 - Title: ${input.title}
 - Body:
@@ -30,9 +33,9 @@ ${input.body}
 }
 
 [Score Guide]
-- relevance_score: Rate high if related to AI art + sales/market/prompts/licensing/settlement/tool comparison
+- relevance_score: Rate high if content is directly relevant to ${topicLabel}
 - reply_worthiness_score: Rate high if the question is specific and answers appear lacking
-- link_fit_score: Rate high for "where to sell/marketplace recommendations," rate low for ethics debates
+- link_fit_score: Rate high for content seeking resource recommendations, rate low for debates
 - risk_flags: Must flag if rules restrict links/promotions (empty array if not applicable)
 - recommended_action:
   - If relevance>=60 AND reply_worthiness>=60, then draft
@@ -86,7 +89,7 @@ export function buildDraftPrompt(input: {
   }[promoLevel];
 
   return `
-You are a contributor who maintains trust in the AI Art community.
+You are a knowledgeable contributor on this platform.
 Platform: ${platform}
 Write short, natural responses that fit the context.
 Vary sentence structure so it doesn't look copy-pasted.

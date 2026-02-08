@@ -174,7 +174,7 @@ async function execRunNow(userId: string, cmd: ChatCommand): Promise<ExecutionRe
         if (!result) {
           return { ok: false, assistantMessage: `Report generation failed. The bot may have no sources or no recent items to analyze. Add sources and run collection first.`, executed: cmd, result: null };
         }
-        const topicLabel = topic === "ai_art" ? "AI Art" : topic;
+        const topicLabel = topic.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
         message = `${topicLabel} report generated. (${result.itemsCount} item(s) analyzed)\nCheck the Reports page to view it.`;
         break;
       }

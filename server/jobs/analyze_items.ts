@@ -27,6 +27,7 @@ export async function analyzeNewItems(): Promise<number> {
           body: item.contentText ?? "",
           sourceName: item.sourceName ?? "unknown",
           sourceRules: JSON.stringify(item.rulesJson ?? {}),
+          topic: item.sourceTopic ?? undefined,
         });
 
     try {
