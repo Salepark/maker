@@ -100,9 +100,9 @@ export interface IStorage {
   // Report Job helpers
   getActiveReportProfiles(): Promise<(Profile & { presetOutputType: string })[]>;
   getProfileSourceIds(profileId: number): Promise<number[]>;
-  getItemsForReport(topic: string, sourceIds: number[], lookbackHours: number, limit: number): Promise<(Item & { importanceScore: number; sourceName: string })[]>;
+  getItemsForReport(topic: string | null, sourceIds: number[], lookbackHours: number, limit: number): Promise<(Item & { importanceScore: number; sourceName: string })[]>;
   listAnalyzedItemsForReport(params: {
-    topic: string;
+    topic?: string | null;
     sourceIds: number[];
     periodStart: Date;
     periodEnd: Date;
@@ -886,7 +886,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getItemsForReport(
-    topic: string,
+    topic: string | null,
     sourceIds: number[],
     lookbackHours: number,
     limit: number
@@ -894,6 +894,15 @@ export class DatabaseStorage implements IStorage {
     if (sourceIds.length === 0) return [];
 
     const cutoff = new Date(Date.now() - lookbackHours * 60 * 60 * 1000);
+
+    const conditions = [
+      eq(items.status, "analyzed"),
+      inArray(items.sourceId, sourceIds),
+      gte(items.publishedAt, cutoff),
+    ];
+    if (topic) {
+      conditions.push(eq(items.topic, topic));
+    }
 
     const result = await db
       .select({
@@ -904,12 +913,7 @@ export class DatabaseStorage implements IStorage {
       .from(items)
       .innerJoin(analysis, eq(items.id, analysis.itemId))
       .innerJoin(sources, eq(items.sourceId, sources.id))
-      .where(and(
-        eq(items.topic, topic),
-        eq(items.status, "analyzed"),
-        inArray(items.sourceId, sourceIds),
-        gte(items.publishedAt, cutoff)
-      ))
+      .where(and(...conditions))
       .orderBy(desc(analysis.importanceScore))
       .limit(limit);
 
@@ -956,7 +960,7 @@ export class DatabaseStorage implements IStorage {
       .innerJoin(sources, eq(sources.id, items.sourceId))
       .where(
         and(
-          eq(items.topic, params.topic),
+          ...(params.topic ? [eq(items.topic, params.topic)] : []),
           inArray(items.sourceId, params.sourceIds),
           eq(items.status, "analyzed"),
           gte(items.publishedAt, params.periodStart),

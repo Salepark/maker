@@ -125,7 +125,7 @@ export async function generateReportsForDueProfiles(): Promise<ReportJobResult[]
       }
 
       let items = await storage.getItemsForReport(
-        profile.topic,
+        null,
         sourceIds,
         lookbackHours,
         maxItems
@@ -163,13 +163,6 @@ export async function generateReportsForDueProfiles(): Promise<ReportJobResult[]
           topic: profile.topic,
         });
         continue;
-      }
-
-      for (const item of items) {
-        if (item.topic !== profile.topic) {
-          console.error(`[ReportJob] TOPIC MISMATCH: item ${item.id} has topic ${item.topic} but profile expects ${profile.topic}`);
-          throw new Error(`Topic mismatch detected: item.topic=${item.topic}, profile.topic=${profile.topic}`);
-        }
       }
 
       const today = new Date().toLocaleDateString("en-US", {
@@ -266,7 +259,7 @@ export async function generateReportForProfile(profileId: number, userId?: strin
   const periodEnd = now;
 
   let items = await storage.getItemsForReport(
-    profile.topic,
+    null,
     sourceIds,
     lookbackHours,
     maxItems
@@ -277,12 +270,6 @@ export async function generateReportForProfile(profileId: number, userId?: strin
   const minScore = config.filters?.minImportanceScore ?? 0;
   if (minScore > 0) {
     items = items.filter(item => (item.importanceScore || 0) >= minScore);
-  }
-
-  for (const item of items) {
-    if (item.topic !== profile.topic) {
-      throw new Error(`Topic mismatch: item ${item.id} has topic ${item.topic} but profile expects ${profile.topic}`);
-    }
   }
 
   const today = new Date().toLocaleDateString("en-US", {
