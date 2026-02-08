@@ -35,6 +35,7 @@ export function getSession() {
     cookie: {
       httpOnly: true,
       secure: true,
+      sameSite: "lax",
       maxAge: sessionTtl,
     },
   });
@@ -152,8 +153,14 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     const config = await getOidcConfig();
     const tokenResponse = await client.refreshTokenGrant(config, refreshToken);
     updateUserSession(user, tokenResponse);
-    return next();
+    req.session.save((err) => {
+      if (err) {
+        console.error("[Auth] Session save after refresh failed:", err);
+      }
+      return next();
+    });
   } catch (error) {
+    console.error("[Auth] Token refresh failed:", error);
     res.status(401).json({ message: "Unauthorized" });
     return;
   }
