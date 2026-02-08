@@ -428,6 +428,77 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/console/context", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+
+      const threadIdParam = req.query.threadId as string | undefined;
+      const bots = await storage.listBots(userId);
+
+      let activeBotId: number | null = null;
+      let activeBotName: string | null = null;
+      let activeBotTopic: string | null = null;
+      let sourceCount = 0;
+      let lastCollectedAt: string | null = null;
+      let scheduleRule: string | null = null;
+      let scheduleTimeLocal: string | null = null;
+      let isEnabled = false;
+      let hasLlmProvider = false;
+
+      if (threadIdParam) {
+        const thread = await storage.getThread(Number(threadIdParam), userId);
+        if (thread?.activeBotId) {
+          activeBotId = thread.activeBotId;
+        }
+      }
+
+      if (!activeBotId && bots.length > 0) {
+        activeBotId = bots[0].id;
+      }
+
+      if (activeBotId) {
+        const bot = bots.find(b => b.id === activeBotId);
+        if (bot) {
+          activeBotName = bot.name;
+          activeBotTopic = bot.key;
+          isEnabled = bot.isEnabled;
+          if (bot.settings) {
+            scheduleRule = bot.settings.scheduleRule || null;
+            scheduleTimeLocal = bot.settings.scheduleTimeLocal || null;
+          }
+          const sources = await storage.getBotSources(bot.id);
+          sourceCount = sources.filter(s => s.isEnabled).length;
+
+          const botLlm = await storage.resolveLLMForBot(bot.id);
+          hasLlmProvider = !!botLlm || !!(process.env.LLM_API_KEY);
+        }
+      }
+
+      const stats = await storage.getStats();
+      lastCollectedAt = stats.lastCollectAt;
+
+      const providers = await storage.listLlmProviders(userId);
+
+      res.json({
+        botCount: bots.length,
+        activeBotId,
+        activeBotName,
+        activeBotTopic,
+        sourceCount,
+        lastCollectedAt,
+        scheduleRule,
+        scheduleTimeLocal,
+        isEnabled,
+        hasLlmProvider,
+        hasUserProviders: providers.length > 0,
+      });
+    } catch (error) {
+      console.error("Error getting console context:", error);
+      res.status(500).json({ error: "Failed to get console context" });
+    }
+  });
+
   app.post("/api/chat/threads", isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);

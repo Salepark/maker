@@ -123,6 +123,28 @@ Reports page includes Copy (clipboard) and Download (Markdown .md file) buttons 
 ### Source Topics (Phase 8)
 Expanded from 2 to 19 topic options in the source creation form: tech, investing, crypto, ai_art, creative, community_research, market_brief, research_watch, competitor_watch, finance, compliance, commerce, engagement, health, science, education, gaming, sustainability, other. Default topic is "tech".
 
+### Console Prompt Hints (Phase 7.1)
+State-aware autocomplete/hint system for the Console page. Instead of static example commands, the console now provides context-sensitive suggestions based on the user's current state.
+
+**Console States (S0-S4):**
+- S0: No bot selected → hints to list/select bots
+- S1: Bot exists but no sources → hints to add sources
+- S2: Sources exist but no recent collection → hints to run pipeline
+- S3: Ready (all set) → full range of hints (schedule, filter, output style, safety)
+- S4: Schedule/config issue → diagnostic hints
+
+**Backend:** `GET /api/console/context?threadId=X` returns bot state (botCount, activeBotId, sourceCount, lastCollectedAt, scheduleRule, scheduleTimeLocal, isEnabled, hasLlmProvider, hasUserProviders).
+
+**Frontend components:**
+- OnboardingView: Shown when chat is empty, displays state-appropriate hint chips
+- HintDropdown: Appears on input focus (empty input), grouped by 6 categories
+- HintChip: Clickable suggestions that insert text into input (no auto-execute)
+- Right sidebar: State-aware suggestions replacing static example commands
+- Next-action hints: Contextual follow-up suggestions after command results
+- Dynamic placeholder: Changes based on console state
+
+**6 Hint Categories:** First Run, Schedule, One-time Run, Focus Area, Output Style, Safety (30+ hints total, Korean language)
+
 ## External Dependencies
 
 ### Environment Variables

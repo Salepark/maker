@@ -1,11 +1,14 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MessageCircle, Send, Loader2, Bot, User, HelpCircle, Check, X, Zap, Play, CheckCircle2, AlertCircle } from "lucide-react";
+import {
+  MessageCircle, Send, Loader2, Bot, User, Check, X, Zap, Play, CheckCircle2, AlertCircle,
+  Lightbulb, Clock, Rocket, Filter, Palette, ShieldCheck, ArrowRight, ChevronDown,
+} from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { MessageKind } from "@shared/chatCommand";
@@ -37,14 +40,125 @@ interface ActiveBotInfo {
   name: string;
 }
 
-const exampleCommands = [
-  "자료 수집하고 분석해서 리포트 만들어줘",
-  "매일 아침 9시에 자동으로 리포트 제출해",
-  "데이터 모아서 분석 후 보고서 작성해줘",
-  "Show my bot list",
-  "Show bot status",
-  "Add source https://example.com/feed.xml",
+interface ConsoleContext {
+  botCount: number;
+  activeBotId: number | null;
+  activeBotName: string | null;
+  activeBotTopic: string | null;
+  sourceCount: number;
+  lastCollectedAt: string | null;
+  scheduleRule: string | null;
+  scheduleTimeLocal: string | null;
+  isEnabled: boolean;
+  hasLlmProvider: boolean;
+  hasUserProviders: boolean;
+}
+
+type ConsoleState = "S0_NO_BOT" | "S1_NO_SOURCES" | "S2_NO_COLLECTION" | "S3_READY" | "S4_SCHEDULE_ISSUE";
+
+type HintCategory = "first_run" | "schedule" | "one_time" | "filter" | "output_style" | "safety";
+
+interface Hint {
+  text: string;
+  category: HintCategory;
+  states: ConsoleState[];
+}
+
+const CATEGORY_ICONS: Record<HintCategory, typeof Lightbulb> = {
+  first_run: Rocket,
+  schedule: Clock,
+  one_time: Play,
+  filter: Filter,
+  output_style: Palette,
+  safety: ShieldCheck,
+};
+
+const CATEGORY_LABELS: Record<HintCategory, string> = {
+  first_run: "Getting Started",
+  schedule: "Schedule",
+  one_time: "Run Now",
+  filter: "Focus Area",
+  output_style: "Output Style",
+  safety: "Safety",
+};
+
+const ALL_HINTS: Hint[] = [
+  { text: "내 봇 목록 보여줘", category: "first_run", states: ["S0_NO_BOT"] },
+  { text: "투자 봇으로 전환해줘", category: "first_run", states: ["S0_NO_BOT"] },
+  { text: "내 설정이 잘 됐는지 점검하고 필요한 걸 알려줘", category: "first_run", states: ["S0_NO_BOT", "S1_NO_SOURCES", "S4_SCHEDULE_ISSUE"] },
+
+  { text: "기본 소스 넣고 시작해줘", category: "first_run", states: ["S1_NO_SOURCES"] },
+  { text: "이 URL 소스를 추가해줘: https://", category: "first_run", states: ["S1_NO_SOURCES"] },
+
+  { text: "오늘 시장 자료 모아서 요약 리포트 만들어줘", category: "first_run", states: ["S2_NO_COLLECTION", "S3_READY"] },
+  { text: "처음이니까 테스트로 한 번만 리포트 만들어줘", category: "first_run", states: ["S2_NO_COLLECTION"] },
+  { text: "투자 봇을 매일 아침 9시에 브리핑하게 설정해줘", category: "first_run", states: ["S2_NO_COLLECTION", "S3_READY"] },
+
+  { text: "매일 아침 9시에 리포트 받게 해줘", category: "schedule", states: ["S2_NO_COLLECTION", "S3_READY"] },
+  { text: "리포트 시간을 아침 8시로 바꿔줘", category: "schedule", states: ["S3_READY", "S4_SCHEDULE_ISSUE"] },
+  { text: "주말은 빼고 평일만 리포트 해줘", category: "schedule", states: ["S3_READY"] },
+  { text: "하루 1번만, 과하게 돌리지 말고 해줘", category: "schedule", states: ["S3_READY"] },
+
+  { text: "지금 바로 오늘 리포트 한 번 만들어줘", category: "one_time", states: ["S2_NO_COLLECTION", "S3_READY"] },
+  { text: "최근 24시간 이슈만 빠르게 요약해줘", category: "one_time", states: ["S3_READY"] },
+  { text: "자료 수집하고 분석해서 리포트 만들어줘", category: "one_time", states: ["S2_NO_COLLECTION", "S3_READY"] },
+
+  { text: "미국 주식 위주로만 정리해줘", category: "filter", states: ["S3_READY"] },
+  { text: "크립토 시장도 같이 포함해줘", category: "filter", states: ["S3_READY"] },
+  { text: "금리/환율/원자재 영향까지 한 줄로 정리해줘", category: "filter", states: ["S3_READY"] },
+  { text: "국제 정세가 시장에 미치는 영향 위주로 봐줘", category: "filter", states: ["S3_READY"] },
+
+  { text: "뉴스 앵커처럼 깔끔하게 핵심만", category: "output_style", states: ["S3_READY"] },
+  { text: "오늘은 좀 자세히, 근거 중심으로", category: "output_style", states: ["S3_READY"] },
+  { text: "한 줄 요약 + 핵심 5개만", category: "output_style", states: ["S3_READY"] },
+
+  { text: "내 승인 없이는 어디에도 게시하거나 발송하지 말아줘", category: "safety", states: ["S3_READY"] },
+  { text: "확실한 출처만 쓰고, 추측이면 추측이라고 표시해줘", category: "safety", states: ["S3_READY"] },
+  { text: "논쟁적인 표현은 피하고 중립적으로 정리해줘", category: "safety", states: ["S3_READY"] },
+
+  { text: "왜 리포트가 안 왔는지 점검해줘", category: "first_run", states: ["S4_SCHEDULE_ISSUE"] },
+  { text: "다음 실행 시간 알려줘", category: "schedule", states: ["S4_SCHEDULE_ISSUE"] },
+  { text: "지금 한 번 실행해줘", category: "one_time", states: ["S4_SCHEDULE_ISSUE"] },
+
+  { text: "내가 뭘 해야 하는지 모르겠어. 다음 단계 알려줘", category: "first_run", states: ["S0_NO_BOT", "S1_NO_SOURCES", "S2_NO_COLLECTION", "S3_READY", "S4_SCHEDULE_ISSUE"] },
+  { text: "봇 상태 보여줘", category: "first_run", states: ["S2_NO_COLLECTION", "S3_READY", "S4_SCHEDULE_ISSUE"] },
 ];
+
+function computeConsoleState(ctx: ConsoleContext | undefined): ConsoleState {
+  if (!ctx) return "S0_NO_BOT";
+  if (ctx.botCount === 0 || !ctx.activeBotId) return "S0_NO_BOT";
+  if (ctx.sourceCount === 0) return "S1_NO_SOURCES";
+  if (!ctx.lastCollectedAt) return "S2_NO_COLLECTION";
+  const lastCollect = new Date(ctx.lastCollectedAt);
+  const hoursSince = (Date.now() - lastCollect.getTime()) / (1000 * 60 * 60);
+  if (hoursSince > 48) return "S2_NO_COLLECTION";
+  if (!ctx.hasLlmProvider || !ctx.isEnabled || !ctx.scheduleRule || !ctx.scheduleTimeLocal) return "S4_SCHEDULE_ISSUE";
+  return "S3_READY";
+}
+
+function getStateMessage(state: ConsoleState): string {
+  switch (state) {
+    case "S0_NO_BOT": return "Start by selecting or creating a bot";
+    case "S1_NO_SOURCES": return "Add sources to start collecting data";
+    case "S2_NO_COLLECTION": return "Ready to collect and analyze data";
+    case "S3_READY": return "All set! Tell your bot what to do";
+    case "S4_SCHEDULE_ISSUE": return "Check your settings — something needs attention";
+  }
+}
+
+function getPlaceholder(state: ConsoleState): string {
+  switch (state) {
+    case "S0_NO_BOT": return '"내 봇 목록 보여줘" or "Show my bots"';
+    case "S1_NO_SOURCES": return '"기본 소스 넣고 시작해줘" or "Add source https://..."';
+    case "S2_NO_COLLECTION": return '"자료 수집하고 분석해서 리포트 만들어줘"';
+    case "S3_READY": return '"자료 수집하고 분석해서 리포트 만들어줘"';
+    case "S4_SCHEDULE_ISSUE": return '"왜 리포트가 안 왔는지 점검해줘"';
+  }
+}
+
+function getHintsForState(state: ConsoleState): Hint[] {
+  return ALL_HINTS.filter(h => h.states.includes(state));
+}
 
 function getPipelineStepLabel(step: string): string {
   switch (step) {
@@ -170,13 +284,118 @@ function MessageBubble({
   );
 }
 
+function HintChip({ hint, onClick, location, index }: { hint: Hint; onClick: (text: string) => void; location: string; index: number }) {
+  const Icon = CATEGORY_ICONS[hint.category];
+  return (
+    <button
+      type="button"
+      className="flex items-center gap-2 px-3 py-2 text-left text-sm rounded-md bg-muted/50 hover-elevate active-elevate-2 transition-colors w-full"
+      onClick={() => onClick(hint.text)}
+      data-testid={`hint-chip-${location}-${index}`}
+    >
+      <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+      <span className="text-muted-foreground">{hint.text}</span>
+    </button>
+  );
+}
+
+function OnboardingView({
+  state,
+  hints,
+  onHintClick,
+}: {
+  state: ConsoleState;
+  hints: Hint[];
+  onHintClick: (text: string) => void;
+}) {
+  const topHints = hints.slice(0, 6);
+  const stateMsg = getStateMessage(state);
+
+  return (
+    <div className="flex flex-col items-center justify-center h-full px-4">
+      <div className="max-w-lg w-full">
+        <div className="text-center mb-6">
+          <Lightbulb className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+          <h3 className="text-lg font-medium" data-testid="text-onboarding-title">
+            {stateMsg}
+          </h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            Try one of these — just click to fill in, then press Enter
+          </p>
+        </div>
+
+        <div className="space-y-2" data-testid="onboarding-hints">
+          {topHints.map((hint, i) => (
+            <HintChip key={i} hint={hint} onClick={onHintClick} location="onboarding" index={i} />
+          ))}
+        </div>
+
+        <div className="mt-6 pt-4 border-t border-border text-center">
+          <p className="text-xs text-muted-foreground">
+            Type anything in plain language — Korean or English
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HintDropdown({
+  hints,
+  visible,
+  onSelect,
+}: {
+  hints: Hint[];
+  visible: boolean;
+  onSelect: (text: string) => void;
+}) {
+  const grouped = hints.reduce((acc, h) => {
+    if (!acc[h.category]) acc[h.category] = [];
+    acc[h.category].push(h);
+    return acc;
+  }, {} as Record<HintCategory, Hint[]>);
+
+  const categories = Object.keys(grouped) as HintCategory[];
+
+  return (
+    <div
+      className="absolute bottom-full left-0 right-0 mb-1 bg-card border border-border rounded-md shadow-md max-h-72 overflow-y-auto z-50"
+      style={{ visibility: visible && hints.length > 0 ? "visible" : "hidden" }}
+      data-testid="hint-dropdown"
+    >
+      {categories.map(cat => (
+        <div key={cat}>
+          <div className="px-3 py-1.5 text-xs font-medium text-muted-foreground flex items-center gap-1.5 sticky top-0 bg-card border-b border-border">
+            {(() => { const Icon = CATEGORY_ICONS[cat]; return <Icon className="h-3 w-3" />; })()}
+            {CATEGORY_LABELS[cat]}
+          </div>
+          {grouped[cat].map((hint, i) => (
+            <button
+              key={i}
+              type="button"
+              className="w-full text-left px-3 py-2 text-sm hover-elevate active-elevate-2 transition-colors"
+              onClick={() => onSelect(hint.text)}
+              data-testid={`hint-option-${cat}-${i}`}
+            >
+              {hint.text}
+            </button>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function Chat() {
   const { toast } = useToast();
   const [input, setInput] = useState("");
   const [confirmingId, setConfirmingId] = useState<number | null>(null);
   const [threadId, setThreadId] = useState<number | null>(null);
   const [pipelineRunning, setPipelineRunning] = useState(false);
+  const [showHints, setShowHints] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const hintDropdownRef = useRef<HTMLDivElement>(null);
 
   const { data: threads, isLoading: threadsLoading } = useQuery<ChatThread[]>({
     queryKey: ["/api/chat/threads"],
@@ -193,19 +412,17 @@ export default function Chat() {
       const res = await apiRequest("POST", "/api/chat/threads", {});
       return res.json();
     },
-    onSuccess: (newThread: ChatThread) => {
-      setThreadId(newThread.id);
+    onSuccess: (data: ChatThread) => {
+      setThreadId(data.id);
       queryClient.invalidateQueries({ queryKey: ["/api/chat/threads"] });
     },
   });
 
   useEffect(() => {
-    if (!threadsLoading && threads && threads.length === 0 && !createThreadMutation.isPending) {
+    if (threads && threads.length === 0 && !createThreadMutation.isPending) {
       createThreadMutation.mutate();
     }
-  }, [threads, threadsLoading]);
-
-  const currentThread = threads?.find(t => t.id === threadId);
+  }, [threads]);
 
   const { data: messages, isLoading: messagesLoading } = useQuery<ChatMessage[]>({
     queryKey: ["/api/chat/threads", threadId, "messages"],
@@ -237,15 +454,48 @@ export default function Chat() {
   const { data: activeBotInfo } = useQuery<ActiveBotInfo | null>({
     queryKey: ["/api/chat/threads", threadId, "activeBot"],
     queryFn: async () => {
-      if (!currentThread?.activeBotId) return null;
-      const res = await fetch(`/api/bots`, { credentials: "include" });
+      if (!threadId) return null;
+      const thread = threads?.find(t => t.id === threadId);
+      if (!thread?.activeBotId) return null;
+      const res = await fetch("/api/bots", { credentials: "include" });
       if (!res.ok) return null;
       const bots = await res.json();
-      return bots.find((b: any) => b.id === currentThread.activeBotId) || null;
+      return bots.find((b: any) => b.id === thread.activeBotId) || null;
     },
-    enabled: !!currentThread,
-    refetchInterval: 10000,
+    enabled: !!threadId && !!threads,
   });
+
+  const { data: consoleContext } = useQuery<ConsoleContext>({
+    queryKey: ["/api/console/context", threadId],
+    queryFn: async () => {
+      const url = threadId
+        ? `/api/console/context?threadId=${threadId}`
+        : "/api/console/context";
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to load context");
+      return res.json();
+    },
+    refetchInterval: 15000,
+  });
+
+  const consoleState = useMemo(() => computeConsoleState(consoleContext), [consoleContext]);
+  const stateHints = useMemo(() => getHintsForState(consoleState), [consoleState]);
+  const placeholderText = useMemo(() => getPlaceholder(consoleState), [consoleState]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (hintDropdownRef.current && !hintDropdownRef.current.contains(e.target as Node) &&
+          inputRef.current && !inputRef.current.contains(e.target as Node)) {
+        setShowHints(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const sendMutation = useMutation({
     mutationFn: async (text: string) => {
@@ -256,6 +506,7 @@ export default function Chat() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/chat/threads", threadId, "messages"] });
       queryClient.invalidateQueries({ queryKey: ["/api/chat/threads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/console/context", threadId] });
     },
     onError: (error: any) => {
       toast({
@@ -279,6 +530,7 @@ export default function Chat() {
       }
       queryClient.invalidateQueries({ queryKey: ["/api/chat/threads", threadId, "messages"] });
       queryClient.invalidateQueries({ queryKey: ["/api/chat/threads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/console/context", threadId] });
     },
     onError: (error: any) => {
       setConfirmingId(null);
@@ -290,19 +542,18 @@ export default function Chat() {
     },
   });
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || sendMutation.isPending) return;
+    setShowHints(false);
     sendMutation.mutate(input.trim());
     setInput("");
   };
 
-  const handleExampleClick = (example: string) => {
-    setInput(example);
+  const handleHintClick = (text: string) => {
+    setInput(text);
+    setShowHints(false);
+    inputRef.current?.focus();
   };
 
   const handleConfirm = (messageId: number) => {
@@ -316,6 +567,40 @@ export default function Chat() {
   };
 
   const isLoading = threadsLoading || messagesLoading;
+
+  const lastCommandResult = useMemo(() => {
+    if (!messages?.length) return null;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i];
+      if (m.role === "assistant" && m.kind === "command_result" && m.commandJson) {
+        return m;
+      }
+    }
+    return null;
+  }, [messages]);
+
+  const nextActionHints = useMemo((): Hint[] => {
+    if (!lastCommandResult) return [];
+    const cmdType = lastCommandResult.commandJson?.type;
+    const ok = lastCommandResult.resultJson?.ok;
+    if (!ok) return [];
+
+    if (cmdType === "pipeline_run") {
+      return [
+        { text: "매일 아침 9시에 리포트 받게 해줘", category: "schedule", states: ["S3_READY"] },
+        { text: "봇 상태 보여줘", category: "first_run", states: ["S3_READY"] },
+      ];
+    }
+    if (cmdType === "list_bots" || cmdType === "switch_bot") {
+      return stateHints.slice(0, 3);
+    }
+    if (cmdType === "add_source") {
+      return [
+        { text: "자료 수집하고 분석해서 리포트 만들어줘", category: "one_time", states: ["S2_NO_COLLECTION"] },
+      ];
+    }
+    return [];
+  }, [lastCommandResult, stateHints]);
 
   return (
     <div className="flex flex-col h-full">
@@ -351,23 +636,45 @@ export default function Chat() {
                 ))}
               </div>
             ) : !messages?.length ? (
-              <div className="flex flex-col items-center justify-center h-full text-center">
-                <MessageCircle className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium" data-testid="text-chat-empty">Start a conversation</h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Try: "자료 수집하고 분석해서 리포트 만들어줘"
-                </p>
-              </div>
+              <OnboardingView
+                state={consoleState}
+                hints={stateHints}
+                onHintClick={handleHintClick}
+              />
             ) : (
-              messages.map((msg) => (
-                <MessageBubble
-                  key={msg.id}
-                  message={msg}
-                  onConfirm={handleConfirm}
-                  onCancel={handleCancel}
-                  isConfirming={confirmingId === msg.id}
-                />
-              ))
+              <>
+                {messages.map((msg) => (
+                  <MessageBubble
+                    key={msg.id}
+                    message={msg}
+                    onConfirm={handleConfirm}
+                    onCancel={handleCancel}
+                    isConfirming={confirmingId === msg.id}
+                  />
+                ))}
+
+                {nextActionHints.length > 0 && !pipelineRunning && (
+                  <div className="flex flex-col gap-1.5 ml-11 mt-2" data-testid="next-action-hints">
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <ArrowRight className="h-3 w-3" />
+                      Try next
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {nextActionHints.map((hint, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          className="text-xs px-2.5 py-1.5 rounded-md bg-muted/50 text-muted-foreground hover-elevate active-elevate-2 transition-colors"
+                          onClick={() => handleHintClick(hint.text)}
+                          data-testid={`next-action-${i}`}
+                        >
+                          {hint.text}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
             <div ref={messagesEndRef} />
           </div>
@@ -378,59 +685,82 @@ export default function Chat() {
               <span className="text-sm text-muted-foreground">Pipeline running... Steps will appear as they complete.</span>
             </div>
           )}
+
           <form onSubmit={handleSubmit} className="p-4 border-t border-border shrink-0">
-            <div className="flex gap-2">
-              <Input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder={activeBotInfo ? `e.g. "자료 수집하고 분석해서 리포트 만들어줘"` : 'e.g. "자료 수집하고 분석해서 리포트 만들어줘"'}
-                disabled={sendMutation.isPending || pipelineRunning}
-                data-testid="input-chat-message"
+            <div className="relative" ref={hintDropdownRef}>
+              <HintDropdown
+                hints={stateHints.slice(0, 10)}
+                visible={showHints && !input.trim()}
+                onSelect={handleHintClick}
               />
-              <Button
-                type="submit"
-                disabled={!input.trim() || sendMutation.isPending}
-                data-testid="button-send-message"
-              >
-                {sendMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Send className="h-4 w-4" />
-                )}
-              </Button>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Input
+                    ref={inputRef}
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onFocus={() => setShowHints(true)}
+                    placeholder={placeholderText}
+                    disabled={sendMutation.isPending || pipelineRunning}
+                    data-testid="input-chat-message"
+                  />
+                  {!input.trim() && !pipelineRunning && (
+                    <button
+                      type="button"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground"
+                      onClick={() => setShowHints(!showHints)}
+                      data-testid="button-toggle-hints"
+                    >
+                      <ChevronDown className={`h-4 w-4 transition-transform ${showHints ? "rotate-180" : ""}`} />
+                    </button>
+                  )}
+                </div>
+                <Button
+                  type="submit"
+                  disabled={!input.trim() || sendMutation.isPending}
+                  data-testid="button-send-message"
+                >
+                  {sendMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
             </div>
           </form>
         </div>
 
-        <div className="w-64 border-l border-border p-4 hidden lg:block">
+        <div className="w-64 border-l border-border p-4 hidden lg:block overflow-y-auto">
           <div className="flex items-center gap-2 mb-3">
-            <HelpCircle className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Example Commands</span>
+            <Lightbulb className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Suggestions</span>
           </div>
-          <div className="space-y-2">
-            {exampleCommands.map((example, i) => (
-              <Card
-                key={i}
-                className="cursor-pointer hover-elevate"
-                onClick={() => handleExampleClick(example)}
-                data-testid={`card-example-${i}`}
-              >
-                <CardContent className="p-3">
-                  <p className="text-xs text-muted-foreground">{example}</p>
-                </CardContent>
-              </Card>
+
+          <div className="mb-3">
+            <Badge variant="outline" className="text-xs" data-testid="badge-console-state">
+              {getStateMessage(consoleState)}
+            </Badge>
+          </div>
+
+          <div className="space-y-1.5">
+            {stateHints.slice(0, 8).map((hint, i) => (
+              <HintChip key={i} hint={hint} onClick={handleHintClick} location="sidebar" index={i} />
             ))}
           </div>
 
           <div className="mt-6 pt-4 border-t border-border">
-            <p className="text-xs text-muted-foreground mb-2">What you can do:</p>
+            <p className="text-xs text-muted-foreground mb-2">Categories</p>
             <div className="flex flex-wrap gap-1">
-              <Badge variant="secondary" className="text-xs">Full pipeline</Badge>
-              <Badge variant="secondary" className="text-xs">Schedule</Badge>
-              <Badge variant="secondary" className="text-xs">Bot list</Badge>
-              <Badge variant="secondary" className="text-xs">Bot status</Badge>
-              <Badge variant="secondary" className="text-xs">Add source</Badge>
-              <Badge variant="secondary" className="text-xs">Pause / Resume</Badge>
+              {(Object.keys(CATEGORY_LABELS) as HintCategory[]).map(cat => {
+                const Icon = CATEGORY_ICONS[cat];
+                return (
+                  <Badge key={cat} variant="secondary" className="text-xs">
+                    <Icon className="h-3 w-3 mr-1" />
+                    {CATEGORY_LABELS[cat]}
+                  </Badge>
+                );
+              })}
             </div>
           </div>
         </div>
