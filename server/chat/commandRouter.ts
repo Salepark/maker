@@ -1,5 +1,7 @@
 import type { ChatCommand, PipelineRunArgs } from "@shared/chatCommand";
 import { runCollectNow, runAnalyzeNow, runDraftNow, runReportNow } from "../jobs/scheduler";
+import { collectFromSourceIds } from "../services/rss";
+import { analyzeNewItemsBySourceIds } from "../jobs/analyze_items";
 import { hasSystemLLMKey } from "../llm/client";
 import { storage } from "../storage";
 
@@ -101,14 +103,28 @@ async function execRunNow(userId: string, cmd: ChatCommand): Promise<ExecutionRe
     let message: string;
     let result: any;
 
+    const bot = cmd.botKey ? await resolveBot(userId, cmd.botKey) : null;
+    const botSources = bot ? await storage.getBotSources(bot.id) : [];
+    const botSourceIds = botSources.map(s => s.id);
+
     switch (job) {
       case "collect":
-        result = await runCollectNow();
-        message = `Collection complete: ${result.totalCollected} new item(s).`;
+        if (botSourceIds.length > 0) {
+          result = await collectFromSourceIds(botSourceIds);
+          message = `Collection complete: ${result.totalCollected} new item(s) from ${result.sourcesProcessed} bot sources.`;
+        } else {
+          result = await runCollectNow();
+          message = `Collection complete: ${result.totalCollected} new item(s).`;
+        }
         break;
       case "analyze":
-        result = await runAnalyzeNow();
-        message = `Analysis complete: ${result} item(s) analyzed.`;
+        if (botSourceIds.length > 0) {
+          result = await analyzeNewItemsBySourceIds(botSourceIds);
+          message = `Analysis complete: ${result} item(s) analyzed.`;
+        } else {
+          result = await runAnalyzeNow();
+          message = `Analysis complete: ${result} item(s) analyzed.`;
+        }
         break;
       case "draft":
         result = await runDraftNow();
@@ -234,9 +250,10 @@ async function execPipelineRun(
   }
 
   const steps: PipelineStepResult[] = [];
+  const botSourceIds = botSources.map(s => s.id);
 
   try {
-    const collectResult = await runCollectNow();
+    const collectResult = await collectFromSourceIds(botSourceIds);
     const collectStep: PipelineStepResult = {
       step: "collect",
       ok: true,
@@ -262,7 +279,7 @@ async function execPipelineRun(
   }
 
   try {
-    const analyzeCount = await runAnalyzeNow();
+    const analyzeCount = await analyzeNewItemsBySourceIds(botSourceIds);
     const analyzeStep: PipelineStepResult = {
       step: "analyze",
       ok: true,

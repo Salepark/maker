@@ -77,3 +77,20 @@ export async function collectAllSources(): Promise<{ totalCollected: number; sou
 
   return { totalCollected, sourcesProcessed };
 }
+
+export async function collectFromSourceIds(sourceIds: number[]): Promise<{ totalCollected: number; sourcesProcessed: number }> {
+  const allSources = await storage.getSources();
+  const targetSources = allSources.filter(s => sourceIds.includes(s.id) && s.enabled);
+  let totalCollected = 0;
+  let sourcesProcessed = 0;
+
+  for (const source of targetSources) {
+    console.log(`[BotCollect] Collecting from: ${source.name} (${source.url})`);
+    const collected = await collectFromSource(source.id, source.url, source.topic);
+    totalCollected += collected;
+    sourcesProcessed++;
+    console.log(`[BotCollect] Collected ${collected} new items from ${source.name}`);
+  }
+
+  return { totalCollected, sourcesProcessed };
+}
