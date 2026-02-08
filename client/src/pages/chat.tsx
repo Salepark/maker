@@ -451,18 +451,19 @@ export default function Chat() {
     }
   }, [messages, pipelineRunning]);
 
+  const currentThread = threads?.find(t => t.id === threadId);
+  const currentActiveBotId = currentThread?.activeBotId ?? null;
+
   const { data: activeBotInfo } = useQuery<ActiveBotInfo | null>({
-    queryKey: ["/api/chat/threads", threadId, "activeBot"],
+    queryKey: ["/api/chat/threads", threadId, "activeBot", currentActiveBotId],
     queryFn: async () => {
-      if (!threadId) return null;
-      const thread = threads?.find(t => t.id === threadId);
-      if (!thread?.activeBotId) return null;
+      if (!threadId || !currentActiveBotId) return null;
       const res = await fetch("/api/bots", { credentials: "include" });
       if (!res.ok) return null;
       const bots = await res.json();
-      return bots.find((b: any) => b.id === thread.activeBotId) || null;
+      return bots.find((b: any) => b.id === currentActiveBotId) || null;
     },
-    enabled: !!threadId && !!threads,
+    enabled: !!threadId && !!currentActiveBotId,
   });
 
   const { data: consoleContext } = useQuery<ConsoleContext>({
@@ -507,6 +508,7 @@ export default function Chat() {
       queryClient.invalidateQueries({ queryKey: ["/api/chat/threads", threadId, "messages"] });
       queryClient.invalidateQueries({ queryKey: ["/api/chat/threads"] });
       queryClient.invalidateQueries({ queryKey: ["/api/console/context", threadId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/chat/threads", threadId, "activeBot"] });
     },
     onError: (error: any) => {
       toast({
@@ -531,6 +533,7 @@ export default function Chat() {
       queryClient.invalidateQueries({ queryKey: ["/api/chat/threads", threadId, "messages"] });
       queryClient.invalidateQueries({ queryKey: ["/api/chat/threads"] });
       queryClient.invalidateQueries({ queryKey: ["/api/console/context", threadId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/chat/threads", threadId, "activeBot"] });
     },
     onError: (error: any) => {
       setConfirmingId(null);
