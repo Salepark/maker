@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   MessageCircle, Send, Loader2, Bot, User, Check, X, Zap, Play, CheckCircle2, AlertCircle,
   Lightbulb, Clock, Rocket, Filter, Palette, ShieldCheck, ArrowRight, ChevronDown,
+  Search, Users, Target, MessageSquare, BarChart3, Eye,
 } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -57,11 +58,17 @@ interface ConsoleContext {
 type ConsoleState = "S0_NO_BOT" | "S1_NO_SOURCES" | "S2_NO_COLLECTION" | "S3_READY" | "S4_SCHEDULE_ISSUE";
 
 type HintCategory = "first_run" | "schedule" | "one_time" | "filter" | "output_style" | "safety";
+type BotHintCategory = "research" | "outreach" | "contribution" | "analysis" | "monitor" | "safety_promo";
 
 interface Hint {
   text: string;
   category: HintCategory;
   states: ConsoleState[];
+}
+
+interface BotHint {
+  text: string;
+  category: BotHintCategory;
 }
 
 const CATEGORY_ICONS: Record<HintCategory, typeof Lightbulb> = {
@@ -80,6 +87,55 @@ const CATEGORY_LABELS: Record<HintCategory, string> = {
   filter: "Focus Area",
   output_style: "Output Style",
   safety: "Safety",
+};
+
+const BOT_HINT_CATEGORY_ICONS: Record<BotHintCategory, typeof Lightbulb> = {
+  research: Search,
+  outreach: Target,
+  contribution: MessageSquare,
+  analysis: BarChart3,
+  monitor: Eye,
+  safety_promo: ShieldCheck,
+};
+
+const BOT_HINT_CATEGORY_LABELS: Record<BotHintCategory, string> = {
+  research: "User Research",
+  outreach: "Outreach",
+  contribution: "Community",
+  analysis: "Analysis",
+  monitor: "Monitoring",
+  safety_promo: "Safety",
+};
+
+const COMMUNITY_RESEARCH_HINTS: BotHint[] = [
+  { text: "자동화/워크플로우 관련 고민을 올린 커뮤니티 글 수집해줘", category: "research" },
+  { text: "\"이거 자동화하고 싶다\" 같은 니즈가 있는 Reddit 글 찾아줘", category: "research" },
+  { text: "1인 창업자/사이드프로젝트 운영자의 반복 업무 불만 모아줘", category: "research" },
+  { text: "RSS 자동화, 뉴스레터 정리에 관심 있는 사용자 패턴 분석해줘", category: "research" },
+
+  { text: "\"정보 과부하\"로 고민하는 투자자 커뮤니티 글 정리해줘", category: "outreach" },
+  { text: "생산성 도구를 찾고 있는 사용자 질문 모아줘", category: "outreach" },
+  { text: "Makelr가 해결할 수 있는 문제를 겪는 사람들의 글 요약해줘", category: "outreach" },
+
+  { text: "커뮤니티에 도움이 되는 답변 초안 만들어줘 (홍보 없이)", category: "contribution" },
+  { text: "자동화 팁을 공유하는 형식으로 기여 초안 작성해줘", category: "contribution" },
+  { text: "RSS 활용법이나 정보 정리 노하우를 공유하는 글 초안 만들어줘", category: "contribution" },
+
+  { text: "이번 주 자동화 관련 트렌드 키워드 분석해줘", category: "analysis" },
+  { text: "어떤 커뮤니티에서 Makelr 같은 도구 수요가 가장 높은지 분석해줘", category: "analysis" },
+  { text: "수집된 자료에서 잠재 사용자 페르소나 정리해줘", category: "analysis" },
+
+  { text: "Reddit/HN에서 워크플로우 자동화 언급 추이를 모니터해줘", category: "monitor" },
+  { text: "경쟁 도구(Zapier, Make 등) 언급 빈도와 불만사항 추적해줘", category: "monitor" },
+  { text: "매일 아침 커뮤니티 동향 브리핑 만들어줘", category: "monitor" },
+
+  { text: "직접적인 Makelr 홍보는 하지 말고, 가치 제공 위주로만", category: "safety_promo" },
+  { text: "스팸처럼 보이지 않게, 진정성 있는 커뮤니티 기여만 해줘", category: "safety_promo" },
+  { text: "링크나 브랜드명 없이, 문제 해결 중심으로 접근해줘", category: "safety_promo" },
+];
+
+const BOT_SPECIFIC_HINTS: Record<string, BotHint[]> = {
+  community_research: COMMUNITY_RESEARCH_HINTS,
 };
 
 const ALL_HINTS: Hint[] = [
@@ -299,6 +355,21 @@ function HintChip({ hint, onClick, location, index }: { hint: Hint; onClick: (te
   );
 }
 
+function BotHintChip({ hint, onClick, index }: { hint: BotHint; onClick: (text: string) => void; index: number }) {
+  const Icon = BOT_HINT_CATEGORY_ICONS[hint.category];
+  return (
+    <button
+      type="button"
+      className="flex items-center gap-2 px-3 py-2 text-left text-sm rounded-md bg-muted/50 hover-elevate active-elevate-2 transition-colors w-full"
+      onClick={() => onClick(hint.text)}
+      data-testid={`bot-hint-chip-${index}`}
+    >
+      <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+      <span className="text-muted-foreground">{hint.text}</span>
+    </button>
+  );
+}
+
 function OnboardingView({
   state,
   hints,
@@ -482,6 +553,12 @@ export default function Chat() {
   const consoleState = useMemo(() => computeConsoleState(consoleContext), [consoleContext]);
   const stateHints = useMemo(() => getHintsForState(consoleState), [consoleState]);
   const placeholderText = useMemo(() => getPlaceholder(consoleState), [consoleState]);
+
+  const activeBotTopic = consoleContext?.activeBotTopic ?? null;
+  const botSpecificHints = useMemo(() => {
+    if (!activeBotTopic) return null;
+    return BOT_SPECIFIC_HINTS[activeBotTopic] ?? null;
+  }, [activeBotTopic]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -735,37 +812,75 @@ export default function Chat() {
         </div>
 
         <div className="w-64 border-l border-border p-4 hidden lg:block overflow-y-auto">
-          <div className="flex items-center gap-2 mb-3">
-            <Lightbulb className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Suggestions</span>
-          </div>
+          {botSpecificHints ? (
+            <>
+              <div className="flex items-center gap-2 mb-2">
+                <Target className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">{consoleContext?.activeBotName || "Bot"} Commands</span>
+              </div>
+              <p className="text-xs text-muted-foreground mb-3">
+                Makelr 홍보를 위한 사전 조사, 자료 수집, 커뮤니티 기여 명령어
+              </p>
 
-          <div className="mb-3">
-            <Badge variant="outline" className="text-xs" data-testid="badge-console-state">
-              {getStateMessage(consoleState)}
-            </Badge>
-          </div>
-
-          <div className="space-y-1.5">
-            {stateHints.slice(0, 8).map((hint, i) => (
-              <HintChip key={i} hint={hint} onClick={handleHintClick} location="sidebar" index={i} />
-            ))}
-          </div>
-
-          <div className="mt-6 pt-4 border-t border-border">
-            <p className="text-xs text-muted-foreground mb-2">Categories</p>
-            <div className="flex flex-wrap gap-1">
-              {(Object.keys(CATEGORY_LABELS) as HintCategory[]).map(cat => {
-                const Icon = CATEGORY_ICONS[cat];
+              {(Object.keys(BOT_HINT_CATEGORY_LABELS) as BotHintCategory[]).map(cat => {
+                const hintsInCat = botSpecificHints.filter(h => h.category === cat);
+                if (hintsInCat.length === 0) return null;
+                const Icon = BOT_HINT_CATEGORY_ICONS[cat];
                 return (
-                  <Badge key={cat} variant="secondary" className="text-xs">
-                    <Icon className="h-3 w-3 mr-1" />
-                    {CATEGORY_LABELS[cat]}
-                  </Badge>
+                  <div key={cat} className="mb-4" data-testid={`bot-hint-group-${cat}`}>
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-xs font-medium text-muted-foreground">{BOT_HINT_CATEGORY_LABELS[cat]}</span>
+                    </div>
+                    <div className="space-y-1">
+                      {hintsInCat.map((hint, i) => (
+                        <BotHintChip
+                          key={`${cat}-${i}`}
+                          hint={hint}
+                          onClick={handleHintClick}
+                          index={botSpecificHints.indexOf(hint)}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 );
               })}
-            </div>
-          </div>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-2 mb-3">
+                <Lightbulb className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Suggestions</span>
+              </div>
+
+              <div className="mb-3">
+                <Badge variant="outline" className="text-xs" data-testid="badge-console-state">
+                  {getStateMessage(consoleState)}
+                </Badge>
+              </div>
+
+              <div className="space-y-1.5">
+                {stateHints.slice(0, 8).map((hint, i) => (
+                  <HintChip key={i} hint={hint} onClick={handleHintClick} location="sidebar" index={i} />
+                ))}
+              </div>
+
+              <div className="mt-6 pt-4 border-t border-border">
+                <p className="text-xs text-muted-foreground mb-2">Categories</p>
+                <div className="flex flex-wrap gap-1">
+                  {(Object.keys(CATEGORY_LABELS) as HintCategory[]).map(cat => {
+                    const Icon = CATEGORY_ICONS[cat];
+                    return (
+                      <Badge key={cat} variant="secondary" className="text-xs">
+                        <Icon className="h-3 w-3 mr-1" />
+                        {CATEGORY_LABELS[cat]}
+                      </Badge>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
