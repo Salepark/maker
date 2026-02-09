@@ -555,6 +555,19 @@ const TOPIC_META: Record<string, { label: string; role: string; focus: string; d
     focus: "community discussions, emerging topics, user sentiment, notable threads, and actionable insights from online communities and forums.",
     disclaimer: "This report summarizes community research insights.",
   },
+  online_business: {
+    label: "Online Business Market Research Report",
+    role: "a market research analyst specializing in e-commerce, online retail, and small brand strategy",
+    focus: "customer complaints and hesitation signals, recurring market patterns, competitive positioning gaps, actionable improvement areas, and content strategy hints. Prioritize practical, execution-ready insights over abstract trends. Tone: practical, calm, judgment-focused, no exaggeration.",
+    disclaimer: "This report is for informational reference only. All strategic decisions should be reviewed by the user before execution.",
+    excludeFilter: "Exclude generic motivational content, get-rich-quick schemes, and affiliate marketing promotions. Focus on real customer signals, market data, and operational insights.",
+  },
+  work_productivity: {
+    label: "Work & Productivity Brief",
+    role: "a productivity and operations research analyst",
+    focus: "productivity tips, operational know-how, practical ideas, tool recommendations, and workflow improvements for solo operators and small teams.",
+    disclaimer: "This report summarizes productivity and work-related insights.",
+  },
 };
 
 export function getTopicLabel(topic: string): string {

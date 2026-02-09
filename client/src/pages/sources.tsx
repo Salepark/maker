@@ -92,6 +92,7 @@ const TOPICS = [
   { value: "education", label: "Education" },
   { value: "content_research", label: "Content Research" },
   { value: "work_productivity", label: "Work & Productivity" },
+  { value: "online_business", label: "Online Business" },
   { value: "gaming", label: "Gaming" },
   { value: "sustainability", label: "Sustainability" },
   { value: "other", label: "Other" },

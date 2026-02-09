@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Bot, Layers, Rss, Settings, Zap, ArrowRight, TrendingUp, BookOpen, Building2, Newspaper, ChevronDown, Key, MessageSquare, PenTool, Laptop } from "lucide-react";
+import { Bot, Layers, Rss, Settings, Zap, ArrowRight, TrendingUp, BookOpen, Building2, Newspaper, ChevronDown, Key, MessageSquare, PenTool, Laptop, Store } from "lucide-react";
 import { ShareButton } from "@/components/share-button";
 
 const useCases = [
@@ -34,6 +34,11 @@ const useCases = [
     icon: Laptop,
     title: "Work & Productivity Research",
     description: "Automatically gather productivity tips, business ideas, and practical tools from Reddit, Indie Hackers, and Medium. A daily research memo for marketers, planners, and solopreneurs.",
+  },
+  {
+    icon: Store,
+    title: "Online Business Research",
+    description: "Collect customer complaints, market signals, and competitor data from e-commerce communities. Get strategy reports focused on why customers hesitate — not just what to sell.",
   },
   {
     icon: MessageSquare,
