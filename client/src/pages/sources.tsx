@@ -93,6 +93,7 @@ const TOPICS = [
   { value: "content_research", label: "Content Research" },
   { value: "work_productivity", label: "Work & Productivity" },
   { value: "online_business", label: "Online Business" },
+  { value: "korea_marketplace", label: "Korea Marketplace" },
   { value: "gaming", label: "Gaming" },
   { value: "sustainability", label: "Sustainability" },
   { value: "other", label: "Other" },

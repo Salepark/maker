@@ -562,6 +562,13 @@ const TOPIC_META: Record<string, { label: string; role: string; focus: string; d
     disclaimer: "This report is for informational reference only. All strategic decisions should be reviewed by the user before execution.",
     excludeFilter: "Exclude generic motivational content, get-rich-quick schemes, and affiliate marketing promotions. Focus on real customer signals, market data, and operational insights.",
   },
+  korea_marketplace: {
+    label: "Korea Marketplace Research Report",
+    role: "a market research analyst specializing in Korean open marketplaces (Coupang, Naver SmartStore) and small-to-mid seller strategy",
+    focus: "recurring customer complaints, pricing pressure signals, review-based improvement opportunities, seller operational pain points, and niche demand gaps. Prioritize practical, execution-ready insights. Do not promote products, guarantee profits, or use motivational language. Tone: calm, analytical, judgment-focused.",
+    disclaimer: "이 리포트는 정보 참고용입니다. 모든 전략적 판단은 사용자가 직접 검토한 후 실행해야 합니다.",
+    excludeFilter: "Exclude generic motivational content, get-rich-quick schemes, affiliate marketing promotions, and automated selling pitches. Focus on real customer signals, market data, and operational insights from Korean marketplace ecosystems.",
+  },
   work_productivity: {
     label: "Work & Productivity Brief",
     role: "a productivity and operations research analyst",

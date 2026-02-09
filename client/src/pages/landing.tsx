@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Bot, Layers, Rss, Settings, Zap, ArrowRight, TrendingUp, BookOpen, Building2, Newspaper, ChevronDown, Key, MessageSquare, PenTool, Laptop, Store } from "lucide-react";
+import { Bot, Layers, Rss, Settings, Zap, ArrowRight, TrendingUp, BookOpen, Building2, Newspaper, ChevronDown, Key, MessageSquare, PenTool, Laptop, Store, ShoppingCart } from "lucide-react";
 import { ShareButton } from "@/components/share-button";
 
 const useCases = [
@@ -39,6 +39,11 @@ const useCases = [
     icon: Store,
     title: "Online Business Research",
     description: "Collect customer complaints, market signals, and competitor data from e-commerce communities. Get strategy reports focused on why customers hesitate — not just what to sell.",
+  },
+  {
+    icon: ShoppingCart,
+    title: "Korea Marketplace Research",
+    description: "A research workflow for Coupang and SmartStore sellers. Monitor customer complaints, pricing pressure, and review signals across Korean marketplace ecosystems to support sourcing and strategy decisions.",
   },
   {
     icon: MessageSquare,
