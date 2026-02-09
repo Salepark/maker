@@ -7,8 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   MessageCircle, Send, Loader2, Bot, User, Check, X, Zap, Play, CheckCircle2, AlertCircle,
-  Lightbulb, Clock, Rocket, Filter, Palette, ShieldCheck, ArrowRight, ChevronDown,
-  Search, Users, Target, MessageSquare, BarChart3, Eye,
+  Lightbulb, Clock, Rocket, ArrowRight, ChevronDown,
+  Search, Users, Target, MessageSquare, BarChart3, Eye, ShieldCheck,
 } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -57,7 +57,7 @@ interface ConsoleContext {
 
 type ConsoleState = "S0_NO_BOT" | "S1_NO_SOURCES" | "S2_NO_COLLECTION" | "S3_READY" | "S4_SCHEDULE_ISSUE";
 
-type HintCategory = "first_run" | "schedule" | "one_time" | "filter" | "output_style" | "safety";
+type HintCategory = "first_run" | "schedule" | "one_time";
 type BotHintCategory = "research" | "outreach" | "contribution" | "analysis" | "monitor" | "safety_promo";
 
 interface Hint {
@@ -75,18 +75,12 @@ const CATEGORY_ICONS: Record<HintCategory, typeof Lightbulb> = {
   first_run: Rocket,
   schedule: Clock,
   one_time: Play,
-  filter: Filter,
-  output_style: Palette,
-  safety: ShieldCheck,
 };
 
 const CATEGORY_LABELS: Record<HintCategory, string> = {
   first_run: "Getting Started",
   schedule: "Schedule",
   one_time: "Run Now",
-  filter: "Focus Area",
-  output_style: "Output Style",
-  safety: "Safety",
 };
 
 const BOT_HINT_CATEGORY_ICONS: Record<BotHintCategory, typeof Lightbulb> = {
@@ -155,19 +149,6 @@ const ALL_HINTS: Hint[] = [
 
   { text: "지금 수집하고 리포트 만들어줘", category: "one_time", states: ["S2_NO_COLLECTION", "S3_READY"] },
   { text: "최근 24시간 이슈만 빠르게 수집해서 정리해줘", category: "one_time", states: ["S3_READY"] },
-
-  { text: "미국 주식 위주로만 정리해줘", category: "filter", states: ["S3_READY"] },
-  { text: "크립토 시장도 같이 포함해줘", category: "filter", states: ["S3_READY"] },
-  { text: "금리/환율/원자재 영향까지 한 줄로 정리해줘", category: "filter", states: ["S3_READY"] },
-  { text: "국제 정세가 시장에 미치는 영향 위주로 봐줘", category: "filter", states: ["S3_READY"] },
-
-  { text: "뉴스 앵커처럼 깔끔하게 핵심만", category: "output_style", states: ["S3_READY"] },
-  { text: "오늘은 좀 자세히, 근거 중심으로", category: "output_style", states: ["S3_READY"] },
-  { text: "한 줄 요약 + 핵심 5개만", category: "output_style", states: ["S3_READY"] },
-
-  { text: "내 승인 없이는 어디에도 게시하거나 발송하지 말아줘", category: "safety", states: ["S3_READY"] },
-  { text: "확실한 출처만 쓰고, 추측이면 추측이라고 표시해줘", category: "safety", states: ["S3_READY"] },
-  { text: "논쟁적인 표현은 피하고 중립적으로 정리해줘", category: "safety", states: ["S3_READY"] },
 
   { text: "왜 리포트가 안 왔는지 점검해줘", category: "first_run", states: ["S4_SCHEDULE_ISSUE"] },
   { text: "다음 실행 시간 알려줘", category: "schedule", states: ["S4_SCHEDULE_ISSUE"] },
