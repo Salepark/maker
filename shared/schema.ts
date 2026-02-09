@@ -393,6 +393,7 @@ export const outputs = pgTable(
 
     title: text("title").notNull(),
     contentText: text("content_text").notNull(),
+    reportStage: text("report_stage").notNull().default("full"),
 
     periodStart: timestamp("period_start", { withTimezone: true }).notNull(),
     periodEnd: timestamp("period_end", { withTimezone: true }).notNull(),
@@ -400,6 +401,7 @@ export const outputs = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }),
   },
   (t) => ({
     // Prevent duplicate reports for the same profile + same period

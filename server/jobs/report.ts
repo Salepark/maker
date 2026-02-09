@@ -147,16 +147,27 @@ export async function generateReportsForDueProfiles(): Promise<ReportJobResult[]
 
       console.log(`[ReportJob] Found ${items.length} items for profile ${profile.id} (after importance filter: minScore=${minScore})`);
 
+      const today = new Date().toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        weekday: "long",
+        timeZone: profile.timezone || "Asia/Seoul",
+      });
+
       if (items.length === 0) {
-        console.log(`[ReportJob] No items found for profile ${profile.id}, creating empty report`);
+        console.log(`[ReportJob] No analyzed items for profile ${profile.id}, creating status report`);
+        const recentItems = await storage.getRecentItemsBySourceIds(sourceIds, lookbackHours, 20);
+        const statusContent = buildStatusReport(profile.name, today, recentItems, sourceIds.length);
         const report = await storage.createOutputRecord({
           userId: profile.userId,
           profileId: profile.id,
           presetId: profile.presetId,
           topic: profile.topic,
           outputType: "report",
-          title: `${profile.name} - No Data`,
-          contentText: `# ${profile.name}\n\n> No analyzed items found.`,
+          title: `${profile.name} — 상태 리포트`,
+          contentText: statusContent,
+          reportStage: "status",
           periodStart,
           periodEnd,
         });
@@ -171,14 +182,6 @@ export async function generateReportsForDueProfiles(): Promise<ReportJobResult[]
         });
         continue;
       }
-
-      const today = new Date().toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-        weekday: "long",
-        timeZone: profile.timezone || "Asia/Seoul",
-      });
 
       const briefItems = items.map((item) => ({
         id: item.id,
@@ -288,9 +291,12 @@ export async function generateReportForProfile(profileId: number, userId?: strin
   });
 
   let content: string;
+  let reportStage = "full";
   
   if (items.length === 0) {
-    content = `# ${profile.name}\n\n> No analyzed items found.`;
+    const recentItems = await storage.getRecentItemsBySourceIds(sourceIds, lookbackHours, 20);
+    content = buildStatusReport(profile.name, today, recentItems, sourceIds.length);
+    reportStage = "status";
   } else {
     const briefItems = items.map((item) => ({
       id: item.id,
@@ -323,6 +329,7 @@ export async function generateReportForProfile(profileId: number, userId?: strin
     outputType: "report",
     title: `${profile.name} - ${today}`,
     contentText: content,
+    reportStage,
     periodStart,
     periodEnd,
   });
@@ -333,11 +340,270 @@ export async function generateReportForProfile(profileId: number, userId?: strin
   
   await storage.updateProfileLastRunAt(profile.id, now);
 
-  console.log(`[ReportJob] Created report ${report.id} for profile ${profile.id}`);
+  console.log(`[ReportJob] Created ${reportStage} report ${report.id} for profile ${profile.id}`);
 
   return {
     profileId: profile.id,
     reportId: report.id,
+    itemsCount: items.length,
+    topic: profile.topic,
+  };
+}
+
+function buildStatusReport(
+  profileName: string,
+  today: string,
+  recentItems: { title: string | null; sourceName: string; status: string }[],
+  sourceCount: number
+): string {
+  const lines: string[] = [];
+  lines.push(`# ${profileName} — ${today}`);
+  lines.push("");
+  lines.push(`> 상태 리포트`);
+  lines.push("");
+
+  if (recentItems.length === 0) {
+    lines.push("오늘은 연결된 소스에서 새로운 자료가 수집되지 않았습니다.");
+    lines.push("");
+    lines.push("**가능한 원인:**");
+    lines.push("- 소스 피드에 새 게시물이 아직 없음");
+    lines.push("- 소스 URL이 올바르지 않거나 일시적으로 접근 불가");
+    lines.push("");
+    lines.push(`연결된 소스: ${sourceCount}개`);
+  } else {
+    const statusCounts: Record<string, number> = {};
+    for (const item of recentItems) {
+      statusCounts[item.status] = (statusCounts[item.status] || 0) + 1;
+    }
+
+    lines.push(`최근 24시간 내 ${recentItems.length}건의 자료가 수집되었습니다.`);
+    lines.push("");
+
+    if (statusCounts["new"]) {
+      lines.push(`- 수집 완료 (분석 대기): ${statusCounts["new"]}건`);
+    }
+    if (statusCounts["analyzed"]) {
+      lines.push(`- 분석 완료: ${statusCounts["analyzed"]}건`);
+    }
+    if (statusCounts["skipped"]) {
+      lines.push(`- 건너뜀: ${statusCounts["skipped"]}건`);
+    }
+    lines.push("");
+
+    lines.push("**주요 수집 자료:**");
+    const displayItems = recentItems.slice(0, 8);
+    for (const item of displayItems) {
+      lines.push(`- ${item.title || "(제목 없음)"} (${item.sourceName})`);
+    }
+    if (recentItems.length > 8) {
+      lines.push(`- ...외 ${recentItems.length - 8}건`);
+    }
+    lines.push("");
+    lines.push("분석이 완료되면 상세 리포트로 자동 업데이트됩니다.");
+  }
+
+  lines.push("");
+  lines.push(`다음 수집 주기에서 업데이트 예정입니다.`);
+
+  return lines.join("\n");
+}
+
+export interface FastReportParams {
+  profileId: number;
+  userId: string;
+  presetId: number;
+  topic: string;
+  profileName: string;
+  sourceIds: number[];
+  collectResult: { totalCollected: number; sourcesProcessed: number };
+  sourceNames: string[];
+  timezone?: string;
+}
+
+export async function generateFastReport(params: FastReportParams): Promise<ReportJobResult> {
+  const {
+    profileId, userId, presetId, topic,
+    profileName, sourceIds, collectResult, sourceNames,
+    timezone = "Asia/Seoul",
+  } = params;
+
+  const now = new Date();
+  const lookbackHours = 24;
+  const periodStart = new Date(now.getTime() - lookbackHours * 60 * 60 * 1000);
+  const periodEnd = now;
+
+  const today = now.toLocaleDateString("ko-KR", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    weekday: "long",
+    timeZone: timezone,
+  });
+
+  const timeStr = now.toLocaleTimeString("ko-KR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: timezone,
+  });
+
+  const recentItems = await storage.getRecentItemsBySourceIds(sourceIds, lookbackHours, 30);
+
+  const lines: string[] = [];
+  lines.push(`# ${profileName} — 초기 브리핑`);
+  lines.push(`> ${today} ${timeStr} 기준`);
+  lines.push("");
+
+  if (collectResult.totalCollected > 0) {
+    lines.push(`${collectResult.sourcesProcessed}개 소스에서 **${collectResult.totalCollected}건**의 새 자료를 수집했습니다.`);
+  } else if (recentItems.length > 0) {
+    lines.push(`기존 수집 자료 ${recentItems.length}건을 기반으로 브리핑합니다.`);
+  } else {
+    lines.push("현재 수집된 자료가 없습니다.");
+  }
+  lines.push("");
+
+  if (recentItems.length > 0) {
+    lines.push("## 주요 자료 미리보기");
+    lines.push("");
+    const displayItems = recentItems.slice(0, 10);
+    for (const item of displayItems) {
+      lines.push(`- **${item.title || "(제목 없음)"}** — ${item.sourceName}`);
+    }
+    if (recentItems.length > 10) {
+      lines.push(`- ...외 ${recentItems.length - 10}건`);
+    }
+    lines.push("");
+
+    const sourceSummary = new Map<string, number>();
+    for (const item of recentItems) {
+      sourceSummary.set(item.sourceName, (sourceSummary.get(item.sourceName) || 0) + 1);
+    }
+    lines.push("## 소스별 수집 현황");
+    lines.push("");
+    sourceSummary.forEach((count, name) => {
+      lines.push(`- ${name}: ${count}건`);
+    });
+    lines.push("");
+  }
+
+  lines.push("---");
+  lines.push("*상세 분석 리포트가 준비되면 자동으로 업데이트됩니다.*");
+
+  const content = lines.join("\n");
+
+  const report = await storage.createOutputRecord({
+    userId,
+    profileId,
+    presetId,
+    topic,
+    outputType: "report",
+    title: `${profileName} — 초기 브리핑 (${timeStr})`,
+    contentText: content,
+    reportStage: "fast",
+    periodStart,
+    periodEnd,
+  });
+
+  await storage.updateProfileLastRunAt(profileId, now);
+
+  console.log(`[ReportJob] Created FAST report ${report.id} for profile ${profileId}`);
+
+  return {
+    profileId,
+    reportId: report.id,
+    itemsCount: recentItems.length,
+    topic,
+  };
+}
+
+export async function upgradeToFullReport(outputId: number, profileId: number, userId?: string): Promise<ReportJobResult | null> {
+  console.log(`[ReportJob] Upgrading fast report ${outputId} to full report...`);
+  
+  const profile = await storage.getProfileById(profileId);
+  if (!profile) {
+    console.error(`[ReportJob] Profile ${profileId} not found for upgrade`);
+    return null;
+  }
+
+  const sourceIds = await storage.getProfileSourceIds(profile.id);
+  if (sourceIds.length === 0) return null;
+
+  const now = new Date();
+  const lookbackHours = 24;
+  const maxItems = 12;
+
+  let items = await storage.getItemsForReport(null, sourceIds, lookbackHours, maxItems);
+
+  const config = (profile.configJson || {}) as ReportConfig;
+  const minScore = config.filters?.minImportanceScore ?? 0;
+  if (minScore > 0) {
+    items = items.filter(item => (item.importanceScore || 0) >= minScore);
+  }
+
+  const today = new Date().toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    weekday: "long",
+    timeZone: profile.timezone || "Asia/Seoul",
+  });
+
+  let content: string;
+  let reportStage: string;
+
+  if (items.length === 0) {
+    const recentItems = await storage.getRecentItemsBySourceIds(sourceIds, lookbackHours, 20);
+    content = buildStatusReport(profile.name, today, recentItems, sourceIds.length);
+    reportStage = "status";
+  } else {
+    const briefItems = items.map((item) => ({
+      id: item.id,
+      title: item.title || "Untitled",
+      url: item.url,
+      source: item.sourceName,
+      topic: item.topic,
+      key_takeaway: "",
+      why_it_matters: "",
+      impact_scope: {
+        equities: item.importanceScore,
+        rates_fx: Math.floor(item.importanceScore * 0.7),
+        commodities: Math.floor(item.importanceScore * 0.5),
+        crypto: Math.floor(item.importanceScore * 0.8),
+      },
+      risk_flags: [],
+      confidence: item.importanceScore,
+      category: "general",
+    }));
+
+    const prompt = buildDailyBriefPrompt(briefItems, today, profile.topic, config);
+    content = await callLLMForProfile(prompt, profile.userId, profile.topic);
+    reportStage = "full";
+  }
+
+  const updated = await storage.updateOutputContent(outputId, {
+    contentText: content,
+    title: `${profile.name} - ${today}`,
+    reportStage,
+  });
+
+  if (!updated) {
+    console.error(`[ReportJob] Failed to upgrade report ${outputId}`);
+    return null;
+  }
+
+  if (items.length > 0) {
+    try {
+      await storage.linkOutputItems(outputId, items.map((i) => i.id));
+    } catch (e) {
+    }
+  }
+
+  console.log(`[ReportJob] Upgraded report ${outputId} to ${reportStage} (${items.length} items)`);
+
+  return {
+    profileId,
+    reportId: outputId,
     itemsCount: items.length,
     topic: profile.topic,
   };

@@ -19,9 +19,11 @@ interface Report {
   outputType: string;
   title: string;
   contentText: string;
+  reportStage: string;
   periodStart: string;
   periodEnd: string;
   createdAt: string;
+  updatedAt: string | null;
 }
 
 interface Profile {
@@ -63,6 +65,19 @@ function getTopicColor(topic: string) {
     crypto: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
   };
   return colors[topic] || "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200";
+}
+
+function getStageLabel(stage: string): { label: string; className: string } {
+  switch (stage) {
+    case "fast":
+      return { label: "초기 브리핑", className: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200" };
+    case "status":
+      return { label: "상태 리포트", className: "bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200" };
+    case "full":
+      return { label: "확장 리포트", className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200" };
+    default:
+      return { label: "", className: "" };
+  }
 }
 
 export default function Reports() {
@@ -112,6 +127,8 @@ export default function Reports() {
     return undefined;
   }, [selectedFilter]);
 
+  const [hasFastReport, setHasFastReport] = useState(false);
+
   const { data: reports, isLoading, refetch } = useQuery<Report[]>({
     queryKey: ["/api/reports", selectedProfileIdForQuery],
     queryFn: async () => {
@@ -120,8 +137,11 @@ export default function Reports() {
         : "/api/reports";
       const res = await fetch(url, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch reports");
-      return res.json();
+      const data = await res.json();
+      setHasFastReport(data?.some((r: Report) => r.reportStage === "fast") ?? false);
+      return data;
     },
+    refetchInterval: hasFastReport ? 10000 : undefined,
   });
 
   const selectedReport = useMemo(() => {
@@ -315,11 +335,22 @@ export default function Reports() {
                     <div className="text-sm font-medium line-clamp-2">{report.title}</div>
                     <div className="mt-1 flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
                       <span>{formatDateTime(report.createdAt)}</span>
-                      <span>·</span>
+                      {report.reportStage && report.reportStage !== "full" && (() => {
+                        const stage = getStageLabel(report.reportStage);
+                        return stage.label ? (
+                          <Badge variant="secondary" className={`text-xs px-1.5 py-0 ${stage.className}`} data-testid={`badge-stage-${report.id}`}>
+                            {stage.label}
+                          </Badge>
+                        ) : null;
+                      })()}
+                      {report.reportStage === "full" && report.updatedAt && (
+                        <Badge variant="secondary" className="text-xs px-1.5 py-0 bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200" data-testid={`badge-updated-${report.id}`}>
+                          업데이트됨
+                        </Badge>
+                      )}
                       <Badge variant="secondary" className={`text-xs px-1.5 py-0 ${getTopicColor(report.topic)}`}>
                         {report.topic}
                       </Badge>
-                      <span>·</span>
                       <span className="flex items-center gap-1">
                         <Bot className="h-3 w-3" />
                         {getProfileName(report.profileId)}
@@ -382,10 +413,24 @@ export default function Reports() {
 
             {selectedReport && (
               <div className="space-y-4">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
                   <span>Created: {formatDateTime(selectedReport.createdAt)}</span>
+                  {selectedReport.updatedAt && (
+                    <>
+                      <span>·</span>
+                      <span>Updated: {formatDateTime(selectedReport.updatedAt)}</span>
+                    </>
+                  )}
                   <span>·</span>
                   <span>Period: {formatDateTime(selectedReport.periodStart)} ~ {formatDateTime(selectedReport.periodEnd)}</span>
+                  {selectedReport.reportStage && (() => {
+                    const stage = getStageLabel(selectedReport.reportStage);
+                    return stage.label ? (
+                      <Badge variant="secondary" className={`text-xs px-1.5 py-0 ${stage.className}`} data-testid="badge-report-stage">
+                        {stage.label}
+                      </Badge>
+                    ) : null;
+                  })()}
                 </div>
                 <pre 
                   className="whitespace-pre-wrap text-sm leading-6 font-sans"

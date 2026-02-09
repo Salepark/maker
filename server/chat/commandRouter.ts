@@ -2,6 +2,7 @@ import type { ChatCommand, PipelineRunArgs } from "@shared/chatCommand";
 import { runCollectNow, runAnalyzeNow, runDraftNow, runReportNow } from "../jobs/scheduler";
 import { collectFromSourceIds } from "../services/rss";
 import { analyzeNewItemsBySourceIds } from "../jobs/analyze_items";
+import { generateFastReport, upgradeToFullReport } from "../jobs/report";
 import { hasSystemLLMKey } from "../llm/client";
 import { storage } from "../storage";
 
@@ -191,10 +192,12 @@ async function execRunNow(userId: string, cmd: ChatCommand): Promise<ExecutionRe
         }
         result = await runReportNow(profile.id, userId);
         if (!result) {
-          return { ok: false, assistantMessage: `Report generation failed. The bot may have no sources or no recent items to analyze. Add sources and run collection first.`, executed: cmd, result: null };
+          return { ok: false, assistantMessage: `리포트 생성에 실패했습니다. 소스를 확인하고 수집을 먼저 실행해주세요.`, executed: cmd, result: null };
         }
         const topicLabel = topic.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-        message = `${topicLabel} report generated. (${result.itemsCount} item(s) analyzed)\nCheck the Reports page to view it.`;
+        message = result.itemsCount > 0
+          ? `${topicLabel} 리포트 생성 완료 (${result.itemsCount}건 분석)\nReports 페이지에서 확인하세요.`
+          : `${topicLabel} 상태 리포트 생성 완료.\n분석된 자료가 아직 없어 수집 현황을 정리했습니다.\nReports 페이지에서 확인하세요.`;
         break;
       }
       default:
@@ -255,8 +258,9 @@ async function execPipelineRun(
   const steps: PipelineStepResult[] = [];
   const botSourceIds = botSources.map(s => s.id);
 
+  let collectResult: { totalCollected: number; sourcesProcessed: number };
   try {
-    const collectResult = await collectFromSourceIds(botSourceIds);
+    collectResult = await collectFromSourceIds(botSourceIds);
     const collectStep: PipelineStepResult = {
       step: "collect",
       ok: true,
@@ -266,6 +270,7 @@ async function execPipelineRun(
     steps.push(collectStep);
     if (onStepComplete) await onStepComplete(collectStep);
   } catch (error: any) {
+    collectResult = { totalCollected: 0, sourcesProcessed: 0 };
     const collectStep: PipelineStepResult = {
       step: "collect",
       ok: false,
@@ -273,38 +278,6 @@ async function execPipelineRun(
     };
     steps.push(collectStep);
     if (onStepComplete) await onStepComplete(collectStep);
-    return {
-      ok: false,
-      assistantMessage: collectStep.message,
-      executed: cmd,
-      result: { steps },
-    };
-  }
-
-  try {
-    const analyzeCount = await analyzeNewItemsBySourceIds(botSourceIds, 15, 5);
-    const analyzeStep: PipelineStepResult = {
-      step: "analyze",
-      ok: true,
-      message: `분석 완료 — ${analyzeCount}건의 자료를 분석했습니다.`,
-      data: { analyzedCount: analyzeCount },
-    };
-    steps.push(analyzeStep);
-    if (onStepComplete) await onStepComplete(analyzeStep);
-  } catch (error: any) {
-    const analyzeStep: PipelineStepResult = {
-      step: "analyze",
-      ok: false,
-      message: "분석 중 문제가 발생했습니다.\n\nSettings에서 AI Provider 설정을 확인해주세요.",
-    };
-    steps.push(analyzeStep);
-    if (onStepComplete) await onStepComplete(analyzeStep);
-    return {
-      ok: false,
-      assistantMessage: analyzeStep.message,
-      executed: cmd,
-      result: { steps },
-    };
   }
 
   const topic = bot.key;
@@ -361,46 +334,38 @@ async function execPipelineRun(
     }
   }
 
+  let fastReportId: number | null = null;
   try {
-    const reportResult = await runReportNow(profile.id, userId);
-    if (!reportResult) {
-      const reportStep: PipelineStepResult = {
-        step: "report",
-        ok: false,
-        message: "리포트를 생성할 수 없습니다.\n\n분석된 자료가 부족할 수 있습니다. 잠시 후 다시 시도해주세요.",
-      };
-      steps.push(reportStep);
-      if (onStepComplete) await onStepComplete(reportStep);
-      return {
-        ok: false,
-        assistantMessage: reportStep.message,
-        executed: cmd,
-        result: { steps },
-      };
-    }
+    const fastResult = await generateFastReport({
+      profileId: profile.id,
+      userId,
+      presetId: profile.presetId,
+      topic,
+      profileName: profile.name,
+      sourceIds: botSourceIds,
+      collectResult,
+      sourceNames: botSources.map(s => s.name),
+      timezone: profile.timezone || "Asia/Seoul",
+    });
+    fastReportId = fastResult.reportId;
 
     const reportStep: PipelineStepResult = {
       step: "report",
       ok: true,
-      message: `리포트 생성 완료 — ${Array.isArray(reportResult) ? reportResult.length : reportResult.itemsCount}건의 자료로 리포트를 만들었습니다.\n\nReports 페이지에서 확인하세요.`,
-      data: reportResult,
+      message: `초기 브리핑 생성 완료 — ${fastResult.itemsCount}건의 자료를 요약했습니다.\n\nReports 페이지에서 확인하세요. 상세 분석 리포트가 곧 업데이트됩니다.`,
+      data: fastResult,
     };
     steps.push(reportStep);
     if (onStepComplete) await onStepComplete(reportStep);
   } catch (error: any) {
+    console.error("[Pipeline] Fast report generation failed:", error);
     const reportStep: PipelineStepResult = {
       step: "report",
       ok: false,
-      message: "리포트 생성 중 문제가 발생했습니다.\n\nSettings에서 AI Provider 설정을 확인해주세요.",
+      message: "초기 브리핑 생성 중 문제가 발생했습니다.",
     };
     steps.push(reportStep);
     if (onStepComplete) await onStepComplete(reportStep);
-    return {
-      ok: false,
-      assistantMessage: reportStep.message,
-      executed: cmd,
-      result: { steps },
-    };
   }
 
   if (args.scheduleTimeLocal) {
@@ -434,6 +399,26 @@ async function execPipelineRun(
       steps.push(scheduleStep);
       if (onStepComplete) await onStepComplete(scheduleStep);
     }
+  }
+
+  const profileIdForUpgrade = profile.id;
+  const reportIdForUpgrade = fastReportId;
+  if (reportIdForUpgrade) {
+    (async () => {
+      try {
+        console.log(`[Pipeline:Background] Starting analyze + full report upgrade for report ${reportIdForUpgrade}...`);
+        const analyzeCount = await analyzeNewItemsBySourceIds(botSourceIds, 15, 5);
+        console.log(`[Pipeline:Background] Analyzed ${analyzeCount} items. Upgrading report...`);
+        const upgraded = await upgradeToFullReport(reportIdForUpgrade, profileIdForUpgrade, userId);
+        if (upgraded) {
+          console.log(`[Pipeline:Background] Report ${reportIdForUpgrade} upgraded to full (${upgraded.itemsCount} items)`);
+        } else {
+          console.log(`[Pipeline:Background] Report ${reportIdForUpgrade} kept as status report (no analyzed items available)`);
+        }
+      } catch (error) {
+        console.error("[Pipeline:Background] Background upgrade failed:", error);
+      }
+    })();
   }
 
   const summaryLines = steps
