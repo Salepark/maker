@@ -1,6 +1,7 @@
 import { storage } from "../storage";
 import { callLLM, callLLMWithConfig, hasSystemLLMKey, type LLMConfig } from "../llm/client";
 import { buildDailyBriefPrompt, ReportConfig } from "../llm/prompts";
+import { analyzeNewItemsBySourceIds } from "./analyze_items";
 
 interface ReportJobResult {
   profileId: number;
@@ -101,9 +102,15 @@ export async function generateReportsForDueProfiles(): Promise<ReportJobResult[]
 
   for (const profile of activeProfiles) {
     try {
-      // Check if profile should run now based on its scheduleCron
       if (!shouldRunNow(profile.scheduleCron, profile.timezone)) {
-        continue; // Not time to run this profile yet
+        continue;
+      }
+
+      if (profile.lastRunAt) {
+        const hoursSinceLastRun = (now.getTime() - new Date(profile.lastRunAt).getTime()) / (1000 * 60 * 60);
+        if (hoursSinceLastRun < 23) {
+          continue;
+        }
       }
 
       console.log(`[ReportJob] Processing profile: ${profile.name} (id=${profile.id}, topic=${profile.topic})`);
@@ -154,6 +161,25 @@ export async function generateReportsForDueProfiles(): Promise<ReportJobResult[]
         weekday: "long",
         timeZone: profile.timezone || "Asia/Seoul",
       });
+
+      if (items.length === 0) {
+        const newItems = await storage.getItemsByStatusAndSourceIds("new", sourceIds, maxItems);
+        if (newItems.length > 0) {
+          console.log(`[ReportJob] No analyzed items but ${newItems.length} new items found for profile ${profile.id}, analyzing inline...`);
+          try {
+            const analyzedCount = await analyzeNewItemsBySourceIds(sourceIds, maxItems, 1);
+            console.log(`[ReportJob] Inline analysis complete: ${analyzedCount} items analyzed for profile ${profile.id}`);
+            if (analyzedCount > 0) {
+              items = await storage.getItemsForReport(null, sourceIds, lookbackHours, maxItems);
+              if (minScore > 0) {
+                items = items.filter(item => (item.importanceScore || 0) >= minScore);
+              }
+            }
+          } catch (analyzeError) {
+            console.error(`[ReportJob] Inline analysis failed for profile ${profile.id}:`, analyzeError);
+          }
+        }
+      }
 
       if (items.length === 0) {
         console.log(`[ReportJob] No analyzed items for profile ${profile.id}, creating status report`);
@@ -293,6 +319,25 @@ export async function generateReportForProfile(profileId: number, userId?: strin
   let content: string;
   let reportStage = "full";
   
+  if (items.length === 0) {
+    const newItems = await storage.getItemsByStatusAndSourceIds("new", sourceIds, maxItems);
+    if (newItems.length > 0) {
+      console.log(`[ReportJob] No analyzed items but ${newItems.length} new items found, analyzing inline...`);
+      try {
+        const analyzedCount = await analyzeNewItemsBySourceIds(sourceIds, maxItems, 1);
+        console.log(`[ReportJob] Inline analysis complete: ${analyzedCount} items analyzed`);
+        if (analyzedCount > 0) {
+          items = await storage.getItemsForReport(null, sourceIds, lookbackHours, maxItems);
+          if (minScore > 0) {
+            items = items.filter(item => (item.importanceScore || 0) >= minScore);
+          }
+        }
+      } catch (analyzeError) {
+        console.error(`[ReportJob] Inline analysis failed:`, analyzeError);
+      }
+    }
+  }
+
   if (items.length === 0) {
     const recentItems = await storage.getRecentItemsBySourceIds(sourceIds, lookbackHours, 20);
     content = buildStatusReport(profile.name, today, recentItems, sourceIds.length);
@@ -551,6 +596,24 @@ export async function upgradeToFullReport(outputId: number, profileId: number, u
 
   let content: string;
   let reportStage: string;
+
+  if (items.length === 0) {
+    const newItems = await storage.getItemsByStatusAndSourceIds("new", sourceIds, maxItems);
+    if (newItems.length > 0) {
+      console.log(`[ReportJob] Upgrade: No analyzed items but ${newItems.length} new items found, analyzing inline...`);
+      try {
+        const analyzedCount = await analyzeNewItemsBySourceIds(sourceIds, maxItems, 1);
+        if (analyzedCount > 0) {
+          items = await storage.getItemsForReport(null, sourceIds, lookbackHours, maxItems);
+          if (minScore > 0) {
+            items = items.filter(item => (item.importanceScore || 0) >= minScore);
+          }
+        }
+      } catch (analyzeError) {
+        console.error(`[ReportJob] Inline analysis failed during upgrade:`, analyzeError);
+      }
+    }
+  }
 
   if (items.length === 0) {
     const recentItems = await storage.getRecentItemsBySourceIds(sourceIds, lookbackHours, 20);

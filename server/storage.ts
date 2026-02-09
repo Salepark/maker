@@ -1007,13 +1007,13 @@ export class DatabaseStorage implements IStorage {
   // ============================================
   
   async outputExists(profileId: number, periodStart: Date, periodEnd: Date): Promise<boolean> {
+    const windowStart = new Date(periodEnd.getTime() - 23 * 60 * 60 * 1000);
     const rows = await db
       .select({ id: outputs.id })
       .from(outputs)
       .where(and(
         eq(outputs.profileId, profileId),
-        eq(outputs.periodStart, periodStart),
-        eq(outputs.periodEnd, periodEnd)
+        gte(outputs.createdAt, windowStart),
       ))
       .limit(1);
 
