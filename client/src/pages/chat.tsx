@@ -544,6 +544,14 @@ export default function Chat() {
     }
   }, [messages, pipelineRunning]);
 
+  useEffect(() => {
+    if (!pipelineRunning) return;
+    const timeout = setTimeout(() => {
+      setPipelineRunning(false);
+    }, 45000);
+    return () => clearTimeout(timeout);
+  }, [pipelineRunning]);
+
   const currentThread = threads?.find(t => t.id === threadId);
   const currentActiveBotId = currentThread?.activeBotId ?? null;
 

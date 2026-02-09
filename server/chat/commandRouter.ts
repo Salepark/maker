@@ -479,12 +479,15 @@ async function execPipelineRun(
       ? `\n\n앞으로 매일 ${args.scheduleTimeLocal}에 자동 실행됩니다.`
       : `\n\nScheduled to run daily at ${args.scheduleTimeLocal}.`
     : "";
+  const checkReportsNote = ko
+    ? "\n\nReports 페이지에서 결과를 확인하세요."
+    : "\n\nHead over to the Reports page to see your report.";
 
   return {
     ok: true,
     assistantMessage: ko
-      ? `파이프라인 실행 완료!\n\n${summaryLines.join("\n")}${scheduleNote}`
-      : `Pipeline complete!\n\n${summaryLines.join("\n")}${scheduleNote}`,
+      ? `완료!\n\n${summaryLines.join("\n")}${scheduleNote}${checkReportsNote}`
+      : `Done!\n\n${summaryLines.join("\n")}${scheduleNote}${checkReportsNote}`,
     executed: cmd,
     result: { steps },
   };
