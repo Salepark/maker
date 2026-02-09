@@ -1,8 +1,11 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Bot, Layers, Rss, Settings, Zap, ArrowRight, TrendingUp, BookOpen, Building2, Newspaper, ChevronDown, Key, MessageSquare, PenTool, Laptop, Store, ShoppingCart } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Bot, Layers, Rss, Settings, Zap, ArrowRight, TrendingUp, BookOpen, Building2, Newspaper, ChevronDown, Key, MessageSquare, PenTool, Laptop, Store, ShoppingCart, LogIn } from "lucide-react";
 import { ShareButton } from "@/components/share-button";
+import { useQueryClient } from "@tanstack/react-query";
 
 const useCases = [
   {
@@ -103,6 +106,78 @@ function FAQItem({ q, a }: { q: string; a: string }) {
   );
 }
 
+function DemoLoginForm() {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const queryClient = useQueryClient();
+
+  async function handleDemoLogin(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fetch("/api/demo-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        setError("ID or password is incorrect.");
+        return;
+      }
+      await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      window.location.href = "/";
+    } catch {
+      setError("Login failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Card className="max-w-sm w-full">
+      <CardContent className="pt-6 space-y-4">
+        <div className="flex items-center gap-2 mb-1">
+          <LogIn className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium">Reviewer Demo Login</span>
+        </div>
+        <form onSubmit={handleDemoLogin} className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="demo-username" className="text-xs">ID</Label>
+            <Input
+              id="demo-username"
+              data-testid="input-demo-username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Enter test ID"
+              autoComplete="username"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="demo-password" className="text-xs">Password</Label>
+            <Input
+              id="demo-password"
+              data-testid="input-demo-password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Enter password"
+              autoComplete="current-password"
+            />
+          </div>
+          {error && <p className="text-sm text-destructive" data-testid="text-demo-error">{error}</p>}
+          <Button type="submit" className="w-full" disabled={loading} data-testid="button-demo-login">
+            {loading ? "Logging in..." : "Demo Login"}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function Landing() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted">
@@ -157,7 +232,7 @@ export default function Landing() {
               </div>
             </div>
 
-            <div className="relative">
+            <div className="relative space-y-6">
               <div className="bg-gradient-to-br from-primary/20 to-primary/5 rounded-2xl p-8 border border-border/50">
                 <div className="space-y-4">
                   <div className="flex items-center gap-3 p-4 bg-background rounded-lg border border-border">
@@ -183,6 +258,7 @@ export default function Landing() {
                   </div>
                 </div>
               </div>
+              <DemoLoginForm />
             </div>
           </div>
         </section>

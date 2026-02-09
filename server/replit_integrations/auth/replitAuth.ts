@@ -145,6 +145,11 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
 
   const refreshToken = user.refresh_token;
   if (!refreshToken) {
+    if (user.claims?.sub?.startsWith("demo_")) {
+      user.expires_at = now + 7 * 24 * 60 * 60;
+      req.session.save(() => {});
+      return next();
+    }
     res.status(401).json({ message: "Unauthorized" });
     return;
   }
