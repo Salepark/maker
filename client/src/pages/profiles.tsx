@@ -33,6 +33,7 @@ interface PresetConfig {
   requireHumanApproval?: boolean;
   promotionLevel?: string;
   linkPolicy?: string;
+  sourceDisclaimer?: string;
 }
 
 interface Preset {
@@ -639,7 +640,7 @@ export default function Profiles() {
                       Default Sources
                     </Label>
                     <p className="text-xs text-muted-foreground" data-testid="text-source-disclaimer">
-                      Default sources are widely used public channels. You can add your own specialized sources below.
+                      {selectedPreset?.defaultConfigJson?.sourceDisclaimer || "Default sources are widely used public channels. You can add your own specialized sources below."}
                     </p>
                     {allDisplaySources.length > 0 ? (
                       <div className="space-y-1.5">

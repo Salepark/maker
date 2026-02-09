@@ -50,6 +50,9 @@ Reports can be copied to the clipboard or downloaded as Markdown (.md) files fro
 ### Source Topics
 An expanded list of 19 topic options is available for source creation.
 
+### Online Business Market Research Assistant (Phase 10)
+Preset `online_business_research` — topic: online_business, outputType: report, DAILY 09:00, 8 Korean market sources (네이버 쇼핑 인사이트, 네이버 카페 스마트스토어, 네이버 블로그 후기, 쿠팡, 당근마켓, 브런치/Medium, Reddit 글로벌 비교, 공정거래위원회/소비자원). Enforces: requireHumanApproval=true, promotionLevel="none", linkPolicy="no-links". Icon: Store. Category: business. TOPIC_META: role="market research analyst specializing in e-commerce", focus on customer hesitation signals. sourceDisclaimer field added to PresetDefaultConfig — displayed in wizard when present. Landing page use case added.
+
 ### Console Prompt Hints
 The Console provides context-sensitive autocomplete and hints based on the user's current state (e.g., no bot selected, no sources, ready state), offering suggestions for next actions and diagnostics.
 
