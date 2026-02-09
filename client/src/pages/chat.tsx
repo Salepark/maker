@@ -218,23 +218,23 @@ function getHintsForState(state: ConsoleState): Hint[] {
 
 function getPipelineStepLabel(step: string): string {
   switch (step) {
-    case "collect": return "자료 수집";
-    case "analyze": return "분석";
-    case "report": return "리포트 작성";
-    case "schedule": return "스케줄 설정";
+    case "collect": return "Data Collection";
+    case "analyze": return "Analysis";
+    case "report": return "Report";
+    case "schedule": return "Schedule";
     default: return step;
   }
 }
 
 function getPipelineProgressLabel(completedSteps: string[]): string {
   const last = completedSteps[completedSteps.length - 1];
-  if (!last) return "자료 수집 중...";
+  if (!last) return "Collecting data...";
   switch (last) {
-    case "collect": return "리포트 작성 중...";
-    case "analyze": return "리포트 작성 중...";
-    case "report": return "마무리 중...";
-    case "schedule": return "마무리 중...";
-    default: return "처리 중...";
+    case "collect": return "Generating report...";
+    case "analyze": return "Generating report...";
+    case "report": return "Finishing up...";
+    case "schedule": return "Finishing up...";
+    default: return "Processing...";
   }
 }
 

@@ -5,6 +5,11 @@ import type { ChatCommand, ChatCommandType } from "@shared/chatCommand";
 export type { ChatCommand, ChatCommandType };
 export type { CommandParseContext };
 
+function isKoreanInput(text: string): boolean {
+  const koreanChars = text.match(/[\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F]/g);
+  return (koreanChars?.length || 0) > text.length * 0.1;
+}
+
 const COMMAND_HINT_KEYWORDS = [
   "add", "delete", "run", "now", "immediately", "schedule",
   "pause", "resume", "status", "list", "switch",
@@ -31,6 +36,7 @@ export interface ParseResult {
 function tryKeywordFallback(message: string, context: CommandParseContext): ChatCommand | null {
   const lower = message.toLowerCase();
   const botKey = context.activeBotKey;
+  const ko = isKoreanInput(message);
 
   const hasPipelineIntent = (
     (lower.includes("수집") && (lower.includes("분석") || lower.includes("리포트") || lower.includes("보고서") || lower.includes("작성"))) ||
@@ -58,9 +64,13 @@ function tryKeywordFallback(message: string, context: CommandParseContext): Chat
     if (lower.includes("오전") && !scheduleTimeLocal) scheduleTimeLocal = "09:00";
     if (lower.includes("오후") && !scheduleTimeLocal) scheduleTimeLocal = "14:00";
 
-    const args: Record<string, any> = {};
+    const args: Record<string, any> = { lang: ko ? "ko" : "en" };
     if (scheduleRule) args.scheduleRule = scheduleRule;
     if (scheduleTimeLocal) args.scheduleTimeLocal = scheduleTimeLocal;
+
+    const confirmText = ko
+      ? `자료 수집 → 분석 → 리포트 생성${scheduleTimeLocal ? ` (${scheduleTimeLocal})` : ""}${scheduleRule ? ` ${scheduleRule}` : ""}`
+      : `Collect → Analyze → Generate report${scheduleTimeLocal ? ` (${scheduleTimeLocal})` : ""}${scheduleRule ? ` ${scheduleRule}` : ""}`;
 
     return {
       type: "pipeline_run",
@@ -68,7 +78,7 @@ function tryKeywordFallback(message: string, context: CommandParseContext): Chat
       args,
       confidence: 0.8,
       needsConfirm: true,
-      confirmText: `자료 수집 → 분석 → 리포트 생성${scheduleTimeLocal ? ` (${scheduleTimeLocal})` : ""}${scheduleRule ? ` ${scheduleRule}` : ""}`,
+      confirmText,
     };
   }
 
@@ -83,7 +93,7 @@ function tryKeywordFallback(message: string, context: CommandParseContext): Chat
       args: { job: "collect" },
       confidence: 0.8,
       needsConfirm: true,
-      confirmText: "자료 수집 실행",
+      confirmText: ko ? "자료 수집 실행" : "Run data collection",
     };
   }
 
@@ -98,7 +108,7 @@ function tryKeywordFallback(message: string, context: CommandParseContext): Chat
       args: { job: "analyze" },
       confidence: 0.8,
       needsConfirm: true,
-      confirmText: "분석 실행",
+      confirmText: ko ? "분석 실행" : "Run analysis",
     };
   }
 
@@ -113,7 +123,7 @@ function tryKeywordFallback(message: string, context: CommandParseContext): Chat
       args: { job: "report" },
       confidence: 0.8,
       needsConfirm: true,
-      confirmText: "리포트 생성",
+      confirmText: ko ? "리포트 생성" : "Generate report",
     };
   }
 
@@ -124,7 +134,7 @@ function tryKeywordFallback(message: string, context: CommandParseContext): Chat
       args: {},
       confidence: 0.9,
       needsConfirm: false,
-      confirmText: "봇 목록 조회",
+      confirmText: ko ? "봇 목록 조회" : "List bots",
     };
   }
 
@@ -135,7 +145,7 @@ function tryKeywordFallback(message: string, context: CommandParseContext): Chat
       args: {},
       confidence: 0.9,
       needsConfirm: false,
-      confirmText: "봇 상태 조회",
+      confirmText: ko ? "봇 상태 조회" : "Bot status",
     };
   }
 
@@ -146,7 +156,7 @@ function tryKeywordFallback(message: string, context: CommandParseContext): Chat
       args: {},
       confidence: 0.8,
       needsConfirm: true,
-      confirmText: "봇 일시정지",
+      confirmText: ko ? "봇 일시정지" : "Pause bot",
     };
   }
 
@@ -157,7 +167,7 @@ function tryKeywordFallback(message: string, context: CommandParseContext): Chat
       args: {},
       confidence: 0.8,
       needsConfirm: true,
-      confirmText: "봇 재개",
+      confirmText: ko ? "봇 재개" : "Resume bot",
     };
   }
 

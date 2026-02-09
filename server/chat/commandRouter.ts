@@ -133,16 +133,17 @@ async function execRunNow(userId: string, cmd: ChatCommand): Promise<ExecutionRe
         break;
       case "report": {
         if (!cmd.botKey) {
-          return { ok: false, assistantMessage: "활성 봇이 없습니다. 먼저 봇을 선택해주세요.\n\n예: 'switch to community_research'", executed: cmd, result: null };
+          return { ok: false, assistantMessage: "No active bot. Please select a bot first.\n\nExample: 'switch to community_research'", executed: cmd, result: null };
         }
         const topic = cmd.botKey;
+        const reportBot = await resolveBot(userId, topic);
+        if (!reportBot) {
+          return { ok: false, assistantMessage: `No bot found for topic '${topic}'. Create a bot first from the Template Gallery.`, executed: cmd, result: null };
+        }
+
         let profile = await storage.getProfileByUserAndTopic(userId, topic);
         if (!profile) {
-          const bot = await storage.getBotByKey(userId, topic);
-          if (!bot) {
-            return { ok: false, assistantMessage: `No bot found for topic '${topic}'. Create a bot first from the Template Gallery.`, executed: cmd, result: null };
-          }
-          const fullBot = await storage.getBot(bot.id, userId);
+          const fullBot = await storage.getBot(reportBot.id, userId);
           const allPresets = await storage.listPresets();
           const reportPresets = allPresets.filter(p => p.outputType === "report");
           const matchingPreset = reportPresets.find(p => {
@@ -164,7 +165,7 @@ async function execRunNow(userId: string, cmd: ChatCommand): Promise<ExecutionRe
           profile = await storage.createProfile({
             userId,
             presetId: matchingPreset.id,
-            name: bot.name,
+            name: reportBot.name,
             topic,
             timezone: settings?.timezone || "Asia/Seoul",
             scheduleCron,
@@ -176,28 +177,56 @@ async function execRunNow(userId: string, cmd: ChatCommand): Promise<ExecutionRe
               scheduleRule: settings?.scheduleRule || "DAILY",
               scheduleTimeLocal: settings?.scheduleTimeLocal || "07:00",
             },
-            isActive: bot.isEnabled,
+            isActive: reportBot.isEnabled,
           });
 
-          const botSources = await storage.getBotSources(bot.id);
-          if (botSources.length > 0) {
+          const reportBotSources = await storage.getBotSources(reportBot.id);
+          if (reportBotSources.length > 0) {
             await storage.setProfileSources(
               profile.id,
               userId,
-              botSources.map(s => ({ sourceId: s.id, weight: s.weight, isEnabled: s.isEnabled }))
+              reportBotSources.map(s => ({ sourceId: s.id, weight: s.weight, isEnabled: s.isEnabled }))
             );
           } else {
-            return { ok: false, assistantMessage: `Bot '${bot.name}' has no sources. Please add sources first using 'add source' command or from the Sources page.`, executed: cmd, result: null };
+            return { ok: false, assistantMessage: `Bot '${reportBot.name}' has no sources. Please add sources first.`, executed: cmd, result: null };
           }
         }
-        result = await runReportNow(profile.id, userId);
-        if (!result) {
-          return { ok: false, assistantMessage: `리포트 생성에 실패했습니다. 소스를 확인하고 수집을 먼저 실행해주세요.`, executed: cmd, result: null };
-        }
+
+        const reportSourceIds = await storage.getProfileSourceIds(profile.id);
+        const reportBotSourceList = await storage.getBotSources(reportBot.id);
+        const reportSourceNames = reportBotSourceList.length > 0
+          ? reportBotSourceList.map(s => s.name)
+          : botSources.map(s => s.name);
+        const fastResult = await generateFastReport({
+          profileId: profile.id,
+          userId,
+          presetId: profile.presetId,
+          topic,
+          profileName: profile.name,
+          sourceIds: reportSourceIds,
+          collectResult: { totalCollected: 0, sourcesProcessed: 0 },
+          sourceNames: reportSourceNames,
+          timezone: profile.timezone || "Asia/Seoul",
+        });
+
         const topicLabel = topic.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-        message = result.itemsCount > 0
-          ? `${topicLabel} 리포트 생성 완료 (${result.itemsCount}건 분석)\nReports 페이지에서 확인하세요.`
-          : `${topicLabel} 상태 리포트 생성 완료.\n분석된 자료가 아직 없어 수집 현황을 정리했습니다.\nReports 페이지에서 확인하세요.`;
+        message = fastResult.itemsCount > 0
+          ? `${topicLabel} report generated (${fastResult.itemsCount} items from existing data).\nCheck the Reports page. A detailed analysis will follow shortly.`
+          : `${topicLabel} status report generated.\nNo collected data found. Try running 'collect and report' to fetch fresh data first.`;
+
+        if (fastResult.reportId && fastResult.itemsCount > 0 && hasSystemLLMKey()) {
+          const profileIdForUpgrade = profile.id;
+          const reportIdForUpgrade = fastResult.reportId;
+          (async () => {
+            try {
+              const analyzeCount = await analyzeNewItemsBySourceIds(reportSourceIds, 15, 5);
+              console.log(`[ReportOnly:Background] Analyzed ${analyzeCount} items. Upgrading...`);
+              await upgradeToFullReport(reportIdForUpgrade, profileIdForUpgrade, userId);
+            } catch (e) {
+              console.error("[ReportOnly:Background] Upgrade failed:", e);
+            }
+          })();
+        }
         break;
       }
       default:
@@ -223,13 +252,20 @@ async function execPipelineRun(
   onStepComplete?: (step: PipelineStepResult) => Promise<void>
 ): Promise<ExecutionResult> {
   const args = (cmd.args || {}) as PipelineRunArgs;
+  const lang = (args.lang) || "en";
+  const ko = lang === "ko";
+
   const bot = await resolveBot(userId, cmd.botKey);
   if (!bot) {
     return {
       ok: false,
       assistantMessage: cmd.botKey
-        ? `'${cmd.botKey}' 봇을 찾을 수 없습니다.\n\n봇 목록을 확인하시거나, 템플릿 갤러리에서 새 봇을 만들어보세요.`
-        : "활성 봇이 없습니다. 먼저 봇을 선택하거나 템플릿 갤러리에서 새 봇을 만들어주세요.",
+        ? ko
+          ? `'${cmd.botKey}' 봇을 찾을 수 없습니다.\n\n봇 목록을 확인하시거나, 템플릿 갤러리에서 새 봇을 만들어보세요.`
+          : `Bot '${cmd.botKey}' not found.\n\nCheck your bot list or create a new bot from the Template Gallery.`
+        : ko
+          ? "활성 봇이 없습니다. 먼저 봇을 선택하거나 템플릿 갤러리에서 새 봇을 만들어주세요."
+          : "No active bot. Please select a bot or create one from the Template Gallery.",
       executed: cmd,
       result: null,
     };
@@ -239,7 +275,9 @@ async function execPipelineRun(
   if (botSources.length === 0) {
     return {
       ok: false,
-      assistantMessage: `'${bot.name}' 봇에 연결된 소스가 없습니다.\n\n다음 중 하나를 시도해보세요:\n• "add source https://..." 명령으로 소스 추가\n• Sources 페이지에서 소스 관리\n• 봇 설정에서 추천 소스 활성화`,
+      assistantMessage: ko
+        ? `'${bot.name}' 봇에 연결된 소스가 없습니다.\n\n다음 중 하나를 시도해보세요:\n• "add source https://..." 명령으로 소스 추가\n• Sources 페이지에서 소스 관리\n• 봇 설정에서 추천 소스 활성화`
+        : `Bot '${bot.name}' has no sources.\n\nTry one of these:\n• Add a source with "add source https://..."\n• Manage sources on the Sources page\n• Enable recommended sources in bot settings`,
       executed: cmd,
       result: null,
     };
@@ -249,7 +287,9 @@ async function execPipelineRun(
   if (!hasSystemLLMKey() && !botLLM) {
     return {
       ok: false,
-      assistantMessage: "AI Provider가 설정되지 않았습니다.\n\nSettings 페이지에서 AI Provider를 추가해주세요. (API 키가 필요합니다)",
+      assistantMessage: ko
+        ? "AI Provider가 설정되지 않았습니다.\n\nSettings 페이지에서 AI Provider를 추가해주세요. (API 키가 필요합니다)"
+        : "No AI Provider configured.\n\nPlease add an AI Provider on the Settings page. (API key required)",
       executed: cmd,
       result: null,
     };
@@ -264,7 +304,9 @@ async function execPipelineRun(
     const collectStep: PipelineStepResult = {
       step: "collect",
       ok: true,
-      message: `자료 수집 완료 — ${collectResult.totalCollected}건의 새 자료를 ${collectResult.sourcesProcessed}개 소스에서 가져왔습니다.`,
+      message: ko
+        ? `자료 수집 완료 — ${collectResult.totalCollected}건의 새 자료를 ${collectResult.sourcesProcessed}개 소스에서 가져왔습니다.`
+        : `Collection complete: ${collectResult.totalCollected} new item(s) from ${collectResult.sourcesProcessed} source(s).`,
       data: collectResult,
     };
     steps.push(collectStep);
@@ -274,7 +316,9 @@ async function execPipelineRun(
     const collectStep: PipelineStepResult = {
       step: "collect",
       ok: false,
-      message: "자료 수집 중 문제가 발생했습니다.\n\nSources 페이지에서 소스 URL이 올바른지 확인해주세요.",
+      message: ko
+        ? "자료 수집 중 문제가 발생했습니다.\n\nSources 페이지에서 소스 URL이 올바른지 확인해주세요."
+        : "Data collection failed.\n\nPlease check your source URLs on the Sources page.",
     };
     steps.push(collectStep);
     if (onStepComplete) await onStepComplete(collectStep);
@@ -352,7 +396,9 @@ async function execPipelineRun(
     const reportStep: PipelineStepResult = {
       step: "report",
       ok: true,
-      message: `초기 브리핑 생성 완료 — ${fastResult.itemsCount}건의 자료를 요약했습니다.\n\nReports 페이지에서 확인하세요. 상세 분석 리포트가 곧 업데이트됩니다.`,
+      message: ko
+        ? `초기 브리핑 생성 완료 — ${fastResult.itemsCount}건의 자료를 요약했습니다.\n\nReports 페이지에서 확인하세요. 상세 분석 리포트가 곧 업데이트됩니다.`
+        : `Quick briefing ready — summarized ${fastResult.itemsCount} item(s).\n\nCheck the Reports page. A detailed analysis report will follow shortly.`,
       data: fastResult,
     };
     steps.push(reportStep);
@@ -362,7 +408,7 @@ async function execPipelineRun(
     const reportStep: PipelineStepResult = {
       step: "report",
       ok: false,
-      message: "초기 브리핑 생성 중 문제가 발생했습니다.",
+      message: ko ? "초기 브리핑 생성 중 문제가 발생했습니다." : "Failed to generate quick briefing.",
     };
     steps.push(reportStep);
     if (onStepComplete) await onStepComplete(reportStep);
@@ -386,7 +432,9 @@ async function execPipelineRun(
       const scheduleStep: PipelineStepResult = {
         step: "schedule",
         ok: true,
-        message: `스케줄 설정 완료 — 매일 ${args.scheduleTimeLocal}에 자동으로 실행됩니다.`,
+        message: ko
+          ? `스케줄 설정 완료 — 매일 ${args.scheduleTimeLocal}에 자동으로 실행됩니다.`
+          : `Schedule set — will run daily at ${args.scheduleTimeLocal}.`,
       };
       steps.push(scheduleStep);
       if (onStepComplete) await onStepComplete(scheduleStep);
@@ -394,7 +442,9 @@ async function execPipelineRun(
       const scheduleStep: PipelineStepResult = {
         step: "schedule",
         ok: false,
-        message: "스케줄 저장에 실패했습니다. 봇 설정 페이지에서 직접 설정해주세요.",
+        message: ko
+          ? "스케줄 저장에 실패했습니다. 봇 설정 페이지에서 직접 설정해주세요."
+          : "Failed to save schedule. Please set it manually on the bot settings page.",
       };
       steps.push(scheduleStep);
       if (onStepComplete) await onStepComplete(scheduleStep);
@@ -425,12 +475,16 @@ async function execPipelineRun(
     .filter(s => s.ok)
     .map(s => s.message);
   const scheduleNote = args.scheduleTimeLocal
-    ? `\n\n앞으로 매일 ${args.scheduleTimeLocal}에 자동 실행됩니다.`
+    ? ko
+      ? `\n\n앞으로 매일 ${args.scheduleTimeLocal}에 자동 실행됩니다.`
+      : `\n\nScheduled to run daily at ${args.scheduleTimeLocal}.`
     : "";
 
   return {
     ok: true,
-    assistantMessage: `파이프라인 실행 완료!\n\n${summaryLines.join("\n")}${scheduleNote}`,
+    assistantMessage: ko
+      ? `파이프라인 실행 완료!\n\n${summaryLines.join("\n")}${scheduleNote}`
+      : `Pipeline complete!\n\n${summaryLines.join("\n")}${scheduleNote}`,
     executed: cmd,
     result: { steps },
   };

@@ -17,6 +17,7 @@ export interface PipelineRunArgs {
   scheduleRule?: "DAILY" | "WEEKDAYS" | "WEEKENDS";
   lookbackHours?: number;
   maxItems?: number;
+  lang?: "ko" | "en";
 }
 
 export type ChatCommand = {
