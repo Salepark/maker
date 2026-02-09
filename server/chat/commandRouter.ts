@@ -211,8 +211,8 @@ async function execRunNow(userId: string, cmd: ChatCommand): Promise<ExecutionRe
 
         const topicLabel = topic.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
         message = fastResult.itemsCount > 0
-          ? `${topicLabel} report generated (${fastResult.itemsCount} items from existing data).\nCheck the Reports page. A detailed analysis will follow shortly.`
-          : `${topicLabel} status report generated.\nNo collected data found. Try running 'collect and report' to fetch fresh data first.`;
+          ? `${topicLabel} 리포트가 제출되었습니다 (${fastResult.itemsCount}건).\nReports 페이지에서 확인하세요.`
+          : `${topicLabel} 리포트가 제출되었습니다.\n수집된 자료가 없어 현황 리포트를 작성했습니다. '자료 수집하고 리포트 만들어줘'로 새 데이터를 먼저 수집해보세요.`;
 
         if (fastResult.reportId && fastResult.itemsCount > 0 && hasSystemLLMKey()) {
           const profileIdForUpgrade = profile.id;
@@ -397,8 +397,8 @@ async function execPipelineRun(
       step: "report",
       ok: true,
       message: ko
-        ? `초기 브리핑 생성 완료 — ${fastResult.itemsCount}건의 자료를 요약했습니다.\n\nReports 페이지에서 확인하세요. 상세 분석 리포트가 곧 업데이트됩니다.`
-        : `Quick briefing ready — summarized ${fastResult.itemsCount} item(s).\n\nCheck the Reports page. A detailed analysis report will follow shortly.`,
+        ? `리포트 제출 완료 — ${fastResult.itemsCount}건의 자료를 요약했습니다. Reports 페이지에서 확인하세요.`
+        : `Report delivered — summarized ${fastResult.itemsCount} item(s). Check the Reports page.`,
       data: fastResult,
     };
     steps.push(reportStep);
@@ -408,7 +408,7 @@ async function execPipelineRun(
     const reportStep: PipelineStepResult = {
       step: "report",
       ok: false,
-      message: ko ? "초기 브리핑 생성 중 문제가 발생했습니다." : "Failed to generate quick briefing.",
+      message: ko ? "리포트 생성 중 문제가 발생했습니다." : "Failed to generate report.",
     };
     steps.push(reportStep);
     if (onStepComplete) await onStepComplete(reportStep);
@@ -479,15 +479,18 @@ async function execPipelineRun(
       ? `\n\n앞으로 매일 ${args.scheduleTimeLocal}에 자동 실행됩니다.`
       : `\n\nScheduled to run daily at ${args.scheduleTimeLocal}.`
     : "";
-  const checkReportsNote = ko
-    ? "\n\nReports 페이지에서 결과를 확인하세요."
-    : "\n\nHead over to the Reports page to see your report.";
+  const hasReport = steps.some(s => s.step === "report" && s.ok);
+  const checkReportsNote = hasReport
+    ? ko
+      ? "\n\nReports 페이지에서 리포트를 확인하세요."
+      : "\n\nYour report is ready — check the Reports page."
+    : "";
 
   return {
     ok: true,
     assistantMessage: ko
-      ? `완료!\n\n${summaryLines.join("\n")}${scheduleNote}${checkReportsNote}`
-      : `Done!\n\n${summaryLines.join("\n")}${scheduleNote}${checkReportsNote}`,
+      ? `${hasReport ? "리포트가 제출되었습니다." : "완료!"}\n\n${summaryLines.join("\n")}${scheduleNote}${checkReportsNote}`
+      : `${hasReport ? "Report delivered." : "Done!"}\n\n${summaryLines.join("\n")}${scheduleNote}${checkReportsNote}`,
     executed: cmd,
     result: { steps },
   };
