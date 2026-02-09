@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -127,7 +127,7 @@ export default function Reports() {
     return undefined;
   }, [selectedFilter]);
 
-  const [hasFastReport, setHasFastReport] = useState(false);
+  const hasFastReportRef = useRef(false);
 
   const { data: reports, isLoading, refetch } = useQuery<Report[]>({
     queryKey: ["/api/reports", selectedProfileIdForQuery],
@@ -137,11 +137,11 @@ export default function Reports() {
         : "/api/reports";
       const res = await fetch(url, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch reports");
-      const data = await res.json();
-      setHasFastReport(data?.some((r: Report) => r.reportStage === "fast") ?? false);
+      const data: Report[] = await res.json();
+      hasFastReportRef.current = data.some((r) => r.reportStage === "fast");
       return data;
     },
-    refetchInterval: hasFastReport ? 10000 : undefined,
+    refetchInterval: () => hasFastReportRef.current ? 10000 : false,
   });
 
   const selectedReport = useMemo(() => {
