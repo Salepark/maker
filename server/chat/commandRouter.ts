@@ -119,7 +119,7 @@ async function execRunNow(userId: string, cmd: ChatCommand): Promise<ExecutionRe
         break;
       case "analyze":
         if (botSourceIds.length > 0) {
-          result = await analyzeNewItemsBySourceIds(botSourceIds);
+          result = await analyzeNewItemsBySourceIds(botSourceIds, 15, 5);
           message = `Analysis complete: ${result} item(s) analyzed.`;
         } else {
           result = await runAnalyzeNow();
@@ -282,7 +282,7 @@ async function execPipelineRun(
   }
 
   try {
-    const analyzeCount = await analyzeNewItemsBySourceIds(botSourceIds);
+    const analyzeCount = await analyzeNewItemsBySourceIds(botSourceIds, 15, 5);
     const analyzeStep: PipelineStepResult = {
       step: "analyze",
       ok: true,
