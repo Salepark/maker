@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  MessageCircle, Send, Loader2, Bot, User, Check, X, Zap, Play, CheckCircle2, AlertCircle,
+  MessageCircle, Send, Loader2, Bot, User, Check, X, Zap, CheckCircle2, AlertCircle,
   Lightbulb, Clock, Rocket, ArrowRight, ChevronDown,
   Search, Users, Target, MessageSquare, BarChart3, Eye, ShieldCheck,
 } from "lucide-react";
@@ -57,7 +57,7 @@ interface ConsoleContext {
 
 type ConsoleState = "S0_NO_BOT" | "S1_NO_SOURCES" | "S2_NO_COLLECTION" | "S3_READY" | "S4_SCHEDULE_ISSUE";
 
-type HintCategory = "first_run" | "schedule" | "one_time";
+type HintCategory = "first_run" | "schedule";
 type BotHintCategory = "research" | "outreach" | "contribution" | "analysis" | "monitor" | "safety_promo";
 
 interface Hint {
@@ -74,13 +74,11 @@ interface BotHint {
 const CATEGORY_ICONS: Record<HintCategory, typeof Lightbulb> = {
   first_run: Rocket,
   schedule: Clock,
-  one_time: Play,
 };
 
 const CATEGORY_LABELS: Record<HintCategory, string> = {
   first_run: "Getting Started",
   schedule: "Schedule",
-  one_time: "Run Now",
 };
 
 const BOT_HINT_CATEGORY_ICONS: Record<BotHintCategory, typeof Lightbulb> = {
@@ -140,22 +138,17 @@ const ALL_HINTS: Hint[] = [
   { text: "기본 소스 넣고 시작해줘", category: "first_run", states: ["S1_NO_SOURCES"] },
   { text: "이 URL 소스를 추가해줘: https://", category: "first_run", states: ["S1_NO_SOURCES"] },
 
-  { text: "자료 수집하고 분석해서 리포트 만들어줘", category: "first_run", states: ["S2_NO_COLLECTION", "S3_READY"] },
-  { text: "투자 봇을 매일 아침 9시에 브리핑하게 설정해줘", category: "first_run", states: ["S2_NO_COLLECTION", "S3_READY"] },
+  { text: "봇 상태 보여줘", category: "first_run", states: ["S2_NO_COLLECTION", "S3_READY"] },
 
-  { text: "매일 아침 9시에 자동으로 수집·분석·리포트 해줘", category: "schedule", states: ["S2_NO_COLLECTION", "S3_READY"] },
+  { text: "매일 아침 9시에 자동 실행되게 설정해줘", category: "schedule", states: ["S2_NO_COLLECTION", "S3_READY"] },
   { text: "스케줄 시간을 아침 8시로 바꿔줘", category: "schedule", states: ["S3_READY", "S4_SCHEDULE_ISSUE"] },
   { text: "주말은 빼고 평일만 돌려줘", category: "schedule", states: ["S3_READY"] },
 
-  { text: "지금 수집하고 리포트 만들어줘", category: "one_time", states: ["S2_NO_COLLECTION", "S3_READY"] },
-  { text: "최근 24시간 이슈만 빠르게 수집해서 정리해줘", category: "one_time", states: ["S3_READY"] },
-
   { text: "왜 리포트가 안 왔는지 점검해줘", category: "first_run", states: ["S4_SCHEDULE_ISSUE"] },
   { text: "다음 실행 시간 알려줘", category: "schedule", states: ["S4_SCHEDULE_ISSUE"] },
-  { text: "지금 수집하고 리포트 만들어줘", category: "one_time", states: ["S4_SCHEDULE_ISSUE"] },
 
   { text: "내가 뭘 해야 하는지 모르겠어. 다음 단계 알려줘", category: "first_run", states: ["S0_NO_BOT", "S1_NO_SOURCES", "S2_NO_COLLECTION", "S3_READY", "S4_SCHEDULE_ISSUE"] },
-  { text: "봇 상태 보여줘", category: "first_run", states: ["S2_NO_COLLECTION", "S3_READY", "S4_SCHEDULE_ISSUE"] },
+  { text: "봇 일시정지해줘", category: "first_run", states: ["S3_READY"] },
 ];
 
 function computeConsoleState(ctx: ConsoleContext | undefined): ConsoleState {
@@ -184,8 +177,8 @@ function getPlaceholder(state: ConsoleState): string {
   switch (state) {
     case "S0_NO_BOT": return '"내 봇 목록 보여줘" or "Show my bots"';
     case "S1_NO_SOURCES": return '"기본 소스 넣고 시작해줘" or "Add source https://..."';
-    case "S2_NO_COLLECTION": return '"자료 수집하고 분석해서 리포트 만들어줘"';
-    case "S3_READY": return '"자료 수집하고 분석해서 리포트 만들어줘"';
+    case "S2_NO_COLLECTION": return '"매일 아침 9시에 자동 실행되게 설정해줘"';
+    case "S3_READY": return '"봇 상태 보여줘" or "스케줄 시간 바꿔줘"';
     case "S4_SCHEDULE_ISSUE": return '"왜 리포트가 안 왔는지 점검해줘"';
   }
 }
@@ -298,7 +291,7 @@ function MessageBubble({
               </span>
             ) : message.commandJson.type === "pipeline_run" ? (
               <span className="flex items-center gap-1">
-                <Play className="h-3 w-3" />
+                <Zap className="h-3 w-3" />
                 Pipeline
               </span>
             ) : (
@@ -678,7 +671,7 @@ export default function Chat() {
 
     if (cmdType === "pipeline_run") {
       return [
-        { text: "매일 아침 9시에 자동으로 수집·분석·리포트 해줘", category: "schedule", states: ["S3_READY"] },
+        { text: "매일 아침 9시에 자동 실행되게 설정해줘", category: "schedule", states: ["S3_READY"] },
         { text: "봇 상태 보여줘", category: "first_run", states: ["S3_READY"] },
       ];
     }
@@ -687,7 +680,8 @@ export default function Chat() {
     }
     if (cmdType === "add_source") {
       return [
-        { text: "자료 수집하고 분석해서 리포트 만들어줘", category: "one_time", states: ["S2_NO_COLLECTION"] },
+        { text: "매일 아침 9시에 자동 실행되게 설정해줘", category: "schedule", states: ["S2_NO_COLLECTION"] },
+        { text: "봇 상태 보여줘", category: "first_run", states: ["S2_NO_COLLECTION"] },
       ];
     }
     return [];
