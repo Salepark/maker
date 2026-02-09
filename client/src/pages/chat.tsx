@@ -218,11 +218,23 @@ function getHintsForState(state: ConsoleState): Hint[] {
 
 function getPipelineStepLabel(step: string): string {
   switch (step) {
-    case "collect": return "Step 1: Data Collection";
-    case "analyze": return "Step 2: Analysis";
-    case "report": return "Step 3: Report";
-    case "schedule": return "Schedule Updated";
+    case "collect": return "자료 수집";
+    case "analyze": return "분석";
+    case "report": return "리포트 작성";
+    case "schedule": return "스케줄 설정";
     default: return step;
+  }
+}
+
+function getPipelineProgressLabel(completedSteps: string[]): string {
+  const last = completedSteps[completedSteps.length - 1];
+  if (!last) return "자료 수집 중...";
+  switch (last) {
+    case "collect": return "리포트 작성 중...";
+    case "analyze": return "리포트 작성 중...";
+    case "report": return "마무리 중...";
+    case "schedule": return "마무리 중...";
+    default: return "처리 중...";
   }
 }
 
@@ -504,8 +516,21 @@ export default function Chat() {
       return res.json();
     },
     enabled: !!threadId,
-    refetchInterval: pipelineRunning ? 2000 : 5000,
+    refetchInterval: pipelineRunning ? 1500 : 5000,
   });
+
+  const pipelineProgressText = useMemo(() => {
+    if (!pipelineRunning || !messages) return "자료 수집 중...";
+    const completedSteps: string[] = [];
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i];
+      if (m.commandJson?.type === "pipeline_step" && m.resultJson?.ok) {
+        completedSteps.unshift(m.commandJson.step);
+      }
+      if (m.commandJson?.type === "pipeline_run" && m.kind !== "command_result") break;
+    }
+    return getPipelineProgressLabel(completedSteps);
+  }, [messages, pipelineRunning]);
 
   useEffect(() => {
     if (pipelineRunning && messages && messages.length > 0) {
@@ -762,7 +787,7 @@ export default function Chat() {
           {pipelineRunning && (
             <div className="px-4 py-2 border-t border-border bg-muted/50 flex items-center gap-2" data-testid="pipeline-running-indicator">
               <Loader2 className="h-4 w-4 animate-spin text-primary" />
-              <span className="text-sm text-muted-foreground">Pipeline running... Steps will appear as they complete.</span>
+              <span className="text-sm text-muted-foreground">{pipelineProgressText}</span>
             </div>
           )}
 
