@@ -85,6 +85,22 @@ export async function callLLMWithConfigJson<T>(
   throw lastError || new Error("JSON parsing failed after retries");
 }
 
+// LLM은 '업그레이드 엔진' — 즉시 결과는 규칙 기반, LLM은 가치가 생기는 순간에만 호출
+export async function callLLMWithTimeout<T>(
+  fn: () => Promise<T>,
+  timeoutMs = 20000
+): Promise<T | null> {
+  return Promise.race([
+    fn(),
+    new Promise<null>(resolve =>
+      setTimeout(() => {
+        console.warn(`[LLM] Call timed out after ${timeoutMs}ms, returning null for fallback`);
+        resolve(null);
+      }, timeoutMs)
+    ),
+  ]);
+}
+
 // ============================================
 // Legacy functions (backward compatible, used by system-level jobs)
 // These fall back to env-var LLM_API_KEY when no bot LLM is configured

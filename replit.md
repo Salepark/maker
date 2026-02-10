@@ -56,6 +56,17 @@ Preset `online_business_research` — topic: online_business, outputType: report
 ### Korea Marketplace Research Assistant (Phase 10 derivative)
 Preset `korea_marketplace_research` — topic: korea_marketplace, outputType: report, DAILY 09:00, 7 sources (네이버 카페 스마트스토어, 네이버 카페 셀러/창업, Reddit r/ecommerce, 네이버 스마트스토어 공식 블로그, 쿠팡 뉴스룸, Google Trends Korea, 통계청 KOSIS). Enforces same safety policy. Icon: ShoppingCart. Category: commerce. TOPIC_META: role="market research analyst specializing in Korean open marketplaces (Coupang, Naver SmartStore)". Report sections: marketSnapshot, customerSignals, sellerSignals, riskFlags, opportunityHints, actionItems, draftNotes. sourceDisclaimer in Korean. Landing page use case added.
 
+### LLM Optimization & Report Pipeline
+The system implements a multi-stage report pipeline to minimize LLM costs and provide instant user feedback:
+- **Fast Report** (instant, no LLM): Generated immediately on schedule or manual trigger. Shows collected item preview and source statistics.
+- **Status Report** (LLM-powered fallback): Generated when full analysis times out. Shows partial analysis results.
+- **Full Report** (LLM-powered, background): Generated asynchronously after Fast Report. Includes full AI analysis.
+- `callLLMWithTimeout` wrapper in `server/llm/client.ts` enforces 60s timeout for reports, 30s for analysis, with graceful fallback.
+- `shouldAnalyzeItem` policy function in `server/jobs/analyze_items.ts` skips items with text < 50 chars (MIN_TEXT_LENGTH), reducing unnecessary LLM calls.
+- Background upgrade flow: `generateFastReport` → `scheduleBackgroundUpgrade` (2s delay) → inline analysis → upgrade to full stage.
+- UI auto-refreshes every 10s when fast reports exist, showing color-coded stage badges (초기 브리핑 / 상태 리포트 / 확장 리포트).
+- Unified user messaging: "메이커는 먼저 빠른 브리핑을 제공합니다. 심화 분석은 백그라운드에서 진행되며, 완료되면 자동으로 업데이트됩니다."
+
 ### Console Prompt Hints
 The Console provides context-sensitive autocomplete and hints based on the user's current state (e.g., no bot selected, no sources, ready state), offering suggestions for next actions and diagnostics.
 
