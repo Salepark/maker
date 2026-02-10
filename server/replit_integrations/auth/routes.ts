@@ -3,7 +3,7 @@ import { authStorage } from "./storage";
 import { isAuthenticated } from "./replitAuth";
 import { storage } from "../../storage";
 
-const DEMO_USER_ID = "demo_reviewer_001";
+const DEMO_USER_ID = "36570281";
 const DEMO_USERNAME = "reviewer";
 const DEMO_PASSWORD = "makelr2025";
 
