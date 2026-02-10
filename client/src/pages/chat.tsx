@@ -139,6 +139,8 @@ const ALL_HINTS: Hint[] = [
   { text: "이 URL 소스를 추가해줘: https://", category: "first_run", states: ["S1_NO_SOURCES"] },
 
   { text: "봇 상태 보여줘", category: "first_run", states: ["S2_NO_COLLECTION", "S3_READY"] },
+  { text: "오늘 자료 빠르게 요약해줘", category: "first_run", states: ["S3_READY"] },
+  { text: "지금 상태 브리핑만 보여줘", category: "first_run", states: ["S3_READY"] },
 
   { text: "매일 아침 9시에 자동 실행되게 설정해줘", category: "schedule", states: ["S2_NO_COLLECTION", "S3_READY"] },
   { text: "스케줄 시간을 아침 8시로 바꿔줘", category: "schedule", states: ["S3_READY", "S4_SCHEDULE_ISSUE"] },
@@ -673,6 +675,7 @@ export default function Chat() {
       return [
         { text: "매일 아침 9시에 자동 실행되게 설정해줘", category: "schedule", states: ["S3_READY"] },
         { text: "봇 상태 보여줘", category: "first_run", states: ["S3_READY"] },
+        { text: "다음 실행 시간 알려줘", category: "schedule", states: ["S3_READY"] },
       ];
     }
     if (cmdType === "list_bots" || cmdType === "switch_bot") {

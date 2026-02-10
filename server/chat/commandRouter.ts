@@ -211,8 +211,8 @@ async function execRunNow(userId: string, cmd: ChatCommand): Promise<ExecutionRe
 
         const topicLabel = topic.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
         message = fastResult.itemsCount > 0
-          ? `${topicLabel} 리포트가 제출되었습니다 (${fastResult.itemsCount}건).\nReports 페이지에서 확인하세요.`
-          : `${topicLabel} 리포트가 제출되었습니다.\n수집된 자료가 없어 현황 리포트를 작성했습니다. '자료 수집하고 리포트 만들어줘'로 새 데이터를 먼저 수집해보세요.`;
+          ? `${topicLabel} 초기 브리핑이 제출되었습니다 (${fastResult.itemsCount}건).\nReports 페이지에서 확인하세요.\n\n심화 분석은 백그라운드에서 자동으로 진행되며, 완료되면 리포트가 업데이트됩니다.`
+          : `${topicLabel} 초기 브리핑이 제출되었습니다.\n수집된 자료가 없어 현황 리포트를 작성했습니다. '자료 수집하고 리포트 만들어줘'로 새 데이터를 먼저 수집해보세요.`;
 
         if (fastResult.reportId && fastResult.itemsCount > 0 && hasSystemLLMKey()) {
           const profileIdForUpgrade = profile.id;
@@ -397,8 +397,8 @@ async function execPipelineRun(
       step: "report",
       ok: true,
       message: ko
-        ? `리포트 제출 완료 — ${fastResult.itemsCount}건의 자료를 요약했습니다. Reports 페이지에서 확인하세요.`
-        : `Report delivered — summarized ${fastResult.itemsCount} item(s). Check the Reports page.`,
+        ? `초기 브리핑 제출 완료 — ${fastResult.itemsCount}건의 자료를 요약했습니다. Reports 페이지에서 확인하세요.`
+        : `Quick briefing delivered — summarized ${fastResult.itemsCount} item(s). Check the Reports page.`,
       data: fastResult,
     };
     steps.push(reportStep);
@@ -486,11 +486,17 @@ async function execPipelineRun(
       : "\n\nYour report is ready — check the Reports page."
     : "";
 
+  const briefingNote = hasReport
+    ? ko
+      ? "\n\n초기 브리핑은 이미 제공되었습니다.\n심화 분석은 백그라운드에서 자동으로 진행되며, 완료되면 리포트가 업데이트됩니다."
+      : "\n\nYour quick briefing is ready.\nDeep analysis runs in the background — the report will update automatically when done."
+    : "";
+
   return {
     ok: true,
     assistantMessage: ko
-      ? `${hasReport ? "리포트가 제출되었습니다." : "완료!"}\n\n${summaryLines.join("\n")}${scheduleNote}${checkReportsNote}`
-      : `${hasReport ? "Report delivered." : "Done!"}\n\n${summaryLines.join("\n")}${scheduleNote}${checkReportsNote}`,
+      ? `${hasReport ? "초기 브리핑이 제출되었습니다." : "완료!"}\n\n${summaryLines.join("\n")}${scheduleNote}${checkReportsNote}${briefingNote}`
+      : `${hasReport ? "Quick briefing delivered." : "Done!"}\n\n${summaryLines.join("\n")}${scheduleNote}${checkReportsNote}${briefingNote}`,
     executed: cmd,
     result: { steps },
   };
