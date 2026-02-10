@@ -1,0 +1,162 @@
+메이커 LLM 호출 정책 v1.0 (Local / Cloud 공통)
+핵심 철학 (이건 주석으로도 남기세요)
+
+LLM은 기본 엔진이 아니라 ‘업그레이드 엔진’이다.
+즉시 결과는 규칙 기반,
+LLM은 “가치가 생기는 순간에만” 호출한다.
+
+1️⃣ 전체 파이프라인 단계별 LLM 사용 여부
+단계	LLM 사용	이유
+Collect (수집)	❌	네트워크/파싱만
+Normalize/De-dupe	❌	규칙으로 충분
+Fast Report	❌	1~3초 즉시 응답
+Status Report	❌	신뢰 확보용
+Full Report	✅ (조건부)	인사이트 생성
+Comment/Draft	✅	자연어 생성
+Risk Check	✅ (선택)	2차 안전망
+2️⃣ 코드 레벨 정책 함수 (그대로 사용 가능)
+A. 분석 단계에서 LLM을 쓸지 결정
+export function shouldUseLLMForAnalysis(input: {
+  itemCount: number;
+  avgTextLength: number;
+  hasNewItems: boolean;
+  lastLLMRunAt?: Date;
+  maxItems?: number;
+}): boolean {
+  // 데이터가 너무 적으면 의미 없음
+  if (!input.hasNewItems) return false;
+  if (input.itemCount < 3) return false;
+  if (input.avgTextLength < 800) return false;
+
+  // 너무 많아도 비용/시간 폭탄
+  if (input.maxItems && input.itemCount > input.maxItems) return false;
+
+  // 하루 1회 제한 (기본값)
+  if (input.lastLLMRunAt) {
+    const hours = (Date.now() - input.lastLLMRunAt.getTime()) / 3600000;
+    if (hours < 20) return false;
+  }
+
+  return true;
+}
+
+B. Full Report로 업그레이드할지 결정
+export function shouldUpgradeToFullReport(ctx: {
+  fastReportGenerated: boolean;
+  itemCount: number;
+  llmBudgetRemaining: number;
+  estimatedLatencyMs: number;
+}): boolean {
+  if (!ctx.fastReportGenerated) return false;
+  if (ctx.itemCount < 5) return false;
+  if (ctx.llmBudgetRemaining <= 0) return false;
+
+  // 25초 넘을 것 같으면 포기
+  if (ctx.estimatedLatencyMs > 25000) return false;
+
+  return true;
+}
+
+C. 콘솔 명령에서 사용자 의도 감지
+export function userWantsDeepAnalysis(text: string): boolean {
+  const keywords = [
+    "깊게",
+    "인사이트",
+    "왜 중요한",
+    "리스크",
+    "전망",
+    "해석",
+    "분석해줘"
+  ];
+  return keywords.some(k => text.includes(k));
+}
+
+
+❗ 없으면 무조건 Fast Report
+
+3️⃣ 타임아웃 & 폴백 정책 (이게 제일 중요)
+LLM 호출 공통 래퍼
+export async function callLLMWithTimeout<T>(
+  fn: () => Promise<T>,
+  timeoutMs = 20000
+): Promise<T | null> {
+  return Promise.race([
+    fn(),
+    new Promise<null>(resolve =>
+      setTimeout(() => resolve(null), timeoutMs)
+    )
+  ]);
+}
+
+사용 예
+const result = await callLLMWithTimeout(() =>
+  generateFullReport(items),
+  20000
+);
+
+if (!result) {
+  // ❗ 절대 에러 리포트 내지 말 것
+  return createStatusReport({
+    message: "심화 분석을 진행 중입니다. 초기 브리핑을 먼저 확인해주세요.",
+    nextUpdate: "잠시 후 자동으로 업그레이드됩니다."
+  });
+}
+
+4️⃣ Fast Report 기본 템플릿 (LLM 없음)
+export function generateFastReport(items: Item[]) {
+  return {
+    type: "fast",
+    summary: [
+      `오늘 새로 수집된 항목: ${items.length}개`,
+      `주요 출처: ${topDomains(items).join(", ")}`,
+      `가장 많이 언급된 키워드: ${topKeywords(items).join(", ")}`
+    ],
+    highlights: items.slice(0, 5).map(i => ({
+      title: i.title,
+      source: i.sourceName,
+      date: i.publishedAt
+    }))
+  };
+}
+
+
+➡️ 이게 2~3초 내로 나와야 합니다.
+
+5️⃣ “running…” 금지 규칙 (운영 원칙)
+
+이 중 하나라도 위반하면 UX 실패입니다.
+
+❌ LLM 응답을 기다리며 UI 블로킹
+
+❌ 빈 리포트
+
+❌ “분석 중입니다”만 던지고 끝
+
+❌ 언제 끝날지 모름
+
+대신:
+
+✅ Fast Report 즉시
+
+✅ Status Report로 설명
+
+✅ Full Report는 “업그레이드” 개념
+
+6️⃣ 사용자에게 보여줄 문구 (신뢰용)
+
+이 문구는 고정으로 쓰세요.
+
+“메이커는 먼저 빠른 브리핑을 제공합니다.
+심화 분석은 백그라운드에서 진행되며, 완료되면 자동으로 업데이트됩니다.”
+
+7️⃣ 이 정책이 주는 효과 (중요)
+
+“running…” 체감 시간 90% 감소
+
+LLM 비용 예측 가능
+
+데스크탑/클라우드 어디서나 동일한 UX
+
+투자자에게 설명 가능:
+
+“LLM 의존도를 최소화한 구조”
