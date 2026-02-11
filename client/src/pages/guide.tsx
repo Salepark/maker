@@ -3,140 +3,7 @@ import { Rocket, Settings, Bot, Rss, MessageSquare, FileText, ChevronDown, Zap, 
 import { useState } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-
-const steps = [
-  {
-    number: "1",
-    icon: Rocket,
-    title: "Sign Up & Login",
-    content: (
-      <div className="space-y-2 text-sm text-muted-foreground leading-relaxed">
-        <p>Visit makelr.com and sign up or log in.</p>
-        <p>Once you see the Dashboard, you're ready to go.</p>
-      </div>
-    ),
-  },
-  {
-    number: "2",
-    icon: Settings,
-    title: "Register Your LLM API",
-    subtitle: "Claude, OpenAI, etc.",
-    content: (
-      <div className="space-y-3 text-sm text-muted-foreground leading-relaxed">
-        <p>Makelr uses your own API key to run AI tasks.</p>
-        <ol className="list-decimal list-inside space-y-1 pl-1">
-          <li>Click <strong className="text-foreground">Settings</strong> in the sidebar</li>
-          <li>In the <strong className="text-foreground">LLM Providers</strong> section, click <strong className="text-foreground">Add Provider</strong></li>
-          <li>Fill in the following fields:</li>
-        </ol>
-        <div className="rounded-md bg-muted/50 p-3 space-y-1 text-xs">
-          <p><strong className="text-foreground">Name:</strong> e.g. My Claude API</p>
-          <p><strong className="text-foreground">Provider Type:</strong> Choose Anthropic (Claude) / OpenAI, etc.</p>
-          <p><strong className="text-foreground">API Key:</strong> Paste your issued key</p>
-          <p><strong className="text-foreground">Base URL:</strong> Leave empty (uses default)</p>
-          <p><strong className="text-foreground">Default Model:</strong> Leave empty or e.g. claude-3-5-sonnet-latest</p>
-        </div>
-        <p>Click Save, and Makelr can now use your AI model.</p>
-      </div>
-    ),
-  },
-  {
-    number: "3",
-    icon: Bot,
-    title: "Create a Bot from a Template",
-    content: (
-      <div className="space-y-3 text-sm text-muted-foreground leading-relaxed">
-        <ol className="list-decimal list-inside space-y-1 pl-1">
-          <li>Go to <strong className="text-foreground">Dashboard</strong> or <strong className="text-foreground">My Bots</strong></li>
-          <li>Click <strong className="text-foreground">Create Bot / From Template</strong></li>
-          <li>Choose a template (e.g. Community Research, Investing, etc.)</li>
-          <li>Name your bot and create it</li>
-        </ol>
-        <div className="rounded-md bg-muted/50 p-3 text-xs space-y-1">
-          <p>Templates are pre-designed automation recipes.</p>
-          <p>We recommend starting with a template for your first bot.</p>
-        </div>
-      </div>
-    ),
-  },
-  {
-    number: "4",
-    icon: Rss,
-    title: "Add Your Sources",
-    content: (
-      <div className="space-y-3 text-sm text-muted-foreground leading-relaxed">
-        <p>This is where you define where AI collects information from.</p>
-        <ol className="list-decimal list-inside space-y-1 pl-1">
-          <li>Click <strong className="text-foreground">Sources</strong> in the sidebar</li>
-          <li>Add, edit, or remove sources as needed</li>
-          <li>Save your changes</li>
-        </ol>
-        <div className="rounded-md bg-muted/50 p-3 text-xs space-y-1">
-          <p>Examples: News sites, blog RSS feeds, Reddit, Hacker News, TechCrunch, etc.</p>
-          <p>AI will collect content based on the sources you configure here.</p>
-        </div>
-      </div>
-    ),
-  },
-  {
-    number: "5",
-    icon: MessageSquare,
-    title: "Command Your AI via Console",
-    content: (
-      <div className="space-y-3 text-sm text-muted-foreground leading-relaxed">
-        <p>Go to <strong className="text-foreground">Console</strong> in the sidebar.</p>
-        <p>Try typing commands like:</p>
-        <div className="rounded-md bg-muted/50 p-3 text-xs space-y-1">
-          <p>"Summarize today's collected items"</p>
-          <p>"Analyze this from an investment perspective"</p>
-          <p>"Write a blog post draft"</p>
-        </div>
-        <p>The key idea behind Makelr: <strong className="text-foreground">"Put your AI to work."</strong></p>
-      </div>
-    ),
-  },
-  {
-    number: "6",
-    icon: FileText,
-    title: "Review & Approve Results",
-    content: (
-      <div className="space-y-3 text-sm text-muted-foreground leading-relaxed">
-        <ol className="list-decimal list-inside space-y-1 pl-1">
-          <li>Go to <strong className="text-foreground">Drafts</strong> or <strong className="text-foreground">Reports</strong></li>
-          <li>Review AI-generated drafts</li>
-          <li>Edit or use them as-is</li>
-          <li>Approve or Export</li>
-        </ol>
-        <div className="rounded-md bg-muted/50 p-3 text-xs">
-          <p>AI does the work. You make the decisions.</p>
-        </div>
-      </div>
-    ),
-  },
-];
-
-const faqItems = [
-  {
-    q: "Is Makelr a chatbot service?",
-    a: "No. Makelr is a workflow-based automation tool. The chat console is simply an interface for giving commands — the core value is in the automated workflows running behind the scenes.",
-  },
-  {
-    q: "Do I need to know how to code?",
-    a: "Not at all. Templates, a few clicks, and simple configuration are all you need to get started.",
-  },
-  {
-    q: "Is my API key safe?",
-    a: "Makelr only uses your API key to make AI calls. Your key is never exposed externally, and you can replace or delete it anytime.",
-  },
-  {
-    q: "Can I use both Claude and GPT?",
-    a: "Yes. You can register multiple LLM providers in Settings and switch between them depending on your needs.",
-  },
-  {
-    q: "Who is Makelr useful for?",
-    a: "Anyone who needs daily research, summaries, or analysis. Content creators, writers, and planners. Investors and market analysts looking to automate trend tracking. Anyone who wants to use AI as a productive assistant, not just a Q&A tool.",
-  },
-];
+import { useLanguage } from "@/lib/language-provider";
 
 function FAQAccordionItem({ q, a, index }: { q: string; a: string; index: number }) {
   const [open, setOpen] = useState(false);
@@ -160,13 +27,135 @@ function FAQAccordionItem({ q, a, index }: { q: string; a: string; index: number
 }
 
 export default function Guide() {
+  const { t } = useLanguage();
+
+  const stepIcons = [Rocket, Settings, Bot, Rss, MessageSquare, FileText];
+
+  const steps = [
+    {
+      number: "1",
+      icon: stepIcons[0],
+      title: t("guide.step1.title"),
+      content: (
+        <div className="space-y-2 text-sm text-muted-foreground leading-relaxed">
+          <p>{t("guide.step1.p1")}</p>
+          <p>{t("guide.step1.p2")}</p>
+        </div>
+      ),
+    },
+    {
+      number: "2",
+      icon: stepIcons[1],
+      title: t("guide.step2.title"),
+      subtitle: t("guide.step2.subtitle"),
+      content: (
+        <div className="space-y-3 text-sm text-muted-foreground leading-relaxed">
+          <p>{t("guide.step2.p1")}</p>
+          <ol className="list-decimal list-inside space-y-1 pl-1">
+            <li dangerouslySetInnerHTML={{ __html: t("guide.step2.li1") }} />
+            <li dangerouslySetInnerHTML={{ __html: t("guide.step2.li2") }} />
+            <li>{t("guide.step2.li3")}</li>
+          </ol>
+          <div className="rounded-md bg-muted/50 p-3 space-y-1 text-xs">
+            <p><strong className="text-foreground">{t("guide.step2.fieldName")}</strong> {t("guide.step2.fieldNameEx")}</p>
+            <p><strong className="text-foreground">{t("guide.step2.fieldType")}</strong> {t("guide.step2.fieldTypeEx")}</p>
+            <p><strong className="text-foreground">{t("guide.step2.fieldKey")}</strong> {t("guide.step2.fieldKeyEx")}</p>
+            <p><strong className="text-foreground">{t("guide.step2.fieldUrl")}</strong> {t("guide.step2.fieldUrlEx")}</p>
+            <p><strong className="text-foreground">{t("guide.step2.fieldModel")}</strong> {t("guide.step2.fieldModelEx")}</p>
+          </div>
+          <p>{t("guide.step2.done")}</p>
+        </div>
+      ),
+    },
+    {
+      number: "3",
+      icon: stepIcons[2],
+      title: t("guide.step3.title"),
+      content: (
+        <div className="space-y-3 text-sm text-muted-foreground leading-relaxed">
+          <ol className="list-decimal list-inside space-y-1 pl-1">
+            <li dangerouslySetInnerHTML={{ __html: t("guide.step3.li1") }} />
+            <li dangerouslySetInnerHTML={{ __html: t("guide.step3.li2") }} />
+            <li>{t("guide.step3.li3")}</li>
+            <li>{t("guide.step3.li4")}</li>
+          </ol>
+          <div className="rounded-md bg-muted/50 p-3 text-xs space-y-1">
+            <p>{t("guide.step3.hint1")}</p>
+            <p>{t("guide.step3.hint2")}</p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      number: "4",
+      icon: stepIcons[3],
+      title: t("guide.step4.title"),
+      content: (
+        <div className="space-y-3 text-sm text-muted-foreground leading-relaxed">
+          <p>{t("guide.step4.p1")}</p>
+          <ol className="list-decimal list-inside space-y-1 pl-1">
+            <li dangerouslySetInnerHTML={{ __html: t("guide.step4.li1") }} />
+            <li>{t("guide.step4.li2")}</li>
+            <li>{t("guide.step4.li3")}</li>
+          </ol>
+          <div className="rounded-md bg-muted/50 p-3 text-xs space-y-1">
+            <p>{t("guide.step4.hint1")}</p>
+            <p>{t("guide.step4.hint2")}</p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      number: "5",
+      icon: stepIcons[4],
+      title: t("guide.step5.title"),
+      content: (
+        <div className="space-y-3 text-sm text-muted-foreground leading-relaxed">
+          <p dangerouslySetInnerHTML={{ __html: t("guide.step5.p1") }} />
+          <p>{t("guide.step5.p2")}</p>
+          <div className="rounded-md bg-muted/50 p-3 text-xs space-y-1">
+            <p>{t("guide.step5.cmd1")}</p>
+            <p>{t("guide.step5.cmd2")}</p>
+            <p>{t("guide.step5.cmd3")}</p>
+          </div>
+          <p dangerouslySetInnerHTML={{ __html: t("guide.step5.p3") }} />
+        </div>
+      ),
+    },
+    {
+      number: "6",
+      icon: stepIcons[5],
+      title: t("guide.step6.title"),
+      content: (
+        <div className="space-y-3 text-sm text-muted-foreground leading-relaxed">
+          <ol className="list-decimal list-inside space-y-1 pl-1">
+            <li dangerouslySetInnerHTML={{ __html: t("guide.step6.li1") }} />
+            <li>{t("guide.step6.li2")}</li>
+            <li>{t("guide.step6.li3")}</li>
+            <li>{t("guide.step6.li4")}</li>
+          </ol>
+          <div className="rounded-md bg-muted/50 p-3 text-xs">
+            <p>{t("guide.step6.hint")}</p>
+          </div>
+        </div>
+      ),
+    },
+  ];
+
+  const faqItems = [
+    { q: t("guide.faq.q1"), a: t("guide.faq.a1") },
+    { q: t("guide.faq.q2"), a: t("guide.faq.a2") },
+    { q: t("guide.faq.q3"), a: t("guide.faq.a3") },
+    { q: t("guide.faq.q4"), a: t("guide.faq.a4") },
+    { q: t("guide.faq.q5"), a: t("guide.faq.a5") },
+  ];
+
   return (
     <div className="p-6 max-w-3xl mx-auto space-y-8">
       <div className="space-y-2">
-        <h1 className="text-2xl font-bold" data-testid="text-guide-title">Getting Started Guide</h1>
+        <h1 className="text-2xl font-bold" data-testid="text-guide-title">{t("guide.title")}</h1>
         <p className="text-muted-foreground text-sm" data-testid="text-guide-intro">
-          Makelr is a tool for building your own AI automation assistant that handles tasks on your behalf.
-          No coding required — just pick a template, click a few buttons, and create your own AI workflow.
+          {t("guide.intro")}
         </p>
       </div>
 
@@ -174,26 +163,26 @@ export default function Guide() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <Zap className="h-5 w-5 text-primary" />
-            <span data-testid="text-guide-capabilities">What Can You Do with Makelr?</span>
+            <span data-testid="text-guide-capabilities">{t("guide.capabilities")}</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
           <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground">
-            <li>Automatically collect news, community posts, and market data every morning</li>
-            <li>Summarize, analyze, and organize collected content into reports</li>
-            <li>Auto-generate blog posts, briefings, and report drafts</li>
-            <li>Automate investment research, trend analysis, and content curation</li>
-            <li>Run your own "AI assistant" with your custom rules</li>
+            <li>{t("guide.capability1")}</li>
+            <li>{t("guide.capability2")}</li>
+            <li>{t("guide.capability3")}</li>
+            <li>{t("guide.capability4")}</li>
+            <li>{t("guide.capability5")}</li>
           </ul>
           <div className="mt-4 rounded-md bg-muted/50 p-3 text-sm text-foreground" data-testid="text-guide-core">
-            <strong>Key point:</strong> Makelr is not a service that lends you bots — it's a tool for designing your own automation.
+            <strong>{t("guide.corePoint")}</strong> {t("guide.coreDesc")}
           </div>
         </CardContent>
       </Card>
 
       <div className="space-y-3">
         <h2 className="text-lg font-semibold" data-testid="text-guide-steps-heading">
-          Get Started in 6 Simple Steps
+          {t("guide.stepsHeading")}
         </h2>
         <div className="space-y-3">
           {steps.map((step) => (
@@ -221,7 +210,7 @@ export default function Guide() {
       </div>
 
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold" data-testid="text-guide-faq">FAQ</h2>
+        <h2 className="text-lg font-semibold" data-testid="text-guide-faq">{t("guide.faq.title")}</h2>
         <Card>
           <CardContent className="p-4">
             {faqItems.map((item, i) => (
@@ -234,16 +223,16 @@ export default function Guide() {
       <Card>
         <CardContent className="p-6 text-center space-y-3">
           <Brain className="h-8 w-8 text-primary mx-auto" />
-          <p className="text-sm font-semibold text-foreground" data-testid="text-guide-philosophy">"Don't ask AI questions. Put it to work."</p>
+          <p className="text-sm font-semibold text-foreground" data-testid="text-guide-philosophy">{t("guide.philosophy")}</p>
           <p className="text-xs text-muted-foreground">
-            Makelr is a tool for building an automation assistant that saves your time and focus.
+            {t("guide.philosophyDesc")}
           </p>
           <div className="flex justify-center gap-3 pt-2 flex-wrap">
             <Button asChild size="sm" data-testid="button-guide-settings">
-              <Link href="/settings">Settings</Link>
+              <Link href="/settings">{t("guide.settingsButton")}</Link>
             </Button>
             <Button asChild size="sm" variant="outline" data-testid="button-guide-bots">
-              <Link href="/bots">My Bots</Link>
+              <Link href="/bots">{t("guide.botsButton")}</Link>
             </Button>
           </div>
         </CardContent>

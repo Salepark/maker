@@ -15,6 +15,7 @@ import {
 import { FileText, Search, Edit, CheckCircle, Send, XCircle, Clock, Filter, ExternalLink } from "lucide-react";
 import { Link } from "wouter";
 import { format } from "date-fns";
+import { useLanguage } from "@/lib/language-provider";
 
 interface Item {
   id: number;
@@ -47,6 +48,7 @@ const statusColors: Record<string, string> = {
 };
 
 export default function Items() {
+  const { t } = useLanguage();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -72,15 +74,15 @@ export default function Items() {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold" data-testid="text-items-title">Items</h1>
-        <p className="text-muted-foreground">Collected content from RSS feeds</p>
+        <h1 className="text-2xl font-bold" data-testid="text-items-title">{t("items.title")}</h1>
+        <p className="text-muted-foreground">{t("items.subtitle")}</p>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search items..."
+            placeholder={t("items.searchPlaceholder")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9"
@@ -90,16 +92,16 @@ export default function Items() {
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-full sm:w-[180px]" data-testid="select-status-filter">
             <Filter className="h-4 w-4 mr-2" />
-            <SelectValue placeholder="Filter by status" />
+            <SelectValue placeholder={t("items.filterStatus")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="new">New</SelectItem>
-            <SelectItem value="analyzed">Analyzed</SelectItem>
-            <SelectItem value="drafted">Drafted</SelectItem>
-            <SelectItem value="approved">Approved</SelectItem>
-            <SelectItem value="posted">Posted</SelectItem>
-            <SelectItem value="skipped">Skipped</SelectItem>
+            <SelectItem value="all">{t("items.allStatus")}</SelectItem>
+            <SelectItem value="new">{t("items.status.new")}</SelectItem>
+            <SelectItem value="analyzed">{t("items.status.analyzed")}</SelectItem>
+            <SelectItem value="drafted">{t("items.status.drafted")}</SelectItem>
+            <SelectItem value="approved">{t("items.status.approved")}</SelectItem>
+            <SelectItem value="posted">{t("items.status.posted")}</SelectItem>
+            <SelectItem value="skipped">{t("items.status.skipped")}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -108,7 +110,7 @@ export default function Items() {
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <FileText className="h-5 w-5" />
-            Items ({filteredItems?.length ?? 0})
+            {t("items.count", { count: String(filteredItems?.length ?? 0) })}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -128,22 +130,22 @@ export default function Items() {
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-medium text-sm line-clamp-2">{item.title || "Untitled"}</h3>
+                        <h3 className="font-medium text-sm line-clamp-2">{item.title || t("common.untitled")}</h3>
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-xs text-muted-foreground">
                           <span>{item.sourceName}</span>
-                          {item.author && <span>by {item.author}</span>}
+                          {item.author && <span>{t("items.by", { author: item.author })}</span>}
                           <span>{format(new Date(item.insertedAt), "MMM d, yyyy HH:mm")}</span>
                         </div>
                         {(item.relevanceScore !== undefined || item.replyWorthinessScore !== undefined) && (
                           <div className="flex items-center gap-2 mt-2">
                             {item.relevanceScore !== undefined && (
                               <Badge variant="outline" className="text-xs">
-                                Relevance: {item.relevanceScore}
+                                {t("items.relevance", { score: String(item.relevanceScore) })}
                               </Badge>
                             )}
                             {item.replyWorthinessScore !== undefined && (
                               <Badge variant="outline" className="text-xs">
-                                Reply Score: {item.replyWorthinessScore}
+                                {t("items.replyScore", { score: String(item.replyWorthinessScore) })}
                               </Badge>
                             )}
                           </div>
@@ -152,7 +154,7 @@ export default function Items() {
                       <div className="flex flex-col items-end gap-2">
                         <Badge className={`${statusColors[item.status]} flex items-center gap-1 text-xs`}>
                           {statusIcons[item.status]}
-                          {item.status}
+                          {t(`common.status.${item.status}`)}
                         </Badge>
                         <a
                           href={item.url}
@@ -172,11 +174,11 @@ export default function Items() {
           ) : (
             <div className="text-center py-12 text-muted-foreground">
               <FileText className="h-16 w-16 mx-auto mb-4 opacity-50" />
-              <p className="text-lg font-medium">No items found</p>
+              <p className="text-lg font-medium">{t("items.noItems")}</p>
               <p className="text-sm mt-1">
                 {statusFilter !== "all"
-                  ? "Try changing the status filter"
-                  : "Add RSS sources to start collecting content"}
+                  ? t("items.noItemsFilter")
+                  : t("items.noItemsDefault")}
               </p>
             </div>
           )}

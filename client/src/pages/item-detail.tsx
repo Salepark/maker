@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import { format } from "date-fns";
+import { useLanguage } from "@/lib/language-provider";
 
 interface ItemDetail {
   id: number;
@@ -55,15 +56,8 @@ interface ItemDetail {
   }[];
 }
 
-const riskFlagLabels: Record<string, string> = {
-  promo_ban: "Promo Banned",
-  link_ban: "Link Banned",
-  heated_topic: "Heated Topic",
-  new_account_risk: "New Account Risk",
-  unknown_rules: "Unknown Rules",
-};
-
-export default function ItemDetail() {
+export default function ItemDetailPage() {
+  const { t } = useLanguage();
   const [, params] = useRoute("/items/:id");
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -85,10 +79,10 @@ export default function ItemDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/items", itemId] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
-      toast({ title: "Draft approved successfully" });
+      toast({ title: t("itemDetail.approvedSuccess") });
     },
     onError: () => {
-      toast({ title: "Failed to approve draft", variant: "destructive" });
+      toast({ title: t("itemDetail.approveFailed"), variant: "destructive" });
     },
   });
 
@@ -98,10 +92,10 @@ export default function ItemDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/items", itemId] });
-      toast({ title: "Draft rejected" });
+      toast({ title: t("itemDetail.rejectedSuccess") });
     },
     onError: () => {
-      toast({ title: "Failed to reject draft", variant: "destructive" });
+      toast({ title: t("itemDetail.rejectFailed"), variant: "destructive" });
     },
   });
 
@@ -112,10 +106,10 @@ export default function ItemDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/items", itemId] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
-      toast({ title: "Item skipped" });
+      toast({ title: t("itemDetail.skipped") });
     },
     onError: () => {
-      toast({ title: "Failed to skip item", variant: "destructive" });
+      toast({ title: t("itemDetail.skipFailed"), variant: "destructive" });
     },
   });
 
@@ -125,10 +119,10 @@ export default function ItemDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/items", itemId] });
-      toast({ title: "Re-analysis started" });
+      toast({ title: t("itemDetail.reanalysis") });
     },
     onError: () => {
-      toast({ title: "Failed to start re-analysis", variant: "destructive" });
+      toast({ title: t("itemDetail.reanalysisFailed"), variant: "destructive" });
     },
   });
 
@@ -138,7 +132,7 @@ export default function ItemDetail() {
     await navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-    toast({ title: "Copied to clipboard" });
+    toast({ title: t("itemDetail.copiedToClipboard") });
   };
 
   const handleApprove = () => {
@@ -156,6 +150,12 @@ export default function ItemDetail() {
       .trim();
   };
 
+  const riskFlagKey = (flag: string) => {
+    const key = `itemDetail.riskFlag.${flag}`;
+    const translated = t(key);
+    return translated !== key ? translated : flag;
+  };
+
   if (isLoading) {
     return (
       <div className="p-6 space-y-6">
@@ -170,11 +170,11 @@ export default function ItemDetail() {
     return (
       <div className="p-6">
         <div className="text-center py-12">
-          <p className="text-lg font-medium">Item not found</p>
+          <p className="text-lg font-medium">{t("itemDetail.notFound")}</p>
           <Link href="/items">
             <Button variant="outline" className="mt-4">
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Items
+              {t("itemDetail.backToItems")}
             </Button>
           </Link>
         </div>
@@ -192,11 +192,11 @@ export default function ItemDetail() {
         </Link>
         <div className="flex-1 min-w-0">
           <h1 className="text-xl font-bold truncate" data-testid="text-item-title">
-            {item.title || "Untitled"}
+            {item.title || t("common.untitled")}
           </h1>
           <div className="flex flex-wrap items-center gap-2 mt-1 text-sm text-muted-foreground">
             <span>{item.sourceName}</span>
-            {item.author && <span>by {item.author}</span>}
+            {item.author && <span>{t("itemDetail.by", { author: item.author })}</span>}
             <span>{format(new Date(item.insertedAt), "MMM d, yyyy HH:mm")}</span>
           </div>
         </div>
@@ -208,7 +208,7 @@ export default function ItemDetail() {
         >
           <Button variant="outline" size="sm" data-testid="button-view-original">
             <ExternalLink className="h-4 w-4 mr-2" />
-            Original
+            {t("itemDetail.original")}
           </Button>
         </a>
       </div>
@@ -216,7 +216,7 @@ export default function ItemDetail() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Original Content</CardTitle>
+            <CardTitle className="text-base">{t("itemDetail.originalContent")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="prose prose-sm dark:prose-invert max-w-none">
@@ -228,22 +228,22 @@ export default function ItemDetail() {
         {item.analysis && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Analysis</CardTitle>
+              <CardTitle className="text-base">{t("itemDetail.analysis")}</CardTitle>
               <CardDescription>{item.analysis.summaryShort}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-3 gap-3">
                 <div className="text-center p-3 rounded-md bg-muted">
                   <div className="text-2xl font-bold">{item.analysis.relevanceScore}</div>
-                  <div className="text-xs text-muted-foreground">Relevance</div>
+                  <div className="text-xs text-muted-foreground">{t("itemDetail.relevance")}</div>
                 </div>
                 <div className="text-center p-3 rounded-md bg-muted">
                   <div className="text-2xl font-bold">{item.analysis.replyWorthinessScore}</div>
-                  <div className="text-xs text-muted-foreground">Reply Score</div>
+                  <div className="text-xs text-muted-foreground">{t("itemDetail.replyScore")}</div>
                 </div>
                 <div className="text-center p-3 rounded-md bg-muted">
                   <div className="text-2xl font-bold">{item.analysis.linkFitScore}</div>
-                  <div className="text-xs text-muted-foreground">Link Fit</div>
+                  <div className="text-xs text-muted-foreground">{t("itemDetail.linkFit")}</div>
                 </div>
               </div>
 
@@ -259,19 +259,19 @@ export default function ItemDetail() {
                   {item.analysis.riskFlagsJson.map((flag) => (
                     <Badge key={flag} variant="destructive" className="flex items-center gap-1">
                       <AlertTriangle className="h-3 w-3" />
-                      {riskFlagLabels[flag] || flag}
+                      {riskFlagKey(flag)}
                     </Badge>
                   ))}
                 </div>
               )}
 
               <div className="text-sm">
-                <span className="font-medium">Suggested Angle:</span>
+                <span className="font-medium">{t("itemDetail.suggestedAngle")}</span>
                 <p className="text-muted-foreground mt-1">{item.analysis.suggestedAngle}</p>
               </div>
 
               <div className="text-sm">
-                <span className="font-medium">Summary:</span>
+                <span className="font-medium">{t("itemDetail.summary")}</span>
                 <p className="text-muted-foreground mt-1 whitespace-pre-wrap">{item.analysis.summaryLong}</p>
               </div>
             </CardContent>
@@ -282,7 +282,7 @@ export default function ItemDetail() {
       {item.drafts && item.drafts.length > 0 && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2">
-            <CardTitle className="text-base">Draft Replies</CardTitle>
+            <CardTitle className="text-base">{t("itemDetail.draftReplies")}</CardTitle>
             <div className="flex gap-2">
               <Button
                 variant="outline"
@@ -292,7 +292,7 @@ export default function ItemDetail() {
                 data-testid="button-skip"
               >
                 <SkipForward className="h-4 w-4 mr-1" />
-                Skip
+                {t("itemDetail.skip")}
               </Button>
               <Button
                 variant="outline"
@@ -302,7 +302,7 @@ export default function ItemDetail() {
                 data-testid="button-reanalyze"
               >
                 <RefreshCw className="h-4 w-4 mr-1" />
-                Re-analyze
+                {t("itemDetail.reanalyze")}
               </Button>
             </div>
           </CardHeader>
@@ -315,7 +315,7 @@ export default function ItemDetail() {
                     value={draft.variant}
                     data-testid={`tab-draft-${draft.variant}`}
                   >
-                    Variant {draft.variant}
+                    {t("itemDetail.variant", { variant: draft.variant })}
                     {draft.adminDecision === "approved" && (
                       <Check className="h-3 w-3 ml-1 text-green-500" />
                     )}
@@ -330,14 +330,14 @@ export default function ItemDetail() {
                     {draft.includesLink && (
                       <Badge variant="outline" className="flex items-center gap-1">
                         <ExternalLink className="h-3 w-3" />
-                        Includes Link
+                        {t("itemDetail.includesLink")}
                       </Badge>
                     )}
                     {draft.adminDecision !== "pending" && (
                       <Badge
                         variant={draft.adminDecision === "approved" ? "default" : "destructive"}
                       >
-                        {draft.adminDecision}
+                        {t(`common.decision.${draft.adminDecision}`)}
                       </Badge>
                     )}
                   </div>
@@ -346,7 +346,7 @@ export default function ItemDetail() {
                     value={editedText || draft.draftText}
                     onChange={(e) => setEditedText(e.target.value)}
                     className="min-h-[200px] text-sm"
-                    placeholder="Edit the draft text..."
+                    placeholder={t("itemDetail.editPlaceholder")}
                     data-testid="textarea-draft"
                   />
 
@@ -357,7 +357,7 @@ export default function ItemDetail() {
                       data-testid="button-approve"
                     >
                       <ThumbsUp className="h-4 w-4 mr-2" />
-                      Approve
+                      {t("itemDetail.approve")}
                     </Button>
                     <Button
                       variant="outline"
@@ -366,7 +366,7 @@ export default function ItemDetail() {
                       data-testid="button-reject"
                     >
                       <ThumbsDown className="h-4 w-4 mr-2" />
-                      Reject
+                      {t("itemDetail.reject")}
                     </Button>
                     <Button
                       variant="ghost"
@@ -378,7 +378,7 @@ export default function ItemDetail() {
                       ) : (
                         <Copy className="h-4 w-4 mr-2" />
                       )}
-                      Copy
+                      {t("itemDetail.copy")}
                     </Button>
                     <Button
                       variant="ghost"
@@ -386,14 +386,14 @@ export default function ItemDetail() {
                       data-testid="button-copy-no-link"
                     >
                       <Link2Off className="h-4 w-4 mr-2" />
-                      Copy w/o Links
+                      {t("itemDetail.copyNoLinks")}
                     </Button>
                   </div>
 
                   {draft.finalText && (
                     <div className="p-4 rounded-md bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800">
                       <div className="text-sm font-medium text-green-800 dark:text-green-200 mb-2">
-                        Approved Final Text
+                        {t("itemDetail.approvedFinal")}
                       </div>
                       <p className="text-sm whitespace-pre-wrap">{draft.finalText}</p>
                     </div>
@@ -408,10 +408,10 @@ export default function ItemDetail() {
       {(!item.drafts || item.drafts.length === 0) && item.status !== "new" && (
         <Card>
           <CardContent className="py-8 text-center">
-            <p className="text-muted-foreground">No drafts generated yet</p>
+            <p className="text-muted-foreground">{t("itemDetail.noDrafts")}</p>
             {item.analysis?.recommendedAction === "draft" && (
               <p className="text-sm text-muted-foreground mt-1">
-                Drafts will be generated automatically
+                {t("itemDetail.draftsWillGenerate")}
               </p>
             )}
           </CardContent>

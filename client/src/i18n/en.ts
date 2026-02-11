@@ -590,6 +590,17 @@ export const en: Record<string, string> = {
   "itemDetail.riskFlag.new_account_risk": "New Account Risk",
   "itemDetail.riskFlag.unknown_rules": "Unknown Rules",
 
+  "common.untitled": "Untitled",
+  "common.status.new": "New",
+  "common.status.analyzed": "Analyzed",
+  "common.status.drafted": "Drafted",
+  "common.status.approved": "Approved",
+  "common.status.posted": "Posted",
+  "common.status.skipped": "Skipped",
+  "common.decision.pending": "Pending",
+  "common.decision.approved": "Approved",
+  "common.decision.rejected": "Rejected",
+
   "lang.en": "EN",
   "lang.ko": "KO",
   "lang.english": "English",

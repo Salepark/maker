@@ -590,6 +590,17 @@ export const ko: Record<string, string> = {
   "itemDetail.riskFlag.new_account_risk": "신규 계정 위험",
   "itemDetail.riskFlag.unknown_rules": "알 수 없는 규칙",
 
+  "common.untitled": "제목 없음",
+  "common.status.new": "새 항목",
+  "common.status.analyzed": "분석됨",
+  "common.status.drafted": "초안",
+  "common.status.approved": "승인됨",
+  "common.status.posted": "게시됨",
+  "common.status.skipped": "건너뜀",
+  "common.decision.pending": "대기 중",
+  "common.decision.approved": "승인됨",
+  "common.decision.rejected": "거부됨",
+
   "lang.en": "EN",
   "lang.ko": "KO",
   "lang.english": "English",

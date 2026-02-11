@@ -16,6 +16,7 @@ import { Edit, ThumbsUp, ThumbsDown, Copy, Check, ExternalLink, Filter } from "l
 import { Link } from "wouter";
 import { format } from "date-fns";
 import { useState } from "react";
+import { useLanguage } from "@/lib/language-provider";
 
 interface DraftItem {
   id: number;
@@ -39,6 +40,7 @@ const decisionColors: Record<string, string> = {
 };
 
 export default function Drafts() {
+  const { t } = useLanguage();
   const { toast } = useToast();
   const [decisionFilter, setDecisionFilter] = useState<string>("pending");
   const [copiedId, setCopiedId] = useState<number | null>(null);
@@ -56,12 +58,11 @@ export default function Drafts() {
       return apiRequest("POST", `/api/drafts/${draftId}/approve`, { finalText });
     },
     onSuccess: () => {
-      // Invalidate all drafts queries (with any filter)
       queryClient.invalidateQueries({ predicate: (query) => 
         Boolean(query.queryKey[0]?.toString().startsWith("/api/drafts"))
       });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
-      toast({ title: "Draft approved" });
+      toast({ title: t("drafts.approved") });
     },
   });
 
@@ -70,11 +71,10 @@ export default function Drafts() {
       return apiRequest("POST", `/api/drafts/${draftId}/reject`);
     },
     onSuccess: () => {
-      // Invalidate all drafts queries (with any filter)
       queryClient.invalidateQueries({ predicate: (query) => 
         Boolean(query.queryKey[0]?.toString().startsWith("/api/drafts"))
       });
-      toast({ title: "Draft rejected" });
+      toast({ title: t("drafts.rejected") });
     },
   });
 
@@ -82,27 +82,27 @@ export default function Drafts() {
     await navigator.clipboard.writeText(draft.draftText);
     setCopiedId(draft.id);
     setTimeout(() => setCopiedId(null), 2000);
-    toast({ title: "Copied to clipboard" });
+    toast({ title: t("drafts.copiedToClipboard") });
   };
 
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold" data-testid="text-drafts-title">Drafts</h1>
-        <p className="text-muted-foreground">Review and approve generated reply drafts</p>
+        <h1 className="text-2xl font-bold" data-testid="text-drafts-title">{t("drafts.title")}</h1>
+        <p className="text-muted-foreground">{t("drafts.subtitle")}</p>
       </div>
 
       <div className="flex items-center gap-3">
         <Select value={decisionFilter} onValueChange={setDecisionFilter}>
           <SelectTrigger className="w-[180px]" data-testid="select-decision-filter">
             <Filter className="h-4 w-4 mr-2" />
-            <SelectValue placeholder="Filter by decision" />
+            <SelectValue placeholder={t("drafts.filterDecision")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Decisions</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="approved">Approved</SelectItem>
-            <SelectItem value="rejected">Rejected</SelectItem>
+            <SelectItem value="all">{t("drafts.allDecisions")}</SelectItem>
+            <SelectItem value="pending">{t("drafts.decision.pending")}</SelectItem>
+            <SelectItem value="approved">{t("drafts.decision.approved")}</SelectItem>
+            <SelectItem value="rejected">{t("drafts.decision.rejected")}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -111,7 +111,7 @@ export default function Drafts() {
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <Edit className="h-5 w-5" />
-            Drafts ({drafts?.length ?? 0})
+            {t("drafts.count", { count: String(drafts?.length ?? 0) })}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -133,18 +133,18 @@ export default function Drafts() {
                     <div className="flex-1 min-w-0">
                       <Link href={`/items/${draft.itemId}`}>
                         <h3 className="font-medium text-sm line-clamp-1 hover:underline cursor-pointer">
-                          {draft.itemTitle || "Untitled"}
+                          {draft.itemTitle || t("common.untitled")}
                         </h3>
                       </Link>
                       <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-muted-foreground">
                         <span>{draft.sourceName}</span>
-                        <span>Variant {draft.variant}</span>
+                        <span>{t("drafts.variant", { variant: draft.variant })}</span>
                         <span>{format(new Date(draft.createdAt), "MMM d, HH:mm")}</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge className={decisionColors[draft.adminDecision]}>
-                        {draft.adminDecision}
+                        {t(`common.decision.${draft.adminDecision}`)}
                       </Badge>
                       <Badge variant="outline">{draft.tone}</Badge>
                       {draft.includesLink && (
@@ -169,7 +169,7 @@ export default function Drafts() {
                           data-testid={`button-approve-${draft.id}`}
                         >
                           <ThumbsUp className="h-3 w-3 mr-1" />
-                          Approve
+                          {t("drafts.approve")}
                         </Button>
                         <Button
                           size="sm"
@@ -179,7 +179,7 @@ export default function Drafts() {
                           data-testid={`button-reject-${draft.id}`}
                         >
                           <ThumbsDown className="h-3 w-3 mr-1" />
-                          Reject
+                          {t("drafts.reject")}
                         </Button>
                       </>
                     )}
@@ -194,11 +194,11 @@ export default function Drafts() {
                       ) : (
                         <Copy className="h-3 w-3 mr-1" />
                       )}
-                      Copy
+                      {t("drafts.copy")}
                     </Button>
                     <Link href={`/items/${draft.itemId}`}>
                       <Button size="sm" variant="ghost" data-testid={`button-view-item-${draft.id}`}>
-                        View Item
+                        {t("drafts.viewItem")}
                       </Button>
                     </Link>
                   </div>
@@ -208,11 +208,11 @@ export default function Drafts() {
           ) : (
             <div className="text-center py-12 text-muted-foreground">
               <Edit className="h-16 w-16 mx-auto mb-4 opacity-50" />
-              <p className="text-lg font-medium">No drafts found</p>
+              <p className="text-lg font-medium">{t("drafts.noDrafts")}</p>
               <p className="text-sm mt-1">
                 {decisionFilter !== "all"
-                  ? "Try changing the filter"
-                  : "Drafts will appear here after analysis"}
+                  ? t("drafts.noDraftsFilter")
+                  : t("drafts.noDraftsDefault")}
               </p>
             </div>
           )}

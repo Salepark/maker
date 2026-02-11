@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
 import { ExternalLink, TrendingUp, Eye, ArrowRight } from "lucide-react";
 import { format } from "date-fns";
+import { useLanguage } from "@/lib/language-provider";
 
 interface ObserveItem {
   id: number;
@@ -21,6 +22,7 @@ interface ObserveItem {
 }
 
 export default function Observe() {
+  const { t } = useLanguage();
   const { data: items, isLoading } = useQuery<ObserveItem[]>({
     queryKey: ["/api/items/observe"],
   });
@@ -30,10 +32,10 @@ export default function Observe() {
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2" data-testid="text-observe-title">
           <Eye className="h-6 w-6" />
-          Observe List
+          {t("observe.title")}
         </h1>
         <p className="text-muted-foreground">
-          High relevance but low reply worthiness - useful for market research and content ideas
+          {t("observe.subtitle")}
         </p>
       </div>
 
@@ -47,9 +49,9 @@ export default function Observe() {
         <Card>
           <CardContent className="py-12 text-center">
             <Eye className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium">No items to observe</h3>
+            <h3 className="text-lg font-medium">{t("observe.noItems")}</h3>
             <p className="text-muted-foreground mt-1">
-              Items with high relevance but low reply worthiness will appear here
+              {t("observe.noItemsHint")}
             </p>
           </CardContent>
         </Card>
@@ -84,10 +86,10 @@ export default function Observe() {
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-1 text-sm">
                     <TrendingUp className="h-4 w-4 text-green-500" />
-                    <span className="font-medium">Relevance: {item.relevanceScore}</span>
+                    <span className="font-medium">{t("observe.relevance")} {item.relevanceScore}</span>
                   </div>
                   <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                    <span>Reply: {item.replyWorthinessScore}</span>
+                    <span>{t("observe.reply")} {item.replyWorthinessScore}</span>
                   </div>
                 </div>
 
@@ -95,13 +97,13 @@ export default function Observe() {
                   <Button variant="outline" size="sm" asChild data-testid={`button-view-original-${item.id}`}>
                     <a href={item.url} target="_blank" rel="noopener noreferrer">
                       <ExternalLink className="h-3 w-3 mr-1" />
-                      View Original
+                      {t("observe.viewOriginal")}
                     </a>
                   </Button>
                   <Button variant="ghost" size="sm" asChild data-testid={`button-details-${item.id}`}>
                     <Link href={`/items/${item.id}`}>
                       <ArrowRight className="h-3 w-3 mr-1" />
-                      Details
+                      {t("observe.details")}
                     </Link>
                   </Button>
                 </div>
