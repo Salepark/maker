@@ -70,6 +70,16 @@ The system implements a multi-stage report pipeline to minimize LLM costs and pr
 ### Console Prompt Hints
 The Console provides context-sensitive autocomplete and hints based on the user's current state (e.g., no bot selected, no sources, ready state), offering suggestions for next actions and diagnostics.
 
+### Bilingual Support (i18n)
+The application supports English and Korean via a homegrown i18n system (no react-i18next dependency). Key files:
+- `client/src/lib/language-provider.tsx`: `LanguageProvider` context + `useLanguage()` hook returning `{ language, setLanguage, t }`. The `t(key, params?)` function looks up flat translation keys with `{{param}}` interpolation.
+- `client/src/i18n/en.ts` and `client/src/i18n/ko.ts`: ~410 flat translation keys covering all pages (sidebar, landing, dashboard, reports, chat, settings, sources, profiles, bot-detail).
+- `client/src/i18n/index.ts`: Exports `Language` type and `translations` map.
+- `client/src/components/language-switcher.tsx`: Globe icon toggle button (EN/KO) in the header.
+- Language preference persisted in `localStorage("language")`.
+- All pages import `useLanguage` and call `t("key")` instead of hardcoding strings.
+- Fallback: if a key is missing in the active language, it falls back to English, then returns the raw key.
+
 ## External Dependencies
 
 ### Environment Variables

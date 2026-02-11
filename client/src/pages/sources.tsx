@@ -48,6 +48,7 @@ import {
 } from "@/components/ui/select";
 import { Rss, Plus, Trash2, RefreshCw, ExternalLink, Power, PowerOff, Shield, Globe } from "lucide-react";
 import { format } from "date-fns";
+import { useLanguage } from "@/lib/language-provider";
 
 interface Source {
   id: number;
@@ -73,30 +74,12 @@ const sourceFormSchema = z.object({
 
 type SourceFormValues = z.infer<typeof sourceFormSchema>;
 
-const TOPICS = [
-  { value: "tech", label: "Tech" },
-  { value: "investing", label: "Investing" },
-  { value: "crypto", label: "Crypto" },
-  { value: "ai_art", label: "AI Art" },
-  { value: "creative", label: "Creative" },
-  { value: "community_research", label: "Community Research" },
-  { value: "market_brief", label: "Market Brief" },
-  { value: "research_watch", label: "Research Watch" },
-  { value: "competitor_watch", label: "Competitor Watch" },
-  { value: "finance", label: "Finance" },
-  { value: "compliance", label: "Compliance" },
-  { value: "commerce", label: "Commerce" },
-  { value: "engagement", label: "Engagement" },
-  { value: "health", label: "Health" },
-  { value: "science", label: "Science" },
-  { value: "education", label: "Education" },
-  { value: "content_research", label: "Content Research" },
-  { value: "work_productivity", label: "Work & Productivity" },
-  { value: "online_business", label: "Online Business" },
-  { value: "korea_marketplace", label: "Korea Marketplace" },
-  { value: "gaming", label: "Gaming" },
-  { value: "sustainability", label: "Sustainability" },
-  { value: "other", label: "Other" },
+const TOPIC_VALUES = [
+  "tech", "investing", "crypto", "ai_art", "creative", "community_research",
+  "market_brief", "research_watch", "competitor_watch", "finance", "compliance",
+  "commerce", "engagement", "health", "science", "education", "content_research",
+  "work_productivity", "online_business", "korea_marketplace", "gaming",
+  "sustainability", "other",
 ];
 
 const TRUST_LEVELS = [
@@ -115,6 +98,7 @@ const REGIONS = [
 
 export default function Sources() {
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const form = useForm<SourceFormValues>({
@@ -141,10 +125,10 @@ export default function Sources() {
       queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
       setIsDialogOpen(false);
       form.reset();
-      toast({ title: "Source created successfully" });
+      toast({ title: t("sources.created") });
     },
     onError: () => {
-      toast({ title: "Failed to create source", variant: "destructive" });
+      toast({ title: t("sources.createFailed"), variant: "destructive" });
     },
   });
 
@@ -163,10 +147,10 @@ export default function Sources() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
-      toast({ title: "Source deleted" });
+      toast({ title: t("sources.deleted") });
     },
     onError: () => {
-      toast({ title: "Failed to delete source", variant: "destructive" });
+      toast({ title: t("sources.deleteFailed"), variant: "destructive" });
     },
   });
 
@@ -177,10 +161,10 @@ export default function Sources() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
-      toast({ title: "Collection started" });
+      toast({ title: t("sources.collectionStarted") });
     },
     onError: () => {
-      toast({ title: "Failed to start collection", variant: "destructive" });
+      toast({ title: t("sources.collectionFailed"), variant: "destructive" });
     },
   });
 
@@ -192,21 +176,21 @@ export default function Sources() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold" data-testid="text-sources-title">Sources</h1>
-          <p className="text-muted-foreground">Manage RSS feeds and content sources</p>
+          <h1 className="text-2xl font-bold" data-testid="text-sources-title">{t("sources.title")}</h1>
+          <p className="text-muted-foreground">{t("sources.subtitle")}</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button data-testid="button-add-source">
               <Plus className="h-4 w-4 mr-2" />
-              Add Source
+              {t("sources.addSource")}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add New Source</DialogTitle>
+              <DialogTitle>{t("sources.dialog.title")}</DialogTitle>
               <DialogDescription>
-                Add a new RSS feed to collect content from
+                {t("sources.dialog.desc")}
               </DialogDescription>
             </DialogHeader>
             <Form {...form}>
@@ -216,10 +200,10 @@ export default function Sources() {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Name</FormLabel>
+                      <FormLabel>{t("sources.dialog.name")}</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="My Feed"
+                          placeholder={t("sources.dialog.namePlaceholder")}
                           {...field}
                           data-testid="input-source-name"
                         />
@@ -233,10 +217,10 @@ export default function Sources() {
                   name="url"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Feed URL</FormLabel>
+                      <FormLabel>{t("sources.dialog.feedUrl")}</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="https://example.com/feed.xml"
+                          placeholder={t("sources.dialog.feedUrlPlaceholder")}
                           {...field}
                           data-testid="input-source-url"
                         />
@@ -251,16 +235,16 @@ export default function Sources() {
                     name="topic"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Topic</FormLabel>
+                        <FormLabel>{t("sources.dialog.topic")}</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger data-testid="select-source-topic">
-                              <SelectValue placeholder="Topic" />
+                              <SelectValue placeholder={t("sources.dialog.topic")} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {TOPICS.map((t) => (
-                              <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                            {TOPIC_VALUES.map((tv) => (
+                              <SelectItem key={tv} value={tv}>{t(`sources.topic.${tv}`)}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -273,16 +257,16 @@ export default function Sources() {
                     name="trustLevel"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Trust</FormLabel>
+                        <FormLabel>{t("sources.dialog.trust")}</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger data-testid="select-source-trust">
-                              <SelectValue placeholder="Trust" />
+                              <SelectValue placeholder={t("sources.dialog.trust")} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {TRUST_LEVELS.map((t) => (
-                              <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                            {TRUST_LEVELS.map((tl) => (
+                              <SelectItem key={tl.value} value={tl.value}>{tl.label}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -295,11 +279,11 @@ export default function Sources() {
                     name="region"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Region</FormLabel>
+                        <FormLabel>{t("sources.dialog.region")}</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger data-testid="select-source-region">
-                              <SelectValue placeholder="Region" />
+                              <SelectValue placeholder={t("sources.dialog.region")} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -319,7 +303,7 @@ export default function Sources() {
                     disabled={createMutation.isPending}
                     data-testid="button-submit-source"
                   >
-                    {createMutation.isPending ? "Creating..." : "Create Source"}
+                    {createMutation.isPending ? t("sources.dialog.creating") : t("sources.dialog.create")}
                   </Button>
                 </DialogFooter>
               </form>
@@ -332,7 +316,7 @@ export default function Sources() {
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <Rss className="h-5 w-5" />
-            Sources ({sources?.length ?? 0})
+            {t("sources.title")} ({sources?.length ?? 0})
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -355,9 +339,9 @@ export default function Sources() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="font-medium text-sm">{source.name}</h3>
                         <Badge variant={source.enabled ? "default" : "secondary"}>
-                          {source.enabled ? "Active" : "Disabled"}
+                          {source.enabled ? t("sources.active") : t("sources.disabled")}
                         </Badge>
-                        <Badge variant="outline">{TOPICS.find(t => t.value === source.topic)?.label ?? source.topic}</Badge>
+                        <Badge variant="outline">{t(`sources.topic.${source.topic}`)}</Badge>
                         <Badge variant="outline">
                           <Shield className="h-3 w-3 mr-1" />
                           {source.trustLevel}
@@ -379,8 +363,8 @@ export default function Sources() {
                         </a>
                       </div>
                       <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                        <span>{source.itemCount} items collected</span>
-                        <span>Created {format(new Date(source.createdAt), "MMM d, yyyy")}</span>
+                        <span>{t("sources.itemsCollected", { count: source.itemCount })}</span>
+                        <span>{t("sources.created2", { date: format(new Date(source.createdAt), "MMM d, yyyy") })}</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -411,18 +395,18 @@ export default function Sources() {
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Source</AlertDialogTitle>
+                            <AlertDialogTitle>{t("sources.delete.title")}</AlertDialogTitle>
                             <AlertDialogDescription>
-                              Are you sure you want to delete "{source.name}"? This will not delete collected items.
+                              {t("sources.delete.desc", { name: source.name })}
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogCancel>{t("sources.delete.cancel")}</AlertDialogCancel>
                             <AlertDialogAction
                               onClick={() => deleteMutation.mutate(source.id)}
                               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                             >
-                              Delete
+                              {t("sources.delete.confirm")}
                             </AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
@@ -435,15 +419,15 @@ export default function Sources() {
           ) : (
             <div className="text-center py-12 text-muted-foreground">
               <Rss className="h-16 w-16 mx-auto mb-4 opacity-50" />
-              <p className="text-lg font-medium">No sources added</p>
-              <p className="text-sm mt-1">Add an RSS feed to start collecting content</p>
+              <p className="text-lg font-medium">{t("sources.noSources")}</p>
+              <p className="text-sm mt-1">{t("sources.noSourcesHint")}</p>
               <Button
                 className="mt-4"
                 onClick={() => setIsDialogOpen(true)}
                 data-testid="button-add-first-source"
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Add Your First Source
+                {t("sources.addFirst")}
               </Button>
             </div>
           )}

@@ -14,19 +14,7 @@ import {
   SidebarFooter,
 } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
-
-const menuItems = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "My Bots", url: "/bots", icon: Bot },
-  { title: "Sources", url: "/sources", icon: Rss },
-  { title: "Reports", url: "/reports", icon: FileBarChart },
-  { title: "Drafts", url: "/drafts", icon: CheckCircle },
-  { title: "Items", url: "/items", icon: FileText },
-  { title: "Observe", url: "/observe", icon: Eye },
-  { title: "Console", url: "/chat", icon: MessageCircle },
-  { title: "Guide", url: "/guide", icon: BookOpen },
-  { title: "Settings", url: "/settings", icon: Settings },
-];
+import { useLanguage } from "@/lib/language-provider";
 
 interface BotInfo {
   id: number;
@@ -35,8 +23,29 @@ interface BotInfo {
   isEnabled: boolean;
 }
 
+type MenuItem = {
+  title: string;
+  url: string;
+  icon: React.ComponentType<{ className?: string }>;
+  translationKey: string;
+};
+
 export function AppSidebar() {
   const [location] = useLocation();
+  const { t } = useLanguage();
+
+  const menuItems: MenuItem[] = [
+    { title: t("sidebar.dashboard"), url: "/", icon: LayoutDashboard, translationKey: "sidebar.dashboard" },
+    { title: t("sidebar.myBots"), url: "/bots", icon: Bot, translationKey: "sidebar.myBots" },
+    { title: t("sidebar.sources"), url: "/sources", icon: Rss, translationKey: "sidebar.sources" },
+    { title: t("sidebar.reports"), url: "/reports", icon: FileBarChart, translationKey: "sidebar.reports" },
+    { title: t("sidebar.drafts"), url: "/drafts", icon: CheckCircle, translationKey: "sidebar.drafts" },
+    { title: t("sidebar.items"), url: "/items", icon: FileText, translationKey: "sidebar.items" },
+    { title: t("sidebar.observe"), url: "/observe", icon: Eye, translationKey: "sidebar.observe" },
+    { title: t("sidebar.console"), url: "/chat", icon: MessageCircle, translationKey: "sidebar.console" },
+    { title: t("sidebar.guide"), url: "/guide", icon: BookOpen, translationKey: "sidebar.guide" },
+    { title: t("sidebar.settings"), url: "/settings", icon: Settings, translationKey: "sidebar.settings" },
+  ];
 
   const { data: botsResponse } = useQuery<{ bots: BotInfo[] }>({
     queryKey: ["/api/bots"],
@@ -57,14 +66,14 @@ export function AppSidebar() {
           </div>
           <div className="flex flex-col">
             <span className="font-semibold text-sm">Makelr</span>
-            <span className="text-xs text-muted-foreground">Workflow Designer</span>
+            <span className="text-xs text-muted-foreground">{t("sidebar.subtitle")}</span>
           </div>
         </div>
       </SidebarHeader>
       <SidebarContent>
         {activeBots.length > 0 && (
           <SidebarGroup>
-            <SidebarGroupLabel>Active Bots</SidebarGroupLabel>
+            <SidebarGroupLabel>{t("sidebar.activeBots")}</SidebarGroupLabel>
             <SidebarGroupContent>
               <div className="px-2 pb-1 flex flex-wrap gap-1" data-testid="active-bots-list">
                 {activeBots.map(bot => (
@@ -83,7 +92,7 @@ export function AppSidebar() {
           </SidebarGroup>
         )}
         <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupLabel>{t("sidebar.navigation")}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => (
@@ -105,7 +114,7 @@ export function AppSidebar() {
       </SidebarContent>
       <SidebarFooter className="p-4 border-t border-sidebar-border">
         <div className="text-xs text-muted-foreground">
-          makelr.com Bot v1.0
+          {t("sidebar.footer")}
         </div>
       </SidebarFooter>
     </Sidebar>

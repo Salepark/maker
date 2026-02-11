@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/lib/language-provider";
 import { ArrowLeft, Save, Loader2, Brain, Clock, FileText, Filter, Rss, AlertTriangle, Layers, Plus, X } from "lucide-react";
 
 interface BotSettings {
@@ -83,6 +84,7 @@ export default function BotDetail() {
   const [, params] = useRoute("/bots/:id");
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { t } = useLanguage();
   const botId = params?.id ? parseInt(params.id) : null;
 
   const [name, setName] = useState("");
@@ -181,10 +183,10 @@ export default function BotDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bots", botId, "sources"] });
-      toast({ title: "Source linked to bot" });
+      toast({ title: t("botDetail.sources.linked") });
     },
     onError: () => {
-      toast({ title: "Failed to link source", variant: "destructive" });
+      toast({ title: t("botDetail.sources.linkFailed"), variant: "destructive" });
     },
   });
 
@@ -197,10 +199,10 @@ export default function BotDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bots", botId, "sources"] });
-      toast({ title: "Source removed from bot" });
+      toast({ title: t("botDetail.sources.removed") });
     },
     onError: () => {
-      toast({ title: "Failed to remove source", variant: "destructive" });
+      toast({ title: t("botDetail.sources.removeFailed"), variant: "destructive" });
     },
   });
 
@@ -223,10 +225,10 @@ export default function BotDetail() {
       queryClient.invalidateQueries({ queryKey: ["/api/bots"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bots", botId] });
       queryClient.invalidateQueries({ queryKey: ["/api/bots", botId, "settings"] });
-      toast({ title: "Bot settings saved" });
+      toast({ title: t("botDetail.saved") });
     },
     onError: () => {
-      toast({ title: "Failed to save settings", variant: "destructive" });
+      toast({ title: t("botDetail.saveFailed"), variant: "destructive" });
     },
   });
 
@@ -241,20 +243,28 @@ export default function BotDetail() {
   if (!bot) {
     return (
       <div className="container mx-auto p-6 max-w-4xl">
-        <p className="text-muted-foreground">Bot not found</p>
+        <p className="text-muted-foreground">{t("botDetail.notFound")}</p>
         <Button variant="ghost" onClick={() => setLocation("/bots")} data-testid="button-back">
-          <ArrowLeft className="h-4 w-4 mr-2" /> Back to My Bots
+          <ArrowLeft className="h-4 w-4 mr-2" /> {t("botDetail.back")}
         </Button>
       </div>
     );
   }
 
   const scheduleLabel = botSettings
-    ? `${botSettings.scheduleRule === "DAILY" ? "Daily" : botSettings.scheduleRule === "WEEKDAYS" ? "Weekdays" : "Weekends"} ${botSettings.scheduleTimeLocal}`
+    ? `${botSettings.scheduleRule === "DAILY" ? t("botDetail.schedule.daily2") : botSettings.scheduleRule === "WEEKDAYS" ? t("botDetail.schedule.weekdays2") : t("botDetail.schedule.weekends2")} ${botSettings.scheduleTimeLocal}`
     : null;
   const formatLabel = botSettings
-    ? `${botSettings.markdownLevel === "minimal" ? "Conversational" : "Structured"} / ${botSettings.verbosity === "short" ? "Short" : botSettings.verbosity === "detailed" ? "Detailed" : "Normal"}`
+    ? `${botSettings.markdownLevel === "minimal" ? t("botDetail.format.conversational2") : t("botDetail.format.structured2")} / ${botSettings.verbosity === "short" ? t("botDetail.format.short2") : botSettings.verbosity === "detailed" ? t("botDetail.format.detailed2") : t("botDetail.format.normal2")}`
     : null;
+
+  const sectionLabelMap: Record<string, string> = {
+    tldr: t("botDetail.format.section.tldr"),
+    drivers: t("botDetail.format.section.drivers"),
+    risk: t("botDetail.format.section.risk"),
+    checklist: t("botDetail.format.section.checklist"),
+    sources: t("botDetail.format.section.sources"),
+  };
 
   return (
     <div className="container mx-auto p-6 max-w-4xl">
@@ -263,17 +273,17 @@ export default function BotDetail() {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex-1 min-w-0">
-          <h1 className="text-2xl font-bold" data-testid="text-bot-title">{name || "Bot Settings"}</h1>
+          <h1 className="text-2xl font-bold" data-testid="text-bot-title">{name || t("botDetail.title")}</h1>
           <div className="flex items-center gap-2 mt-1">
             <Badge variant="outline" data-testid="badge-bot-topic">{bot.key}</Badge>
             <span className="text-sm text-muted-foreground">
-              {isEnabled ? "Active" : "Paused"}
+              {isEnabled ? t("botDetail.active") : t("botDetail.paused")}
             </span>
           </div>
         </div>
         <Button onClick={() => saveBotMutation.mutate()} disabled={saveBotMutation.isPending} data-testid="button-save">
           {saveBotMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-          Save Changes
+          {t("botDetail.saveChanges")}
         </Button>
       </div>
 
@@ -282,7 +292,7 @@ export default function BotDetail() {
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
               <Layers className="h-4 w-4 text-primary" />
-              This Bot's Workflow
+              {t("botDetail.workflow.title")}
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
@@ -290,41 +300,41 @@ export default function BotDetail() {
               <div className="flex items-start gap-2">
                 <Rss className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
                 <div>
-                  <span className="text-muted-foreground">Watching:</span>
-                  <span className="ml-1 font-medium" data-testid="text-summary-sources">{botSources.length} sources</span>
+                  <span className="text-muted-foreground">{t("botDetail.workflow.watching")}</span>
+                  <span className="ml-1 font-medium" data-testid="text-summary-sources">{t("botDetail.workflow.sources", { count: botSources.length })}</span>
                 </div>
               </div>
               <div className="flex items-start gap-2">
                 <Clock className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
                 <div>
-                  <span className="text-muted-foreground">Schedule:</span>
-                  <span className="ml-1 font-medium" data-testid="text-summary-schedule">{scheduleLabel || "Not set"}</span>
+                  <span className="text-muted-foreground">{t("botDetail.workflow.schedule")}</span>
+                  <span className="ml-1 font-medium" data-testid="text-summary-schedule">{scheduleLabel || t("botDetail.workflow.notSet")}</span>
                 </div>
               </div>
               <div className="flex items-start gap-2">
                 <FileText className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
                 <div>
-                  <span className="text-muted-foreground">Output:</span>
-                  <span className="ml-1 font-medium" data-testid="text-summary-format">{formatLabel || "Not set"}</span>
+                  <span className="text-muted-foreground">{t("botDetail.workflow.output")}</span>
+                  <span className="ml-1 font-medium" data-testid="text-summary-format">{formatLabel || t("botDetail.workflow.notSet")}</span>
                 </div>
               </div>
             </div>
             <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-border" data-testid="text-summary-hint">
-              You can change these settings anytime to fit your purpose.
+              {t("botDetail.workflow.hint")}
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>General</CardTitle>
+            <CardTitle>{t("botDetail.general")}</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="bot-name">Bot Name</Label>
+              <Label htmlFor="bot-name">{t("botDetail.botName")}</Label>
               <Input id="bot-name" value={name} onChange={(e) => setName(e.target.value)} data-testid="input-bot-name" />
             </div>
             <div className="flex items-center justify-between gap-2">
-              <Label htmlFor="bot-enabled">Enabled</Label>
+              <Label htmlFor="bot-enabled">{t("botDetail.enabled")}</Label>
               <Switch id="bot-enabled" checked={isEnabled} onCheckedChange={setIsEnabled} data-testid="toggle-bot-enabled" />
             </div>
           </CardContent>
@@ -334,24 +344,24 @@ export default function BotDetail() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Brain className="h-5 w-5" />
-              AI Model
+              {t("botDetail.aiModel.title")}
             </CardTitle>
             <CardDescription>
-              Choose which AI provider this bot uses for analysis and reports
+              {t("botDetail.aiModel.subtitle")}
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
             {providerWasDeleted && (
               <div className="flex items-start gap-2 p-3 rounded-md bg-destructive/10 text-destructive text-sm" data-testid="warning-provider-deleted">
                 <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-                <span>The previously assigned provider was deleted. This bot has been reset to System Default. Save to confirm.</span>
+                <span>{t("botDetail.aiModel.providerDeleted")}</span>
               </div>
             )}
             <div className="grid gap-2">
-              <Label>LLM Provider</Label>
+              <Label>{t("botDetail.aiModel.provider")}</Label>
               <Select value={llmProviderId} onValueChange={setLlmProviderId}>
                 <SelectTrigger data-testid="select-llm-provider">
-                  <SelectValue placeholder="Select your AI provider" />
+                  <SelectValue placeholder={t("botDetail.aiModel.providerPlaceholder")} />
                 </SelectTrigger>
                 <SelectContent>
                   {availableProviders.map((p) => (
@@ -361,28 +371,28 @@ export default function BotDetail() {
               </Select>
               {availableProviders.length === 0 && (
                 <p className="text-xs text-muted-foreground">
-                  No AI providers yet. Go to Settings to add your own API key first.
+                  {t("botDetail.aiModel.noProviders")}
                 </p>
               )}
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="model-override">Model Override <span className="text-xs text-muted-foreground">(optional)</span></Label>
+              <Label htmlFor="model-override">{t("botDetail.aiModel.modelOverride")} <span className="text-xs text-muted-foreground">{t("botDetail.aiModel.modelOverrideHint")}</span></Label>
               <Input
                 id="model-override"
                 value={modelOverride}
                 onChange={(e) => setModelOverride(e.target.value)}
-                placeholder="Leave blank to use provider's default"
+                placeholder={t("botDetail.aiModel.modelOverridePlaceholder")}
                 data-testid="input-model-override"
               />
               {modelHints.length > 0 && (
                 <p className="text-xs text-muted-foreground" data-testid="text-model-hints">
-                  Available for {providerType}: {modelHints.join(", ")}
+                  {t("botDetail.aiModel.availableModels", { type: providerType, models: modelHints.join(", ") })}
                 </p>
               )}
               {modelOverride && selectedProvider && !modelHints.includes(modelOverride) && modelHints.length > 0 && (
                 <p className="text-xs text-yellow-600 dark:text-yellow-400 flex items-center gap-1" data-testid="warning-model-mismatch">
                   <AlertTriangle className="h-3 w-3" />
-                  This model name is not in the known list for {providerType}. Make sure it's correct.
+                  {t("botDetail.aiModel.modelMismatch", { type: providerType })}
                 </p>
               )}
             </div>
@@ -393,39 +403,39 @@ export default function BotDetail() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Clock className="h-5 w-5" />
-              Schedule
+              {t("botDetail.schedule.title")}
             </CardTitle>
-            <CardDescription>When this bot generates reports</CardDescription>
+            <CardDescription>{t("botDetail.schedule.subtitle")}</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
             <div className="grid gap-2">
-              <Label>Run Days</Label>
+              <Label>{t("botDetail.schedule.runDays")}</Label>
               <Select value={scheduleRule} onValueChange={setScheduleRule}>
                 <SelectTrigger data-testid="select-schedule-rule">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="DAILY">Every Day</SelectItem>
-                  <SelectItem value="WEEKDAYS">Weekdays Only (Mon-Fri)</SelectItem>
-                  <SelectItem value="WEEKENDS">Weekends Only (Sat-Sun)</SelectItem>
+                  <SelectItem value="DAILY">{t("botDetail.schedule.daily")}</SelectItem>
+                  <SelectItem value="WEEKDAYS">{t("botDetail.schedule.weekdays")}</SelectItem>
+                  <SelectItem value="WEEKENDS">{t("botDetail.schedule.weekends")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label>Run Time</Label>
+              <Label>{t("botDetail.schedule.runTime")}</Label>
               <Select value={scheduleTimeLocal} onValueChange={setScheduleTimeLocal}>
                 <SelectTrigger data-testid="select-schedule-time">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {SCHEDULE_TIMES.map(t => (
-                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                  {SCHEDULE_TIMES.map(st => (
+                    <SelectItem key={st.value} value={st.value}>{st.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label>Timezone</Label>
+              <Label>{t("botDetail.schedule.timezone")}</Label>
               <Select value={timezone} onValueChange={setTimezone}>
                 <SelectTrigger data-testid="select-timezone">
                   <SelectValue />
@@ -446,38 +456,38 @@ export default function BotDetail() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5" />
-              Report Format
+              {t("botDetail.format.title")}
             </CardTitle>
-            <CardDescription>Control how reports are written</CardDescription>
+            <CardDescription>{t("botDetail.format.subtitle")}</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
             <div className="grid gap-2">
-              <Label>Report Length</Label>
+              <Label>{t("botDetail.format.length")}</Label>
               <Select value={verbosity} onValueChange={setVerbosity}>
                 <SelectTrigger data-testid="select-verbosity">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="short">Short (Brief summary)</SelectItem>
-                  <SelectItem value="normal">Normal (Standard detail)</SelectItem>
-                  <SelectItem value="detailed">Detailed (Full analysis)</SelectItem>
+                  <SelectItem value="short">{t("botDetail.format.short")}</SelectItem>
+                  <SelectItem value="normal">{t("botDetail.format.normal")}</SelectItem>
+                  <SelectItem value="detailed">{t("botDetail.format.detailed")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label>Writing Style</Label>
+              <Label>{t("botDetail.format.style")}</Label>
               <Select value={markdownLevel} onValueChange={setMarkdownLevel}>
                 <SelectTrigger data-testid="select-markdown">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="minimal">Conversational (News anchor tone, minimal symbols)</SelectItem>
-                  <SelectItem value="normal">Structured (Markdown headers and formatting)</SelectItem>
+                  <SelectItem value="minimal">{t("botDetail.format.conversational")}</SelectItem>
+                  <SelectItem value="normal">{t("botDetail.format.structured")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label className="mb-2">Report Sections</Label>
+              <Label className="mb-2">{t("botDetail.format.sections")}</Label>
               {Object.entries(sections).map(([key, value]) => (
                 <div key={key} className="flex items-center gap-2">
                   <Checkbox
@@ -487,11 +497,7 @@ export default function BotDetail() {
                     data-testid={`checkbox-section-${key}`}
                   />
                   <Label htmlFor={`section-${key}`} className="font-normal">
-                    {key === "tldr" ? "TL;DR Summary" :
-                     key === "drivers" ? "Market Drivers / Key Trends" :
-                     key === "risk" ? "Risk Radar" :
-                     key === "checklist" ? "Action Checklist" :
-                     "Source References"}
+                    {sectionLabelMap[key] || key}
                   </Label>
                 </div>
               ))}
@@ -503,13 +509,13 @@ export default function BotDetail() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Filter className="h-5 w-5" />
-              Filters
+              {t("botDetail.filters.title")}
             </CardTitle>
-            <CardDescription>Control which content gets included</CardDescription>
+            <CardDescription>{t("botDetail.filters.subtitle")}</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
             <div className="grid gap-2">
-              <Label>Minimum Importance Score: {minImportanceScore}</Label>
+              <Label>{t("botDetail.filters.minImportance", { score: minImportanceScore })}</Label>
               <Slider
                 value={[minImportanceScore]}
                 onValueChange={([v]) => setMinImportanceScore(v)}
@@ -519,8 +525,8 @@ export default function BotDetail() {
                 data-testid="slider-importance"
               />
               <p className="text-xs text-muted-foreground">
-                Items scoring below this threshold will be excluded from reports.
-                {minImportanceScore > 0 && ` Currently filtering out items below ${minImportanceScore}/100.`}
+                {t("botDetail.filters.hint")}
+                {minImportanceScore > 0 && ` ${t("botDetail.filters.filtering", { score: minImportanceScore })}`}
               </p>
             </div>
           </CardContent>
@@ -530,15 +536,15 @@ export default function BotDetail() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Rss className="h-5 w-5" />
-              Linked Sources ({botSources.length})
+              {t("botDetail.sources.title", { count: botSources.length })}
             </CardTitle>
-            <CardDescription>Sources feeding data to this bot</CardDescription>
+            <CardDescription>{t("botDetail.sources.subtitle")}</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
             {botSources.length === 0 ? (
               <div className="text-center py-4 text-muted-foreground" data-testid="text-no-sources">
-                <p>No sources linked yet.</p>
-                <p className="text-xs mt-1">Add sources below to start collecting data for this bot.</p>
+                <p>{t("botDetail.sources.none")}</p>
+                <p className="text-xs mt-1">{t("botDetail.sources.noneHint")}</p>
               </div>
             ) : (
               <div className="grid gap-2">
@@ -549,7 +555,7 @@ export default function BotDetail() {
                       <Badge variant="secondary" className="ml-2">{source.topic}</Badge>
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
-                      <span className="text-xs text-muted-foreground">weight: {source.weight}</span>
+                      <span className="text-xs text-muted-foreground">{t("botDetail.sources.weight", { weight: source.weight })}</span>
                       <Button
                         size="icon"
                         variant="ghost"
@@ -567,7 +573,7 @@ export default function BotDetail() {
 
             {unlinkedSources.length > 0 && (
               <div className="grid gap-2">
-                <p className="text-sm font-medium text-muted-foreground">Available Sources</p>
+                <p className="text-sm font-medium text-muted-foreground">{t("botDetail.sources.available")}</p>
                 {unlinkedSources.map(source => (
                   <div key={source.id} className="flex items-center justify-between gap-2 p-3 rounded-md border border-dashed" data-testid={`available-source-${source.id}`}>
                     <div className="min-w-0 flex-1">
@@ -582,7 +588,7 @@ export default function BotDetail() {
                       data-testid={`button-link-source-${source.id}`}
                     >
                       <Plus className="h-4 w-4 mr-1" />
-                      Add
+                      {t("botDetail.sources.add")}
                     </Button>
                   </div>
                 ))}
@@ -592,7 +598,7 @@ export default function BotDetail() {
             {unlinkedSources.length === 0 && botSources.length === 0 && (
               <div className="text-center py-2">
                 <Button variant="outline" onClick={() => setLocation("/sources")} data-testid="button-go-to-sources">
-                  Go to Sources Page
+                  {t("botDetail.sources.goToSources")}
                 </Button>
               </div>
             )}

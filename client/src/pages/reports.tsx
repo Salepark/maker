@@ -9,6 +9,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { FileText, Plus, Loader2, Bot, RefreshCw, Copy, Download, Check } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/lib/language-provider";
 
 interface Report {
   id: number;
@@ -67,20 +68,30 @@ function getTopicColor(topic: string) {
   return colors[topic] || "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200";
 }
 
-function getStageLabel(stage: string): { label: string; className: string } {
+function getStageClassName(stage: string): string {
   switch (stage) {
     case "fast":
-      return { label: "초기 브리핑", className: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200" };
+      return "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200";
     case "status":
-      return { label: "상태 리포트", className: "bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200" };
+      return "bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200";
     case "full":
-      return { label: "확장 리포트", className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200" };
+      return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200";
     default:
-      return { label: "", className: "" };
+      return "";
+  }
+}
+
+function getStageLabelKey(stage: string): string | null {
+  switch (stage) {
+    case "fast": return "reports.stage.fast";
+    case "status": return "reports.stage.status";
+    case "full": return "reports.stage.full";
+    default: return null;
   }
 }
 
 export default function Reports() {
+  const { t } = useLanguage();
   const { toast } = useToast();
   const [selectedReportId, setSelectedReportId] = useState<number | null>(null);
   const [selectedFilter, setSelectedFilter] = useState<string>("all");
@@ -154,14 +165,14 @@ export default function Reports() {
     const text = `${selectedReport.title}\n\n${selectedReport.contentText}`;
     navigator.clipboard.writeText(text).then(() => {
       setCopied(true);
-      toast({ title: "Copied to clipboard" });
+      toast({ title: t("reports.copied") });
       setTimeout(() => setCopied(false), 2000);
     });
   }, [selectedReport, toast]);
 
   const handleDownloadReport = useCallback(() => {
     if (!selectedReport) return;
-    const text = `# ${selectedReport.title}\n\nCreated: ${formatDateTime(selectedReport.createdAt)}\nPeriod: ${formatDateTime(selectedReport.periodStart)} ~ ${formatDateTime(selectedReport.periodEnd)}\n\n${selectedReport.contentText}`;
+    const text = `# ${selectedReport.title}\n\n${t("reports.created")} ${formatDateTime(selectedReport.createdAt)}\n${t("reports.period")} ${formatDateTime(selectedReport.periodStart)} ~ ${formatDateTime(selectedReport.periodEnd)}\n\n${selectedReport.contentText}`;
     const blob = new Blob([text], { type: "text/markdown;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -169,7 +180,7 @@ export default function Reports() {
     a.download = `${selectedReport.title.replace(/[^a-zA-Z0-9-_ ]/g, "").trim().replace(/\s+/g, "_")}.md`;
     a.click();
     URL.revokeObjectURL(url);
-    toast({ title: "Report downloaded" });
+    toast({ title: t("reports.downloaded") });
   }, [selectedReport, toast]);
 
   const generateMutation = useMutation({
@@ -190,14 +201,14 @@ export default function Reports() {
       queryClient.invalidateQueries({ queryKey: ["/api/reports"] });
       queryClient.invalidateQueries({ queryKey: ["/api/profiles"] });
       toast({
-        title: "Report Generated",
-        description: data.result ? `Report created successfully (${data.result.itemsCount} items analyzed)` : "Report generation complete",
+        title: t("reports.generated"),
+        description: data.result ? t("reports.generatedDesc", { count: data.result.itemsCount }) : t("reports.generationComplete"),
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Generation Failed",
-        description: error.message || "Failed to generate report",
+        title: t("reports.generationFailed"),
+        description: error.message || t("reports.generationFailedDesc"),
         variant: "destructive",
       });
     },
@@ -227,10 +238,10 @@ export default function Reports() {
         <div>
           <h1 className="text-xl font-semibold flex items-center gap-2" data-testid="text-reports-title">
             <FileText className="h-5 w-5" />
-            Reports
+            {t("reports.title")}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Bot-generated reports from analyzed content
+            {t("reports.subtitle")}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -239,7 +250,7 @@ export default function Reports() {
               <SelectValue placeholder="Select bot" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Reports</SelectItem>
+              <SelectItem value="all">{t("reports.allReports")}</SelectItem>
               {filterOptions.map((opt) => (
                 <SelectItem key={opt.value} value={opt.value}>
                   <div className="flex items-center gap-2">
@@ -268,7 +279,7 @@ export default function Reports() {
             ) : (
               <Plus className="h-4 w-4 mr-2" />
             )}
-            Generate
+            {t("reports.generate")}
           </Button>
         </div>
       </div>
@@ -276,7 +287,7 @@ export default function Reports() {
       <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-4">
         <Card className="h-[70vh] overflow-hidden">
           <CardHeader className="py-3 px-4 border-b">
-            <CardTitle className="text-sm font-medium">Recent Reports</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("reports.recentReports")}</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <div className="h-[calc(70vh-52px)] overflow-auto">
@@ -291,7 +302,7 @@ export default function Reports() {
               {!isLoading && (!reports || reports.length === 0) && (
                 <div className="p-6 text-center">
                   <FileText className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
-                  <p className="text-sm text-muted-foreground">No reports yet.</p>
+                  <p className="text-sm text-muted-foreground">{t("reports.noReports")}</p>
                   {canGenerate && (
                     <Button
                       size="sm"
@@ -305,17 +316,17 @@ export default function Reports() {
                       ) : (
                         <Plus className="h-4 w-4 mr-1" />
                       )}
-                      Generate Report
+                      {t("reports.generateReport")}
                     </Button>
                   )}
                   {!canGenerate && bots.length > 0 && (
                     <p className="text-xs text-muted-foreground mt-2">
-                      Select a bot from the dropdown above to generate a report.
+                      {t("reports.selectBotHint")}
                     </p>
                   )}
                   {!canGenerate && bots.length === 0 && (
                     <p className="text-xs text-muted-foreground mt-2">
-                      Create a bot first from the Template Gallery.
+                      {t("reports.createBotFirst")}
                     </p>
                   )}
                 </div>
@@ -336,16 +347,17 @@ export default function Reports() {
                     <div className="mt-1 flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
                       <span>{formatDateTime(report.createdAt)}</span>
                       {report.reportStage && report.reportStage !== "full" && (() => {
-                        const stage = getStageLabel(report.reportStage);
-                        return stage.label ? (
-                          <Badge variant="secondary" className={`text-xs px-1.5 py-0 ${stage.className}`} data-testid={`badge-stage-${report.id}`}>
-                            {stage.label}
+                        const stageKey = getStageLabelKey(report.reportStage);
+                        const stageClass = getStageClassName(report.reportStage);
+                        return stageKey ? (
+                          <Badge variant="secondary" className={`text-xs px-1.5 py-0 ${stageClass}`} data-testid={`badge-stage-${report.id}`}>
+                            {t(stageKey)}
                           </Badge>
                         ) : null;
                       })()}
                       {report.reportStage === "full" && report.updatedAt && (
                         <Badge variant="secondary" className="text-xs px-1.5 py-0 bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200" data-testid={`badge-updated-${report.id}`}>
-                          업데이트됨
+                          {t("reports.stage.updated")}
                         </Badge>
                       )}
                       <Badge variant="secondary" className={`text-xs px-1.5 py-0 ${getTopicColor(report.topic)}`}>
@@ -367,7 +379,7 @@ export default function Reports() {
           <CardHeader className="py-3 px-4 border-b">
             <div className="flex items-center justify-between gap-2">
               <CardTitle className="text-sm font-medium line-clamp-1 flex-1 min-w-0">
-                {selectedReport ? selectedReport.title : "Select a report"}
+                {selectedReport ? selectedReport.title : t("reports.selectReport")}
               </CardTitle>
               {selectedReport && (
                 <div className="flex items-center gap-1 shrink-0">
@@ -382,7 +394,7 @@ export default function Reports() {
                         {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Copy to clipboard</TooltipContent>
+                    <TooltipContent>{t("reports.copyToClipboard")}</TooltipContent>
                   </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -395,7 +407,7 @@ export default function Reports() {
                         <Download className="h-4 w-4" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Download as Markdown</TooltipContent>
+                    <TooltipContent>{t("reports.downloadMarkdown")}</TooltipContent>
                   </Tooltip>
                 </div>
               )}
@@ -406,7 +418,7 @@ export default function Reports() {
               <div className="h-full flex flex-col items-center justify-center text-center">
                 <FileText className="h-12 w-12 text-muted-foreground mb-3" />
                 <p className="text-sm text-muted-foreground">
-                  Pick a report from the left to view its contents.
+                  {t("reports.selectReportHint")}
                 </p>
               </div>
             )}
@@ -414,20 +426,21 @@ export default function Reports() {
             {selectedReport && (
               <div className="space-y-4">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
-                  <span>Created: {formatDateTime(selectedReport.createdAt)}</span>
+                  <span>{t("reports.created")} {formatDateTime(selectedReport.createdAt)}</span>
                   {selectedReport.updatedAt && (
                     <>
                       <span>·</span>
-                      <span>Updated: {formatDateTime(selectedReport.updatedAt)}</span>
+                      <span>{t("reports.updated")} {formatDateTime(selectedReport.updatedAt)}</span>
                     </>
                   )}
                   <span>·</span>
-                  <span>Period: {formatDateTime(selectedReport.periodStart)} ~ {formatDateTime(selectedReport.periodEnd)}</span>
+                  <span>{t("reports.period")} {formatDateTime(selectedReport.periodStart)} ~ {formatDateTime(selectedReport.periodEnd)}</span>
                   {selectedReport.reportStage && (() => {
-                    const stage = getStageLabel(selectedReport.reportStage);
-                    return stage.label ? (
-                      <Badge variant="secondary" className={`text-xs px-1.5 py-0 ${stage.className}`} data-testid="badge-report-stage">
-                        {stage.label}
+                    const stageKey = getStageLabelKey(selectedReport.reportStage);
+                    const stageClass = getStageClassName(selectedReport.reportStage);
+                    return stageKey ? (
+                      <Badge variant="secondary" className={`text-xs px-1.5 py-0 ${stageClass}`} data-testid="badge-report-stage">
+                        {t(stageKey)}
                       </Badge>
                     ) : null;
                   })()}

@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/lib/language-provider";
 import type { MessageKind } from "@shared/chatCommand";
 
 interface ChatThread {
@@ -76,9 +77,9 @@ const CATEGORY_ICONS: Record<HintCategory, typeof Lightbulb> = {
   schedule: Clock,
 };
 
-const CATEGORY_LABELS: Record<HintCategory, string> = {
-  first_run: "Getting Started",
-  schedule: "Schedule",
+const CATEGORY_LABEL_KEYS: Record<HintCategory, string> = {
+  first_run: "chat.category.firstRun",
+  schedule: "chat.category.schedule",
 };
 
 const BOT_HINT_CATEGORY_ICONS: Record<BotHintCategory, typeof Lightbulb> = {
@@ -90,13 +91,13 @@ const BOT_HINT_CATEGORY_ICONS: Record<BotHintCategory, typeof Lightbulb> = {
   safety_promo: ShieldCheck,
 };
 
-const BOT_HINT_CATEGORY_LABELS: Record<BotHintCategory, string> = {
-  research: "User Research",
-  outreach: "Outreach",
-  contribution: "Community",
-  analysis: "Analysis",
-  monitor: "Monitoring",
-  safety_promo: "Safety",
+const BOT_HINT_CATEGORY_LABEL_KEYS: Record<BotHintCategory, string> = {
+  research: "chat.botCategory.research",
+  outreach: "chat.botCategory.outreach",
+  contribution: "chat.botCategory.contribution",
+  analysis: "chat.botCategory.analysis",
+  monitor: "chat.botCategory.monitor",
+  safety_promo: "chat.botCategory.safetyPromo",
 };
 
 const COMMUNITY_RESEARCH_HINTS: BotHint[] = [
@@ -165,13 +166,13 @@ function computeConsoleState(ctx: ConsoleContext | undefined): ConsoleState {
   return "S3_READY";
 }
 
-function getStateMessage(state: ConsoleState): string {
+function getStateMessage(state: ConsoleState, t: (key: string) => string): string {
   switch (state) {
-    case "S0_NO_BOT": return "Start by selecting or creating a bot";
-    case "S1_NO_SOURCES": return "Add sources to start collecting data";
-    case "S2_NO_COLLECTION": return "Ready to collect and analyze data";
-    case "S3_READY": return "All set! Tell your bot what to do";
-    case "S4_SCHEDULE_ISSUE": return "Check your settings — something needs attention";
+    case "S0_NO_BOT": return t("chat.state.noBot");
+    case "S1_NO_SOURCES": return t("chat.state.noSources");
+    case "S2_NO_COLLECTION": return t("chat.state.noCollection");
+    case "S3_READY": return t("chat.state.ready");
+    case "S4_SCHEDULE_ISSUE": return t("chat.state.scheduleIssue");
   }
 }
 
@@ -189,12 +190,12 @@ function getHintsForState(state: ConsoleState): Hint[] {
   return ALL_HINTS.filter(h => h.states.includes(state));
 }
 
-function getPipelineStepLabel(step: string): string {
+function getPipelineStepLabel(step: string, t: (key: string) => string): string {
   switch (step) {
-    case "collect": return "Data Collection";
-    case "analyze": return "Analysis";
-    case "report": return "Report";
-    case "schedule": return "Schedule";
+    case "collect": return t("chat.pipeline.collect");
+    case "analyze": return t("chat.pipeline.analyze");
+    case "report": return t("chat.pipeline.report");
+    case "schedule": return t("chat.pipeline.schedule");
     default: return step;
   }
 }
@@ -222,6 +223,7 @@ function ConfirmButtons({
   onCancel: (id: number) => void;
   isPending: boolean;
 }) {
+  const { t } = useLanguage();
   return (
     <div className="flex gap-2 mt-2">
       <Button
@@ -231,7 +233,7 @@ function ConfirmButtons({
         data-testid={`button-confirm-${messageId}`}
       >
         {isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Check className="h-3 w-3 mr-1" />}
-        Approve & Run
+        {t("chat.confirm")}
       </Button>
       <Button
         size="sm"
@@ -241,7 +243,7 @@ function ConfirmButtons({
         data-testid={`button-cancel-${messageId}`}
       >
         <X className="h-3 w-3 mr-1" />
-        Cancel
+        {t("chat.cancel")}
       </Button>
     </div>
   );
@@ -258,6 +260,7 @@ function MessageBubble({
   onCancel: (id: number) => void;
   isConfirming: boolean;
 }) {
+  const { t } = useLanguage();
   const isUser = message.role === "user";
   const isPending = message.status === "pending_confirm";
   const kind = message.kind || "text";
@@ -289,7 +292,7 @@ function MessageBubble({
             {message.commandJson.type === "pipeline_step" ? (
               <span className="flex items-center gap-1">
                 {message.resultJson?.ok ? <CheckCircle2 className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
-                {getPipelineStepLabel(message.commandJson.step)}
+                {getPipelineStepLabel(message.commandJson.step, t)}
               </span>
             ) : message.commandJson.type === "pipeline_run" ? (
               <span className="flex items-center gap-1">
@@ -364,8 +367,9 @@ function OnboardingView({
   hints: Hint[];
   onHintClick: (text: string) => void;
 }) {
+  const { t } = useLanguage();
   const topHints = hints.slice(0, 6);
-  const stateMsg = getStateMessage(state);
+  const stateMsg = getStateMessage(state, t);
 
   return (
     <div className="flex flex-col items-center justify-center h-full px-4">
@@ -405,6 +409,7 @@ function HintDropdown({
   visible: boolean;
   onSelect: (text: string) => void;
 }) {
+  const { t } = useLanguage();
   const grouped = hints.reduce((acc, h) => {
     if (!acc[h.category]) acc[h.category] = [];
     acc[h.category].push(h);
@@ -423,7 +428,7 @@ function HintDropdown({
         <div key={cat}>
           <div className="px-3 py-1.5 text-xs font-medium text-muted-foreground flex items-center gap-1.5 sticky top-0 bg-card border-b border-border">
             {(() => { const Icon = CATEGORY_ICONS[cat]; return <Icon className="h-3 w-3" />; })()}
-            {CATEGORY_LABELS[cat]}
+            {t(CATEGORY_LABEL_KEYS[cat])}
           </div>
           {grouped[cat].map((hint, i) => (
             <button
@@ -444,6 +449,7 @@ function HintDropdown({
 
 export default function Chat() {
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [input, setInput] = useState("");
   const [confirmingId, setConfirmingId] = useState<number | null>(null);
   const [threadId, setThreadId] = useState<number | null>(null);
@@ -595,8 +601,8 @@ export default function Chat() {
     },
     onError: (error: any) => {
       toast({
-        title: "Send failed",
-        description: error.message || "An error occurred",
+        title: t("chat.executionFailed"),
+        description: error.message || t("chat.errorOccurred"),
         variant: "destructive",
       });
     },
@@ -621,8 +627,8 @@ export default function Chat() {
     onError: (error: any) => {
       setConfirmingId(null);
       toast({
-        title: "Execution failed",
-        description: error.message || "An error occurred",
+        title: t("chat.executionFailed"),
+        description: error.message || t("chat.errorOccurred"),
         variant: "destructive",
       });
     },
@@ -695,11 +701,11 @@ export default function Chat() {
       <div className="p-4 border-b border-border shrink-0">
         <h1 className="text-xl font-bold flex items-center gap-2" data-testid="text-chat-title">
           <MessageCircle className="h-5 w-5" />
-          Control Console
+          {t("chat.title")}
         </h1>
         <div className="flex items-center gap-2 mt-1 flex-wrap">
           <p className="text-sm text-muted-foreground" data-testid="text-chat-description">
-            Tell your bot what to do in one sentence. It handles the rest.
+            {t("chat.subtitle")}
           </p>
           {activeBotInfo ? (
             <Badge variant="secondary" data-testid="badge-active-bot">
@@ -708,7 +714,7 @@ export default function Chat() {
             </Badge>
           ) : (
             <Badge variant="outline" className="text-xs text-muted-foreground" data-testid="badge-no-active-bot">
-              No active bot
+              {t("chat.noActiveBot")}
             </Badge>
           )}
         </div>
@@ -745,7 +751,7 @@ export default function Chat() {
                   <div className="flex flex-col gap-1.5 ml-11 mt-2" data-testid="next-action-hints">
                     <span className="text-xs text-muted-foreground flex items-center gap-1">
                       <ArrowRight className="h-3 w-3" />
-                      Try next
+                      {t("chat.tryNext")}
                     </span>
                     <div className="flex flex-wrap gap-1.5">
                       {nextActionHints.map((hint, i) => (
@@ -824,13 +830,13 @@ export default function Chat() {
             <>
               <div className="flex items-center gap-2 mb-2">
                 <Target className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">{consoleContext?.activeBotName || "Bot"} Commands</span>
+                <span className="text-sm font-medium">{consoleContext?.activeBotName || "Bot"} {t("chat.commands")}</span>
               </div>
               <p className="text-xs text-muted-foreground mb-3">
-                Makelr 홍보를 위한 사전 조사, 자료 수집, 커뮤니티 기여 명령어
+                {t("chat.botHintsDesc")}
               </p>
 
-              {(Object.keys(BOT_HINT_CATEGORY_LABELS) as BotHintCategory[]).map(cat => {
+              {(Object.keys(BOT_HINT_CATEGORY_LABEL_KEYS) as BotHintCategory[]).map(cat => {
                 const hintsInCat = botSpecificHints.filter(h => h.category === cat);
                 if (hintsInCat.length === 0) return null;
                 const Icon = BOT_HINT_CATEGORY_ICONS[cat];
@@ -838,7 +844,7 @@ export default function Chat() {
                   <div key={cat} className="mb-4" data-testid={`bot-hint-group-${cat}`}>
                     <div className="flex items-center gap-1.5 mb-1.5">
                       <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="text-xs font-medium text-muted-foreground">{BOT_HINT_CATEGORY_LABELS[cat]}</span>
+                      <span className="text-xs font-medium text-muted-foreground">{t(BOT_HINT_CATEGORY_LABEL_KEYS[cat])}</span>
                     </div>
                     <div className="space-y-1">
                       {hintsInCat.map((hint, i) => (
@@ -858,12 +864,12 @@ export default function Chat() {
             <>
               <div className="flex items-center gap-2 mb-3">
                 <Lightbulb className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Suggestions</span>
+                <span className="text-sm font-medium">{t("chat.suggestions")}</span>
               </div>
 
               <div className="mb-3">
                 <Badge variant="outline" className="text-xs" data-testid="badge-console-state">
-                  {getStateMessage(consoleState)}
+                  {getStateMessage(consoleState, t)}
                 </Badge>
               </div>
 
@@ -874,14 +880,14 @@ export default function Chat() {
               </div>
 
               <div className="mt-6 pt-4 border-t border-border">
-                <p className="text-xs text-muted-foreground mb-2">Categories</p>
+                <p className="text-xs text-muted-foreground mb-2">{t("chat.categories")}</p>
                 <div className="flex flex-wrap gap-1">
-                  {(Object.keys(CATEGORY_LABELS) as HintCategory[]).map(cat => {
+                  {(Object.keys(CATEGORY_LABEL_KEYS) as HintCategory[]).map(cat => {
                     const Icon = CATEGORY_ICONS[cat];
                     return (
                       <Badge key={cat} variant="secondary" className="text-xs">
                         <Icon className="h-3 w-3 mr-1" />
-                        {CATEGORY_LABELS[cat]}
+                        {t(CATEGORY_LABEL_KEYS[cat])}
                       </Badge>
                     );
                   })}

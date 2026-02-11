@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import { useLanguage } from "@/lib/language-provider";
 import {
   FileText, Search, Edit, CheckCircle, Send, XCircle, Clock, RefreshCw,
   Activity, AlertTriangle, Zap, Bot as BotIcon, ArrowRight, Settings,
@@ -127,6 +128,7 @@ const statusColors: Record<string, string> = {
 };
 
 export default function Dashboard() {
+  const { t } = useLanguage();
   const [, setLocation] = useLocation();
 
   const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
@@ -166,21 +168,21 @@ export default function Dashboard() {
   };
 
   const statCards = [
-    { label: "Total Items", value: stats?.total ?? 0, icon: FileText, color: "text-foreground" },
-    { label: "New", value: stats?.new ?? 0, icon: Clock, color: "text-blue-500" },
-    { label: "Analyzed", value: stats?.analyzed ?? 0, icon: Search, color: "text-yellow-500" },
-    { label: "Drafted", value: stats?.drafted ?? 0, icon: Edit, color: "text-purple-500" },
-    { label: "Approved", value: stats?.approved ?? 0, icon: CheckCircle, color: "text-green-500" },
-    { label: "Posted", value: stats?.posted ?? 0, icon: Send, color: "text-emerald-500" },
-    { label: "Skipped", value: stats?.skipped ?? 0, icon: XCircle, color: "text-gray-500" },
+    { label: t("dashboard.stats.totalItems"), value: stats?.total ?? 0, icon: FileText, color: "text-foreground" },
+    { label: t("dashboard.stats.new"), value: stats?.new ?? 0, icon: Clock, color: "text-blue-500" },
+    { label: t("dashboard.stats.analyzed"), value: stats?.analyzed ?? 0, icon: Search, color: "text-yellow-500" },
+    { label: t("dashboard.stats.drafted"), value: stats?.drafted ?? 0, icon: Edit, color: "text-purple-500" },
+    { label: t("dashboard.stats.approved"), value: stats?.approved ?? 0, icon: CheckCircle, color: "text-green-500" },
+    { label: t("dashboard.stats.posted"), value: stats?.posted ?? 0, icon: Send, color: "text-emerald-500" },
+    { label: t("dashboard.stats.skipped"), value: stats?.skipped ?? 0, icon: XCircle, color: "text-gray-500" },
   ];
 
   return (
     <div className="p-6 space-y-8 max-w-6xl mx-auto">
       <div className="space-y-2" data-testid="section-hero">
-        <h1 className="text-2xl font-bold" data-testid="text-dashboard-title">Workflow Designer</h1>
+        <h1 className="text-2xl font-bold" data-testid="text-dashboard-title">{t("dashboard.title")}</h1>
         <p className="text-muted-foreground max-w-2xl" data-testid="text-hero-message">
-          A tool for designing your automation workflows. Choose your sources, set your schedule, and design your outputs — you decide everything.
+          {t("dashboard.subtitle")}
         </p>
       </div>
 
@@ -190,15 +192,15 @@ export default function Dashboard() {
             <div className="flex items-start gap-3">
               <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
               <div>
-                <p className="font-medium text-sm" data-testid="text-llm-warning">System AI key is not configured</p>
+                <p className="font-medium text-sm" data-testid="text-llm-warning">{t("dashboard.systemWarning.title")}</p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Analysis, drafting, and report generation are paused. Content collection continues normally.
+                  {t("dashboard.systemWarning.desc")}
                 </p>
                 <p className="text-sm mt-2">
                   <Link href="/settings" className="text-primary hover:underline" data-testid="link-add-provider">
-                    Settings &gt; Providers
+                    {t("dashboard.systemWarning.link")}
                   </Link>
-                  {" "}— Add a BYO LLM provider to enable AI features for each bot.
+                  {t("dashboard.systemWarning.linkSuffix")}
                 </p>
               </div>
             </div>
@@ -209,9 +211,9 @@ export default function Dashboard() {
       {isNewUser && (
         <Card data-testid="card-onboarding">
           <CardContent className="p-6">
-            <h2 className="text-lg font-semibold mb-2">Getting Started</h2>
+            <h2 className="text-lg font-semibold mb-2">{t("dashboard.onboarding.title")}</h2>
             <p className="text-sm text-muted-foreground mb-6">
-              Follow these steps to set up your first automation workflow.
+              {t("dashboard.onboarding.subtitle")}
             </p>
             <div className="grid gap-4 md:grid-cols-3">
               <div className="flex gap-3">
@@ -220,21 +222,21 @@ export default function Dashboard() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-medium text-sm">1. Add AI Provider</h3>
+                    <h3 className="font-medium text-sm">{t("dashboard.onboarding.step1")}</h3>
                     {hasProviders && (
                       <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
                         <CheckCircle className="h-3 w-3 mr-1" />
-                        Done
+                        {t("dashboard.onboarding.step1Done")}
                       </Badge>
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Add your own API key (OpenAI, Anthropic, Google, etc.) to enable AI analysis and report generation.
+                    {t("dashboard.onboarding.step1Desc")}
                   </p>
                   {!hasProviders && (
                     <Link href="/settings">
                       <Button variant="outline" size="sm" className="mt-2" data-testid="button-onboarding-provider">
-                        Go to Settings
+                        {t("dashboard.onboarding.step1Button")}
                         <ArrowRight className="h-3 w-3 ml-1" />
                       </Button>
                     </Link>
@@ -247,13 +249,13 @@ export default function Dashboard() {
                   <Layers className="h-5 w-5 text-primary" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-medium text-sm">2. Create a Bot</h3>
+                  <h3 className="font-medium text-sm">{t("dashboard.onboarding.step2")}</h3>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Pick a template below and customize the sources, schedule, and output format to your needs.
+                    {t("dashboard.onboarding.step2Desc")}
                   </p>
                   <Link href="/bots">
                     <Button variant="outline" size="sm" className="mt-2" data-testid="button-onboarding-create-bot">
-                      Browse Templates
+                      {t("dashboard.onboarding.step2Button")}
                       <ArrowRight className="h-3 w-3 ml-1" />
                     </Button>
                   </Link>
@@ -265,13 +267,13 @@ export default function Dashboard() {
                   <FileBarChart className="h-5 w-5 text-primary" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-medium text-sm">3. View Reports</h3>
+                  <h3 className="font-medium text-sm">{t("dashboard.onboarding.step3")}</h3>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Your bot will automatically collect, analyze, and generate reports on schedule. Check results in the Reports page.
+                    {t("dashboard.onboarding.step3Desc")}
                   </p>
                   <Link href="/reports">
                     <Button variant="outline" size="sm" className="mt-2" data-testid="button-onboarding-reports">
-                      View Reports
+                      {t("dashboard.onboarding.step3Button")}
                       <ArrowRight className="h-3 w-3 ml-1" />
                     </Button>
                   </Link>
@@ -287,15 +289,15 @@ export default function Dashboard() {
           <div>
             <h2 className="text-lg font-semibold flex items-center gap-2">
               <Layers className="h-5 w-5 text-primary" />
-              Start a Workflow
+              {t("dashboard.startWorkflow.title")}
             </h2>
             <p className="text-sm text-muted-foreground">
-              Templates are starting points, not answers. You can freely customize sources, schedules, and outputs.
+              {t("dashboard.startWorkflow.subtitle")}
             </p>
           </div>
           <Link href="/bots">
             <Button variant="outline" size="sm" data-testid="link-view-all-templates">
-              View All Templates
+              {t("dashboard.startWorkflow.viewAll")}
               <ArrowRight className="h-4 w-4 ml-1" />
             </Button>
           </Link>
@@ -321,7 +323,7 @@ export default function Dashboard() {
                   <p className="text-xs text-muted-foreground line-clamp-2">{preset.description}</p>
                   <div className="pt-1">
                     <span className="text-xs text-primary font-medium" data-testid={`link-template-start-${preset.key}`}>
-                      Start with this setup &rarr;
+                      {t("dashboard.startWorkflow.startWith")} &rarr;
                     </span>
                   </div>
                 </CardContent>
@@ -337,15 +339,15 @@ export default function Dashboard() {
             <div>
               <h2 className="text-lg font-semibold flex items-center gap-2">
                 <BotIcon className="h-5 w-5 text-primary" />
-                My Workflow Bots
+                {t("dashboard.myBots.title")}
               </h2>
               <p className="text-sm text-muted-foreground">
-                Your active bots. Change settings or run them instantly.
+                {t("dashboard.myBots.subtitle")}
               </p>
             </div>
             <Link href="/bots">
               <Button variant="outline" size="sm" data-testid="link-manage-bots">
-                Manage All
+                {t("dashboard.myBots.manageAll")}
                 <ArrowRight className="h-4 w-4 ml-1" />
               </Button>
             </Link>
@@ -363,7 +365,7 @@ export default function Dashboard() {
                       </Badge>
                     </div>
                     <Badge variant={bot.isEnabled ? "default" : "secondary"} className="shrink-0">
-                      {bot.isEnabled ? "Active" : "Paused"}
+                      {bot.isEnabled ? t("dashboard.myBots.active") : t("dashboard.myBots.paused")}
                     </Badge>
                   </div>
                   {bot.settings && (
@@ -382,7 +384,7 @@ export default function Dashboard() {
                       onClick={() => setLocation(`/bots/${bot.id}`)}
                       data-testid={`button-open-bot-${bot.id}`}
                     >
-                      Open
+                      {t("dashboard.myBots.open")}
                     </Button>
                     <Button
                       variant="outline"
@@ -405,55 +407,55 @@ export default function Dashboard() {
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
               <Activity className="h-4 w-4" />
-              System Status
+              {t("dashboard.system.title")}
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
               <div className="flex items-center gap-2" data-testid="status-collect">
                 <Zap className="h-3.5 w-3.5 text-green-500" />
-                <span className="text-muted-foreground">Collect:</span>
+                <span className="text-muted-foreground">{t("dashboard.system.collect")}</span>
                 <span className="font-medium">{schedulerStatus.collectInterval}</span>
               </div>
               <div className="flex items-center gap-2" data-testid="status-analyze">
                 <Zap className={`h-3.5 w-3.5 ${schedulerStatus.systemLLMAvailable ? 'text-green-500' : 'text-amber-500'}`} />
-                <span className="text-muted-foreground">Analyze:</span>
+                <span className="text-muted-foreground">{t("dashboard.system.analyze")}</span>
                 <span className={`font-medium ${!schedulerStatus.systemLLMAvailable ? 'text-amber-600 dark:text-amber-400' : ''}`}>
-                  {schedulerStatus.systemLLMAvailable ? schedulerStatus.analyzeInterval : "Paused"}
+                  {schedulerStatus.systemLLMAvailable ? schedulerStatus.analyzeInterval : t("dashboard.system.paused")}
                 </span>
               </div>
               <div className="flex items-center gap-2" data-testid="status-draft">
                 <Zap className={`h-3.5 w-3.5 ${schedulerStatus.systemLLMAvailable ? 'text-green-500' : 'text-amber-500'}`} />
-                <span className="text-muted-foreground">Draft:</span>
+                <span className="text-muted-foreground">{t("dashboard.system.draft")}</span>
                 <span className={`font-medium ${!schedulerStatus.systemLLMAvailable ? 'text-amber-600 dark:text-amber-400' : ''}`}>
-                  {schedulerStatus.systemLLMAvailable ? schedulerStatus.draftInterval : "Paused"}
+                  {schedulerStatus.systemLLMAvailable ? schedulerStatus.draftInterval : t("dashboard.system.paused")}
                 </span>
               </div>
               <div className="flex items-center gap-2" data-testid="status-report">
                 <Zap className={`h-3.5 w-3.5 ${schedulerStatus.systemLLMAvailable ? 'text-green-500' : 'text-amber-500'}`} />
-                <span className="text-muted-foreground">Reports:</span>
+                <span className="text-muted-foreground">{t("dashboard.system.reports")}</span>
                 <span className={`font-medium ${!schedulerStatus.systemLLMAvailable ? 'text-amber-600 dark:text-amber-400' : ''}`}>
-                  {schedulerStatus.systemLLMAvailable ? schedulerStatus.reportInterval : "Paused"}
+                  {schedulerStatus.systemLLMAvailable ? schedulerStatus.reportInterval : t("dashboard.system.paused")}
                 </span>
               </div>
             </div>
             <div className="flex items-center gap-6 text-sm mt-3 pt-3 border-t border-border flex-wrap">
               <div className="flex items-center gap-2">
                 <RefreshCw className="h-4 w-4 text-muted-foreground" />
-                <span className="text-muted-foreground">Last Collect:</span>
+                <span className="text-muted-foreground">{t("dashboard.system.lastCollect")}</span>
                 <span className="font-medium" data-testid="text-last-collect">
                   {schedulerStatus.lastCollect 
                     ? formatDistanceToNow(new Date(schedulerStatus.lastCollect), { addSuffix: true })
-                    : "Never"}
+                    : t("dashboard.system.never")}
                 </span>
               </div>
               <div className="flex items-center gap-2">
                 <Search className="h-4 w-4 text-muted-foreground" />
-                <span className="text-muted-foreground">Last Analyze:</span>
+                <span className="text-muted-foreground">{t("dashboard.system.lastAnalyze")}</span>
                 <span className="font-medium" data-testid="text-last-analyze">
                   {schedulerStatus.lastAnalyze
                     ? formatDistanceToNow(new Date(schedulerStatus.lastAnalyze), { addSuffix: true })
-                    : "Never"}
+                    : t("dashboard.system.never")}
                 </span>
               </div>
             </div>
@@ -483,10 +485,10 @@ export default function Dashboard() {
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-2">
-          <CardTitle className="text-lg">Recent Items</CardTitle>
+          <CardTitle className="text-lg">{t("dashboard.recentItems")}</CardTitle>
           <Link href="/items">
             <Badge variant="outline" className="cursor-pointer" data-testid="link-view-all-items">
-              View All
+              {t("dashboard.viewAll")}
             </Badge>
           </Link>
         </CardHeader>

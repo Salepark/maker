@@ -5,6 +5,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { LanguageProvider } from "@/lib/language-provider";
+import { LanguageSwitcher } from "@/components/language-switcher";
+import { useLanguage } from "@/lib/language-provider";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { useAuth } from "@/hooks/use-auth";
@@ -53,6 +56,7 @@ function Router() {
 
 function AuthenticatedApp() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const style = {
     "--sidebar-width": "16rem",
     "--sidebar-width-icon": "3rem",
@@ -71,6 +75,7 @@ function AuthenticatedApp() {
             <SidebarTrigger data-testid="button-sidebar-toggle" />
             <div className="flex items-center gap-3">
               <ShareButton />
+              <LanguageSwitcher />
               <ThemeToggle />
               <div className="flex items-center gap-2">
                 <Avatar className="h-8 w-8">
@@ -78,7 +83,7 @@ function AuthenticatedApp() {
                   <AvatarFallback>{userInitials}</AvatarFallback>
                 </Avatar>
                 <Button variant="ghost" size="sm" asChild data-testid="button-logout">
-                  <a href="/api/logout">Logout</a>
+                  <a href="/api/logout">{t("header.logout")}</a>
                 </Button>
               </div>
             </div>
@@ -114,10 +119,12 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="light">
-        <TooltipProvider>
-          <AppContent />
-          <Toaster />
-        </TooltipProvider>
+        <LanguageProvider defaultLanguage="en">
+          <TooltipProvider>
+            <AppContent />
+            <Toaster />
+          </TooltipProvider>
+        </LanguageProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

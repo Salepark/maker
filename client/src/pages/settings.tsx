@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useLanguage } from "@/lib/language-provider";
 import { Settings as SettingsIcon, Play, Pause, RefreshCw, Zap, Clock, Plus, Trash2, Key, Loader2, Pencil } from "lucide-react";
 
 interface SchedulerStatus {
@@ -34,6 +35,7 @@ interface LlmProviderSafe {
 
 export default function Settings() {
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [showAddProvider, setShowAddProvider] = useState(false);
   const [editingProvider, setEditingProvider] = useState<LlmProviderSafe | null>(null);
   const [providerName, setProviderName] = useState("");
@@ -59,10 +61,10 @@ export default function Settings() {
     },
     onSuccess: (_, action) => {
       queryClient.invalidateQueries({ queryKey: ["/api/scheduler/status"] });
-      toast({ title: `Scheduler ${action === "start" ? "started" : "stopped"}` });
+      toast({ title: action === "start" ? t("settings.scheduler.started") : t("settings.scheduler.stoppedMsg") });
     },
     onError: () => {
-      toast({ title: "Failed to toggle scheduler", variant: "destructive" });
+      toast({ title: t("settings.scheduler.toggleFailed"), variant: "destructive" });
     },
   });
 
@@ -74,10 +76,10 @@ export default function Settings() {
       queryClient.invalidateQueries({ queryKey: ["/api/scheduler/status"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/items"] });
-      toast({ title: `${job.charAt(0).toUpperCase() + job.slice(1)} job started` });
+      toast({ title: t("settings.scheduler.jobStarted", { job: job.charAt(0).toUpperCase() + job.slice(1) }) });
     },
     onError: () => {
-      toast({ title: "Failed to run job", variant: "destructive" });
+      toast({ title: t("settings.scheduler.jobFailed"), variant: "destructive" });
     },
   });
 
@@ -93,11 +95,11 @@ export default function Settings() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/llm-providers"] });
-      toast({ title: "LLM Provider added" });
+      toast({ title: t("settings.providers.added") });
       resetForm();
     },
     onError: () => {
-      toast({ title: "Failed to add provider", variant: "destructive" });
+      toast({ title: t("settings.providers.addFailed"), variant: "destructive" });
     },
   });
 
@@ -115,11 +117,11 @@ export default function Settings() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/llm-providers"] });
-      toast({ title: "LLM Provider updated" });
+      toast({ title: t("settings.providers.updated") });
       resetForm();
     },
     onError: () => {
-      toast({ title: "Failed to update provider", variant: "destructive" });
+      toast({ title: t("settings.providers.updateFailed"), variant: "destructive" });
     },
   });
 
@@ -129,10 +131,10 @@ export default function Settings() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/llm-providers"] });
-      toast({ title: "LLM Provider deleted" });
+      toast({ title: t("settings.providers.deleted") });
     },
     onError: () => {
-      toast({ title: "Failed to delete provider", variant: "destructive" });
+      toast({ title: t("settings.providers.deleteFailed"), variant: "destructive" });
     },
   });
 
@@ -166,8 +168,8 @@ export default function Settings() {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold" data-testid="text-settings-title">Settings</h1>
-        <p className="text-muted-foreground">Configure scheduler, LLM providers, and bot settings</p>
+        <h1 className="text-2xl font-bold" data-testid="text-settings-title">{t("settings.title")}</h1>
+        <p className="text-muted-foreground">{t("settings.subtitle")}</p>
       </div>
 
       <Card>
@@ -176,10 +178,10 @@ export default function Settings() {
             <div>
               <CardTitle className="text-lg flex items-center gap-2">
                 <Key className="h-5 w-5" />
-                LLM Providers
+                {t("settings.providers.title")}
               </CardTitle>
               <CardDescription className="mt-1">
-                Connect your own AI provider API keys
+                {t("settings.providers.subtitle")}
               </CardDescription>
             </div>
             <Button
@@ -188,7 +190,7 @@ export default function Settings() {
               data-testid="button-add-provider"
             >
               <Plus className="h-4 w-4 mr-1" />
-              Add Provider
+              {t("settings.providers.addButton")}
             </Button>
           </div>
         </CardHeader>
@@ -196,17 +198,17 @@ export default function Settings() {
           {showAddProvider && (
             <div className="p-4 rounded-md border space-y-4" data-testid="form-add-provider">
               <div className="grid gap-2">
-                <Label htmlFor="provider-name">Name</Label>
+                <Label htmlFor="provider-name">{t("settings.providers.name")}</Label>
                 <Input
                   id="provider-name"
                   value={providerName}
                   onChange={(e) => setProviderName(e.target.value)}
-                  placeholder="e.g. My Anthropic Key"
+                  placeholder={t("settings.providers.namePlaceholder")}
                   data-testid="input-provider-name"
                 />
               </div>
               <div className="grid gap-2">
-                <Label>Provider Type</Label>
+                <Label>{t("settings.providers.type")}</Label>
                 <Select value={providerType} onValueChange={setProviderType}>
                   <SelectTrigger data-testid="select-provider-type">
                     <SelectValue />
@@ -221,19 +223,19 @@ export default function Settings() {
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="api-key">
-                  API Key {editingProvider && <span className="text-muted-foreground text-xs">(leave blank to keep current)</span>}
+                  {t("settings.providers.apiKey")} {editingProvider && <span className="text-muted-foreground text-xs">{t("settings.providers.apiKeyKeep")}</span>}
                 </Label>
                 <Input
                   id="api-key"
                   type="password"
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
-                  placeholder={editingProvider ? "Enter new key or leave blank" : "sk-..."}
+                  placeholder={editingProvider ? t("settings.providers.apiKeyEditPlaceholder") : t("settings.providers.apiKeyPlaceholder")}
                   data-testid="input-api-key"
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="base-url">Base URL <span className="text-muted-foreground text-xs">(optional, for custom endpoints)</span></Label>
+                <Label htmlFor="base-url">{t("settings.providers.baseUrl")} <span className="text-muted-foreground text-xs">{t("settings.providers.baseUrlHint")}</span></Label>
                 <Input
                   id="base-url"
                   value={baseUrl}
@@ -243,7 +245,7 @@ export default function Settings() {
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="default-model">Default Model <span className="text-muted-foreground text-xs">(optional)</span></Label>
+                <Label htmlFor="default-model">{t("settings.providers.defaultModel")} <span className="text-muted-foreground text-xs">{t("settings.providers.defaultModelHint")}</span></Label>
                 <Input
                   id="default-model"
                   value={defaultModel}
@@ -259,10 +261,10 @@ export default function Settings() {
                   data-testid="button-save-provider"
                 >
                   {(createProviderMutation.isPending || updateProviderMutation.isPending) && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-                  {editingProvider ? "Update" : "Save"}
+                  {editingProvider ? t("settings.providers.update") : t("settings.providers.save")}
                 </Button>
                 <Button variant="outline" onClick={resetForm} data-testid="button-cancel-provider">
-                  Cancel
+                  {t("settings.providers.cancel")}
                 </Button>
               </div>
             </div>
@@ -275,7 +277,7 @@ export default function Settings() {
             </div>
           ) : providers.length === 0 && !showAddProvider ? (
             <p className="text-sm text-muted-foreground py-4" data-testid="text-no-providers">
-              No LLM providers configured. Add one to start using AI features with your bots.
+              {t("settings.providers.noProviders")}
             </p>
           ) : (
             providers.map((provider) => (
@@ -321,10 +323,10 @@ export default function Settings() {
             <div>
               <CardTitle className="text-lg flex items-center gap-2">
                 <Clock className="h-5 w-5" />
-                Scheduler Status
+                {t("settings.scheduler.title")}
               </CardTitle>
               <CardDescription className="mt-1">
-                Automated content collection and analysis
+                {t("settings.scheduler.subtitle")}
               </CardDescription>
             </div>
             {isLoading ? (
@@ -332,7 +334,7 @@ export default function Settings() {
             ) : (
               <div className="flex items-center gap-3">
                 <Badge variant={status?.isRunning ? "default" : "secondary"}>
-                  {status?.isRunning ? "Running" : "Stopped"}
+                  {status?.isRunning ? t("settings.scheduler.running") : t("settings.scheduler.stopped")}
                 </Badge>
                 <Button
                   variant={status?.isRunning ? "outline" : "default"}
@@ -344,12 +346,12 @@ export default function Settings() {
                   {status?.isRunning ? (
                     <>
                       <Pause className="h-4 w-4 mr-1" />
-                      Stop
+                      {t("settings.scheduler.stop")}
                     </>
                   ) : (
                     <>
                       <Play className="h-4 w-4 mr-1" />
-                      Start
+                      {t("settings.scheduler.start")}
                     </>
                   )}
                 </Button>
@@ -368,11 +370,11 @@ export default function Settings() {
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-4 p-4 rounded-md border flex-wrap">
                 <div>
-                  <h3 className="font-medium text-sm">RSS Collection</h3>
+                  <h3 className="font-medium text-sm">{t("settings.scheduler.rssCollection")}</h3>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Interval: {status?.collectInterval || "10 minutes"}
+                    {t("settings.scheduler.interval")} {status?.collectInterval || "10 minutes"}
                     {status?.lastCollect && (
-                      <span className="ml-2">Last: {status.lastCollect}</span>
+                      <span className="ml-2">{t("settings.scheduler.last")} {status.lastCollect}</span>
                     )}
                   </p>
                 </div>
@@ -384,17 +386,17 @@ export default function Settings() {
                   data-testid="button-run-collect"
                 >
                   <RefreshCw className="h-4 w-4 mr-1" />
-                  Run Now
+                  {t("settings.scheduler.runNow")}
                 </Button>
               </div>
 
               <div className="flex items-center justify-between gap-4 p-4 rounded-md border flex-wrap">
                 <div>
-                  <h3 className="font-medium text-sm">Content Analysis</h3>
+                  <h3 className="font-medium text-sm">{t("settings.scheduler.contentAnalysis")}</h3>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Interval: {status?.analyzeInterval || "5 minutes"}
+                    {t("settings.scheduler.interval")} {status?.analyzeInterval || "5 minutes"}
                     {status?.lastAnalyze && (
-                      <span className="ml-2">Last: {status.lastAnalyze}</span>
+                      <span className="ml-2">{t("settings.scheduler.last")} {status.lastAnalyze}</span>
                     )}
                   </p>
                 </div>
@@ -406,17 +408,17 @@ export default function Settings() {
                   data-testid="button-run-analyze"
                 >
                   <Zap className="h-4 w-4 mr-1" />
-                  Run Now
+                  {t("settings.scheduler.runNow")}
                 </Button>
               </div>
 
               <div className="flex items-center justify-between gap-4 p-4 rounded-md border flex-wrap">
                 <div>
-                  <h3 className="font-medium text-sm">Draft Generation</h3>
+                  <h3 className="font-medium text-sm">{t("settings.scheduler.draftGeneration")}</h3>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Interval: {status?.draftInterval || "5 minutes"}
+                    {t("settings.scheduler.interval")} {status?.draftInterval || "5 minutes"}
                     {status?.lastDraft && (
-                      <span className="ml-2">Last: {status.lastDraft}</span>
+                      <span className="ml-2">{t("settings.scheduler.last")} {status.lastDraft}</span>
                     )}
                   </p>
                 </div>
@@ -428,7 +430,7 @@ export default function Settings() {
                   data-testid="button-run-draft"
                 >
                   <Zap className="h-4 w-4 mr-1" />
-                  Run Now
+                  {t("settings.scheduler.runNow")}
                 </Button>
               </div>
             </div>

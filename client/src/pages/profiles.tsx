@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/lib/language-provider";
 import { Plus, Bot as BotIcon, Trash2, Settings, Loader2, Newspaper, Eye, Scale, GraduationCap, ShoppingBag, MessageSquare, TrendingUp, Users, Sparkles, ArrowLeft, Rss, Clock, FileText, ChevronRight, Link2, Search, Briefcase, BookOpen, Building2, PenTool, Laptop, Store, ShoppingCart } from "lucide-react";
 
 interface SuggestedSource {
@@ -75,17 +76,6 @@ const iconMap: Record<string, typeof Newspaper> = {
   Newspaper, Eye, Scale, GraduationCap, ShoppingBag, MessageSquare, TrendingUp, Users, Search, Briefcase, BookOpen, Building2, PenTool, Laptop, Store, ShoppingCart,
 };
 
-const categoryLabels: Record<string, string> = {
-  information: "Information",
-  business: "Business",
-  compliance: "Compliance",
-  research: "Research",
-  commerce: "Commerce",
-  engagement: "Engagement",
-  finance: "Finance",
-  work: "Work",
-};
-
 const topicColors: Record<string, string> = {
   investing: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
   ai_art: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
@@ -111,6 +101,7 @@ const outputTypeColors: Record<string, string> = {
 export default function Profiles() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   const [wizardOpen, setWizardOpen] = useState(false);
   const [wizardStep, setWizardStep] = useState<"preset" | "topic" | "configure">("preset");
@@ -138,7 +129,7 @@ export default function Profiles() {
     onSuccess: async (response) => {
       queryClient.invalidateQueries({ queryKey: ["/api/bots"] });
       const data = await response.json();
-      toast({ title: "Bot created successfully" });
+      toast({ title: t("profiles.botCreated") });
       resetWizard();
       if (data?.bot?.id) {
         setLocation(`/bots/${data.bot.id}`);
@@ -169,7 +160,7 @@ export default function Profiles() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bots"] });
-      toast({ title: "Bot deleted" });
+      toast({ title: t("profiles.botDeleted") });
     },
   });
 
@@ -194,13 +185,13 @@ export default function Profiles() {
     const url = customSourceUrl.trim();
     if (!url) return;
     if (selectedSourceUrls.has(url) || customSources.some(s => s.url === url)) {
-      toast({ title: "This source URL is already added", variant: "destructive" });
+      toast({ title: t("profiles.urlAlreadyAdded"), variant: "destructive" });
       return;
     }
     try {
       new URL(url);
     } catch {
-      toast({ title: "Please enter a valid URL", variant: "destructive" });
+      toast({ title: t("profiles.invalidUrl"), variant: "destructive" });
       return;
     }
     const name = customSourceName.trim() || new URL(url).hostname;
@@ -263,6 +254,23 @@ export default function Profiles() {
     return IconComponent || Sparkles;
   };
 
+  const getCategoryLabel = (category: string): string => {
+    const categoryKey = `profiles.category.${category}`;
+    const translated = t(categoryKey);
+    if (translated !== categoryKey) return translated;
+    const fallback: Record<string, string> = {
+      information: "Information",
+      business: "Business",
+      compliance: "Compliance",
+      research: "Research",
+      commerce: "Commerce",
+      engagement: "Engagement",
+      finance: "Finance",
+      work: "Work",
+    };
+    return fallback[category] || category;
+  };
+
   const uniqueCategories = Array.from(new Set(presets.map(p => p.category).filter((c): c is string => c !== null && c !== undefined)));
 
   if (botsLoading) {
@@ -279,8 +287,8 @@ export default function Profiles() {
         <div className="mb-8">
           <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
             <div>
-              <h1 className="text-2xl font-bold" data-testid="text-page-title">My Workflow Bots</h1>
-              <p className="text-muted-foreground">Configure and manage your bots' sources, schedules, and outputs</p>
+              <h1 className="text-2xl font-bold" data-testid="text-page-title">{t("profiles.title")}</h1>
+              <p className="text-muted-foreground">{t("profiles.subtitle")}</p>
             </div>
           </div>
 
@@ -324,13 +332,13 @@ export default function Profiles() {
                       data-testid={`button-edit-bot-${bot.id}`}
                     >
                       <Settings className="h-4 w-4 mr-1" />
-                      Settings
+                      {t("sidebar.settings")}
                     </Button>
                     <Button
                       variant="outline"
                       size="icon"
                       onClick={() => {
-                        if (confirm("Are you sure you want to delete this bot?")) {
+                        if (confirm(t("profiles.deleteConfirm"))) {
                           deleteBotMutation.mutate(bot.id);
                         }
                       }}
@@ -351,8 +359,8 @@ export default function Profiles() {
             >
               <div className="text-center p-6">
                 <Plus className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                <p className="font-medium text-sm">Create New Bot</p>
-                <p className="text-xs text-muted-foreground mt-1">Choose from templates</p>
+                <p className="font-medium text-sm">{t("profiles.createNew")}</p>
+                <p className="text-xs text-muted-foreground mt-1">{t("profiles.createNewDesc")}</p>
               </div>
             </Card>
           </div>
@@ -363,14 +371,14 @@ export default function Profiles() {
         <div className="mb-8">
           <div className="text-center py-12">
             <BotIcon className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-            <h1 className="text-2xl font-bold mb-2" data-testid="text-page-title">No bots created yet</h1>
+            <h1 className="text-2xl font-bold mb-2" data-testid="text-page-title">{t("profiles.noBots")}</h1>
             <p className="text-muted-foreground mb-6 max-w-lg mx-auto" data-testid="text-empty-state-message">
-              Start your first workflow from a template below. You can freely customize sources, schedules, and outputs.
+              {t("profiles.noBotsDesc")}
             </p>
             <div className="flex items-center justify-center gap-3 flex-wrap">
               <Button onClick={() => setWizardOpen(true)} data-testid="button-start-from-template">
                 <Sparkles className="h-4 w-4 mr-2" />
-                Start from Template
+                {t("profiles.startTemplate")}
               </Button>
             </div>
           </div>
@@ -378,9 +386,9 @@ export default function Profiles() {
       )}
 
       <div className="mb-4">
-        <h2 className="text-xl font-bold" data-testid="text-gallery-title">Workflow Recipes</h2>
+        <h2 className="text-xl font-bold" data-testid="text-gallery-title">{t("profiles.galleryTitle")}</h2>
         <p className="text-muted-foreground text-sm" data-testid="text-gallery-subtitle">
-          These templates are starting points for building your own workflows, not final answers.
+          {t("profiles.gallerySubtitle")}
         </p>
       </div>
 
@@ -393,7 +401,7 @@ export default function Profiles() {
       {!presetsLoading && presets.length === 0 && (
         <Card className="overflow-visible">
           <CardContent className="p-8 text-center text-muted-foreground">
-            No templates available yet. They will appear here once configured.
+            {t("profiles.noTemplates")}
           </CardContent>
         </Card>
       )}
@@ -404,7 +412,7 @@ export default function Profiles() {
         return (
           <div key={category} className="mb-6">
             <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
-              {categoryLabels[category] || category}
+              {getCategoryLabel(category)}
             </h3>
             <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
               {categoryPresets.map(preset => {
@@ -430,11 +438,11 @@ export default function Profiles() {
                           <div className="mt-2 space-y-1 text-xs text-muted-foreground">
                             <div className="flex items-center gap-1.5">
                               <Rss className="h-3 w-3 shrink-0" />
-                              <span>Sources: {(preset.defaultConfigJson?.suggestedSources || []).length} default channels</span>
+                              <span>{t("profiles.sources", { count: (preset.defaultConfigJson?.suggestedSources || []).length })}</span>
                             </div>
                             <div className="flex items-center gap-1.5">
                               <Clock className="h-3 w-3 shrink-0" />
-                              <span>Output: {preset.outputType}</span>
+                              <span>{t("profiles.output", { type: preset.outputType })}</span>
                             </div>
                           </div>
                           <div className="flex items-center gap-1.5 mt-2 flex-wrap">
@@ -443,7 +451,7 @@ export default function Profiles() {
                             ))}
                           </div>
                           <p className="text-xs text-primary font-medium mt-2" data-testid={`link-preset-start-${preset.key}`}>
-                            Start with this setup &rarr;
+                            {t("profiles.startWith")} &rarr;
                           </p>
                         </div>
                       </div>
@@ -458,7 +466,7 @@ export default function Profiles() {
 
       {presets.filter(p => !p.category).length > 0 && (
         <div className="mb-6">
-          <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">Other</h3>
+          <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">{t("profiles.other")}</h3>
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             {presets.filter(p => !p.category).map(preset => {
               const Icon = getPresetIcon(preset.icon);
@@ -497,14 +505,14 @@ export default function Profiles() {
         <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>
-              {wizardStep === "preset" && "Choose a Template"}
-              {wizardStep === "topic" && "Select Topic"}
-              {wizardStep === "configure" && "Configure Your Bot"}
+              {wizardStep === "preset" && t("profiles.wizard.chooseTemplate")}
+              {wizardStep === "topic" && t("profiles.wizard.selectTopic")}
+              {wizardStep === "configure" && t("profiles.wizard.configure")}
             </DialogTitle>
             <DialogDescription>
-              {wizardStep === "preset" && "Pick a template to start with. You can customize everything later."}
-              {wizardStep === "topic" && `This template supports multiple topics. Choose which area to focus on for ${selectedPreset?.name}.`}
-              {wizardStep === "configure" && "Set up your bot's workflow. Default sources are general public channels — add your own for more specialized coverage."}
+              {wizardStep === "preset" && t("profiles.wizard.chooseTemplateDesc")}
+              {wizardStep === "topic" && t("profiles.wizard.selectTopicDesc", { name: selectedPreset?.name || "" })}
+              {wizardStep === "configure" && t("profiles.wizard.configureDesc")}
             </DialogDescription>
           </DialogHeader>
 
@@ -550,7 +558,7 @@ export default function Profiles() {
                 </Button>
               ))}
               <Button variant="ghost" size="sm" onClick={() => setWizardStep("preset")} data-testid="button-wizard-back">
-                <ArrowLeft className="h-4 w-4 mr-1" /> Back
+                <ArrowLeft className="h-4 w-4 mr-1" /> {t("profiles.wizard.back")}
               </Button>
             </div>
           )}
@@ -559,7 +567,7 @@ export default function Profiles() {
             <div className="flex flex-col min-h-0 flex-1">
             <div className="space-y-4 py-2 overflow-y-auto flex-1 min-h-0 pr-1">
               <div className="space-y-2">
-                <Label htmlFor="bot-name">Bot Name</Label>
+                <Label htmlFor="bot-name">{t("profiles.wizard.botName")}</Label>
                 <Input
                   id="bot-name"
                   value={botName}
@@ -570,11 +578,11 @@ export default function Profiles() {
               </div>
 
               <div className="flex items-center gap-2">
-                <Label>Topic:</Label>
+                <Label>{t("profiles.wizard.topic")}:</Label>
                 <Badge className={topicColors[selectedTopic] || ""} data-testid="badge-wizard-topic">{selectedTopic}</Badge>
                 <Label className="text-muted-foreground text-xs">|</Label>
                 <Label className="text-muted-foreground text-xs">
-                  Output: {selectedPreset.outputType}
+                  {t("profiles.output", { type: selectedPreset.outputType })}
                 </Label>
               </div>
 
@@ -638,10 +646,10 @@ export default function Profiles() {
                   <div className="space-y-2">
                     <Label className="flex items-center gap-1.5">
                       <Rss className="h-4 w-4" />
-                      Default Sources
+                      {t("profiles.wizard.defaultSources")}
                     </Label>
                     <p className="text-xs text-muted-foreground" data-testid="text-source-disclaimer">
-                      {selectedPreset?.defaultConfigJson?.sourceDisclaimer || "Default sources are widely used public channels. You can add your own specialized sources below."}
+                      {selectedPreset?.defaultConfigJson?.sourceDisclaimer || t("profiles.wizard.sourceDisclaimer")}
                     </p>
                     {allDisplaySources.length > 0 ? (
                       <div className="space-y-1.5">
@@ -656,11 +664,11 @@ export default function Profiles() {
                   <div className="space-y-2 pt-1 border-t border-border">
                     <Label className="flex items-center gap-1.5 text-sm">
                       <Link2 className="h-4 w-4" />
-                      Add your own source
+                      {t("profiles.wizard.customSourceUrl")}
                     </Label>
                     <div className="flex gap-2">
                       <Input
-                        placeholder="Source name (optional)"
+                        placeholder={t("profiles.wizard.customSourceName")}
                         value={customSourceName}
                         onChange={(e) => setCustomSourceName(e.target.value)}
                         className="flex-1"
@@ -669,7 +677,7 @@ export default function Profiles() {
                     </div>
                     <div className="flex gap-2">
                       <Input
-                        placeholder="https://example.com/feed.xml"
+                        placeholder={t("profiles.wizard.customSourceUrlPlaceholder")}
                         value={customSourceUrl}
                         onChange={(e) => setCustomSourceUrl(e.target.value)}
                         onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomSource(); } }}
@@ -684,7 +692,7 @@ export default function Profiles() {
                         data-testid="button-add-custom-source"
                       >
                         <Plus className="h-4 w-4 mr-1" />
-                        Add
+                        {t("profiles.wizard.addSource")}
                       </Button>
                     </div>
                     <p className="text-xs text-muted-foreground">You can also add more sources after creating the bot.</p>
@@ -704,7 +712,7 @@ export default function Profiles() {
                   }}
                   data-testid="button-wizard-back-configure"
                 >
-                  <ArrowLeft className="h-4 w-4 mr-1" /> Back
+                  <ArrowLeft className="h-4 w-4 mr-1" /> {t("profiles.wizard.back")}
                 </Button>
                 <Button
                   onClick={handleCreate}
@@ -712,7 +720,7 @@ export default function Profiles() {
                   data-testid="button-wizard-create"
                 >
                   {createFromPresetMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  Start with this setup
+                  {createFromPresetMutation.isPending ? t("profiles.wizard.creating") : t("profiles.wizard.createBot")}
                 </Button>
               </div>
             </div>
