@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Bot, Layers, Rss, Settings, Zap, ArrowRight, TrendingUp, BookOpen, Building2, Newspaper, ChevronDown, Key, MessageSquare, PenTool, Laptop, Store, ShoppingCart, LogIn } from "lucide-react";
+import { Bot, Layers, Rss, Settings, Zap, ArrowRight, TrendingUp, BookOpen, Building2, Newspaper, ChevronDown, Key, MessageSquare, PenTool, Laptop, Store, ShoppingCart, LogIn, User, Monitor, Users, Landmark, Check } from "lucide-react";
 import { ShareButton } from "@/components/share-button";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { useQueryClient } from "@tanstack/react-query";
@@ -327,6 +327,83 @@ export default function Landing() {
               ))}
             </CardContent>
           </Card>
+        </section>
+
+        <section className="max-w-6xl mx-auto px-6 py-16" data-testid="section-pricing">
+          <h2 className="text-2xl font-bold text-center mb-2">{t("landing.pricing.title")}</h2>
+          <p className="text-center text-muted-foreground mb-12">{t("landing.pricing.subtitle")}</p>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              {
+                key: "web",
+                icon: User,
+                color: "bg-blue-400 dark:bg-blue-500",
+                features: [t("landing.pricing.web.f1"), t("landing.pricing.web.f2"), t("landing.pricing.web.f3"), t("landing.pricing.web.f4")],
+                active: true,
+              },
+              {
+                key: "local",
+                icon: Monitor,
+                color: "bg-emerald-500 dark:bg-emerald-600",
+                features: [t("landing.pricing.local.f1"), t("landing.pricing.local.f2"), t("landing.pricing.local.f3")],
+                active: false,
+              },
+              {
+                key: "teams",
+                icon: Users,
+                color: "bg-orange-400 dark:bg-orange-500",
+                features: [t("landing.pricing.teams.f1"), t("landing.pricing.teams.f2"), t("landing.pricing.teams.f3")],
+                active: false,
+              },
+              {
+                key: "enterprise",
+                icon: Landmark,
+                color: "bg-slate-600 dark:bg-slate-500",
+                features: [t("landing.pricing.enterprise.f1"), t("landing.pricing.enterprise.f2"), t("landing.pricing.enterprise.f3")],
+                active: false,
+              },
+            ].map((plan) => (
+              <Card key={plan.key} className="flex flex-col" data-testid={`card-pricing-${plan.key}`}>
+                <div className={`${plan.color} rounded-t-md flex items-center justify-center py-5`}>
+                  <plan.icon className="h-10 w-10 text-white" />
+                </div>
+                <CardContent className="pt-5 pb-6 flex flex-col flex-1 gap-4">
+                  <div>
+                    <h3 className="font-bold text-base" data-testid={`text-pricing-price-${plan.key}`}>
+                      {t(`landing.pricing.${plan.key}.price`)}
+                    </h3>
+                    <span className="text-xs text-muted-foreground">{t(`landing.pricing.${plan.key}.name`)}</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{t(`landing.pricing.${plan.key}.desc`)}</p>
+                  <ul className="space-y-2 flex-1">
+                    {plan.features.map((f) => (
+                      <li key={f} className="flex items-start gap-2 text-sm">
+                        <Check className={`h-4 w-4 shrink-0 mt-0.5 ${plan.active ? "text-primary" : "text-muted-foreground"}`} />
+                        <span>{f}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  {plan.active ? (
+                    <Button asChild className="w-full" data-testid="button-pricing-start">
+                      <a href="/api/login">{t(`landing.pricing.${plan.key}.button`)}</a>
+                    </Button>
+                  ) : (
+                    <Button variant="secondary" disabled className="w-full" data-testid={`button-pricing-${plan.key}`}>
+                      {t(`landing.pricing.${plan.key}.button`)}
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </section>
+
+        <section className="max-w-3xl mx-auto px-6 py-12 text-center" data-testid="section-philosophy">
+          <p className="text-lg italic text-muted-foreground leading-relaxed">
+            {t("landing.philosophy.line1")}
+            <br />
+            {t("landing.philosophy.line2")}
+          </p>
         </section>
 
         <section className="max-w-3xl mx-auto px-6 py-12 text-center">
