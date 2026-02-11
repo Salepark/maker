@@ -644,14 +644,14 @@ export async function routeCommand(userId: string, cmd: ChatCommand, threadId?: 
     case "chat":
       return {
         ok: true,
-        assistantMessage: cmd.args?.reply || "How can I help? Try 'list bots', 'bot status', or 'run collect'.",
+        assistantMessage: cmd.args?.reply || "How can I help? Try: list bots / bot status / run collect / run analyze / run report\n\n사용 가능한 명령어: 봇 목록 보여줘 / 봇 상태 보여줘 / 수집 실행 / 분석 실행 / 리포트 작성",
         executed: cmd,
         result: null,
       };
     default:
       return {
         ok: false,
-        assistantMessage: "Unknown command. Try 'list bots' to get started.",
+        assistantMessage: "Unknown command. Try: list bots / bot status / run collect\n\n사용 가능한 명령어: 봇 목록 보여줘 / 봇 상태 보여줘 / 수집 실행",
         executed: cmd,
         result: null,
       };

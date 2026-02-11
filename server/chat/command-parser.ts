@@ -16,9 +16,11 @@ const COMMAND_HINT_KEYWORDS = [
   "bot", "source", "collect", "analyze", "draft", "report",
   "stop", "halt", "start", "enable", "disable",
   "remove",
+  "봇", "상태", "목록", "리스트", "전환", "소스", "추가", "삭제", "제거",
+  "중지", "재개", "일시정지", "점검", "요약", "브리핑", "보여",
   "수집", "분석", "리포트", "보고서", "제출", "모아", "정리",
   "스케줄", "매일", "아침", "저녁", "오전", "오후",
-  "pipeline", "자동", "실행", "돌려", "작성",
+  "pipeline", "자동", "실행", "돌려", "작성", "파이프라인",
 ];
 
 function isCommandCandidate(message: string): boolean {
@@ -168,6 +170,66 @@ function tryKeywordFallback(message: string, context: CommandParseContext): Chat
       confidence: 0.8,
       needsConfirm: true,
       confirmText: ko ? "봇 재개" : "Resume bot",
+    };
+  }
+
+  if ((lower.includes("switch") || lower.includes("전환")) && (lower.includes("bot") || lower.includes("봇"))) {
+    const botNames = context.availableBotKeys || [];
+    const matchedKey = botNames.find(k => lower.includes(k.toLowerCase()));
+    return {
+      type: "switch_bot",
+      botKey: matchedKey || botKey,
+      args: { targetBotKey: matchedKey },
+      confidence: matchedKey ? 0.9 : 0.6,
+      needsConfirm: false,
+      confirmText: ko ? `봇 전환: ${matchedKey || "?"}` : `Switch to bot: ${matchedKey || "?"}`,
+    };
+  }
+
+  if ((lower.includes("소스") || lower.includes("source")) && (lower.includes("추가") || lower.includes("add"))) {
+    const urlMatch = message.match(/https?:\/\/[^\s]+/);
+    return {
+      type: "add_source",
+      botKey: botKey,
+      args: { url: urlMatch?.[0] || "" },
+      confidence: urlMatch ? 0.9 : 0.6,
+      needsConfirm: true,
+      confirmText: ko ? `소스 추가: ${urlMatch?.[0] || "URL"}` : `Add source: ${urlMatch?.[0] || "URL"}`,
+    };
+  }
+
+  if ((lower.includes("소스") || lower.includes("source")) && (lower.includes("삭제") || lower.includes("제거") || lower.includes("remove") || lower.includes("delete"))) {
+    return {
+      type: "remove_source",
+      botKey: botKey,
+      args: {},
+      confidence: 0.6,
+      needsConfirm: true,
+      confirmText: ko ? "소스 삭제" : "Remove source",
+    };
+  }
+
+  if (lower.includes("목록") || lower.includes("리스트") || lower.includes("보여줘")) {
+    if (lower.includes("봇") || lower.includes("bot")) {
+      return {
+        type: "list_bots",
+        botKey: botKey,
+        args: {},
+        confidence: 0.85,
+        needsConfirm: false,
+        confirmText: ko ? "봇 목록 조회" : "List bots",
+      };
+    }
+  }
+
+  if (lower.includes("상태") || lower.includes("점검") || lower.includes("브리핑") || lower.includes("요약")) {
+    return {
+      type: "bot_status",
+      botKey: botKey,
+      args: {},
+      confidence: 0.8,
+      needsConfirm: false,
+      confirmText: ko ? "봇 상태 조회" : "Bot status",
     };
   }
 

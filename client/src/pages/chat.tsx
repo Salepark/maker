@@ -62,13 +62,13 @@ type HintCategory = "first_run" | "schedule";
 type BotHintCategory = "research" | "outreach" | "contribution" | "analysis" | "monitor" | "safety_promo";
 
 interface Hint {
-  text: string;
+  key: string;
   category: HintCategory;
   states: ConsoleState[];
 }
 
 interface BotHint {
-  text: string;
+  key: string;
   category: BotHintCategory;
 }
 
@@ -101,30 +101,30 @@ const BOT_HINT_CATEGORY_LABEL_KEYS: Record<BotHintCategory, string> = {
 };
 
 const COMMUNITY_RESEARCH_HINTS: BotHint[] = [
-  { text: "자동화/워크플로우 관련 고민을 올린 커뮤니티 글 수집해줘", category: "research" },
-  { text: "\"이거 자동화하고 싶다\" 같은 니즈가 있는 Reddit 글 찾아줘", category: "research" },
-  { text: "1인 창업자/사이드프로젝트 운영자의 반복 업무 불만 모아줘", category: "research" },
-  { text: "RSS 자동화, 뉴스레터 정리에 관심 있는 사용자 패턴 분석해줘", category: "research" },
+  { key: "chat.botHint.collectCommunity", category: "research" },
+  { key: "chat.botHint.findRedditNeeds", category: "research" },
+  { key: "chat.botHint.collectComplaints", category: "research" },
+  { key: "chat.botHint.analyzePatterns", category: "research" },
 
-  { text: "\"정보 과부하\"로 고민하는 투자자 커뮤니티 글 정리해줘", category: "outreach" },
-  { text: "생산성 도구를 찾고 있는 사용자 질문 모아줘", category: "outreach" },
-  { text: "Makelr가 해결할 수 있는 문제를 겪는 사람들의 글 요약해줘", category: "outreach" },
+  { key: "chat.botHint.organizeInvestor", category: "outreach" },
+  { key: "chat.botHint.collectQuestions", category: "outreach" },
+  { key: "chat.botHint.summarizeProblems", category: "outreach" },
 
-  { text: "커뮤니티에 도움이 되는 답변 초안 만들어줘 (홍보 없이)", category: "contribution" },
-  { text: "자동화 팁을 공유하는 형식으로 기여 초안 작성해줘", category: "contribution" },
-  { text: "RSS 활용법이나 정보 정리 노하우를 공유하는 글 초안 만들어줘", category: "contribution" },
+  { key: "chat.botHint.draftContribution", category: "contribution" },
+  { key: "chat.botHint.draftAutomationTip", category: "contribution" },
+  { key: "chat.botHint.draftRssTip", category: "contribution" },
 
-  { text: "이번 주 자동화 관련 트렌드 키워드 분석해줘", category: "analysis" },
-  { text: "어떤 커뮤니티에서 Makelr 같은 도구 수요가 가장 높은지 분석해줘", category: "analysis" },
-  { text: "수집된 자료에서 잠재 사용자 페르소나 정리해줘", category: "analysis" },
+  { key: "chat.botHint.analyzeTrends", category: "analysis" },
+  { key: "chat.botHint.analyzeDemand", category: "analysis" },
+  { key: "chat.botHint.analyzePersonas", category: "analysis" },
 
-  { text: "Reddit/HN에서 워크플로우 자동화 언급 추이를 모니터해줘", category: "monitor" },
-  { text: "경쟁 도구(Zapier, Make 등) 언급 빈도와 불만사항 추적해줘", category: "monitor" },
-  { text: "매일 아침 커뮤니티 동향 브리핑 만들어줘", category: "monitor" },
+  { key: "chat.botHint.monitorReddit", category: "monitor" },
+  { key: "chat.botHint.trackCompetitors", category: "monitor" },
+  { key: "chat.botHint.dailyBriefing", category: "monitor" },
 
-  { text: "직접적인 Makelr 홍보는 하지 말고, 가치 제공 위주로만", category: "safety_promo" },
-  { text: "스팸처럼 보이지 않게, 진정성 있는 커뮤니티 기여만 해줘", category: "safety_promo" },
-  { text: "링크나 브랜드명 없이, 문제 해결 중심으로 접근해줘", category: "safety_promo" },
+  { key: "chat.botHint.noPromotion", category: "safety_promo" },
+  { key: "chat.botHint.authenticOnly", category: "safety_promo" },
+  { key: "chat.botHint.noLinksNoBrand", category: "safety_promo" },
 ];
 
 const BOT_SPECIFIC_HINTS: Record<string, BotHint[]> = {
@@ -132,26 +132,26 @@ const BOT_SPECIFIC_HINTS: Record<string, BotHint[]> = {
 };
 
 const ALL_HINTS: Hint[] = [
-  { text: "내 봇 목록 보여줘", category: "first_run", states: ["S0_NO_BOT"] },
-  { text: "투자 봇으로 전환해줘", category: "first_run", states: ["S0_NO_BOT"] },
-  { text: "내 설정이 잘 됐는지 점검하고 필요한 걸 알려줘", category: "first_run", states: ["S0_NO_BOT", "S1_NO_SOURCES", "S4_SCHEDULE_ISSUE"] },
+  { key: "chat.hint.listBots", category: "first_run", states: ["S0_NO_BOT"] },
+  { key: "chat.hint.switchBot", category: "first_run", states: ["S0_NO_BOT"] },
+  { key: "chat.hint.checkSetup", category: "first_run", states: ["S0_NO_BOT", "S1_NO_SOURCES", "S4_SCHEDULE_ISSUE"] },
 
-  { text: "기본 소스 넣고 시작해줘", category: "first_run", states: ["S1_NO_SOURCES"] },
-  { text: "이 URL 소스를 추가해줘: https://", category: "first_run", states: ["S1_NO_SOURCES"] },
+  { key: "chat.hint.addDefaultSources", category: "first_run", states: ["S1_NO_SOURCES"] },
+  { key: "chat.hint.addSourceUrl", category: "first_run", states: ["S1_NO_SOURCES"] },
 
-  { text: "봇 상태 보여줘", category: "first_run", states: ["S2_NO_COLLECTION", "S3_READY"] },
-  { text: "오늘 자료 빠르게 요약해줘", category: "first_run", states: ["S3_READY"] },
-  { text: "지금 상태 브리핑만 보여줘", category: "first_run", states: ["S3_READY"] },
+  { key: "chat.hint.botStatus", category: "first_run", states: ["S2_NO_COLLECTION", "S3_READY"] },
+  { key: "chat.hint.quickSummary", category: "first_run", states: ["S3_READY"] },
+  { key: "chat.hint.statusBriefing", category: "first_run", states: ["S3_READY"] },
 
-  { text: "매일 아침 9시에 자동 실행되게 설정해줘", category: "schedule", states: ["S2_NO_COLLECTION", "S3_READY"] },
-  { text: "스케줄 시간을 아침 8시로 바꿔줘", category: "schedule", states: ["S3_READY", "S4_SCHEDULE_ISSUE"] },
-  { text: "주말은 빼고 평일만 돌려줘", category: "schedule", states: ["S3_READY"] },
+  { key: "chat.hint.scheduleDailyNine", category: "schedule", states: ["S2_NO_COLLECTION", "S3_READY"] },
+  { key: "chat.hint.changeScheduleEight", category: "schedule", states: ["S3_READY", "S4_SCHEDULE_ISSUE"] },
+  { key: "chat.hint.weekdaysOnly", category: "schedule", states: ["S3_READY"] },
 
-  { text: "왜 리포트가 안 왔는지 점검해줘", category: "first_run", states: ["S4_SCHEDULE_ISSUE"] },
-  { text: "다음 실행 시간 알려줘", category: "schedule", states: ["S4_SCHEDULE_ISSUE"] },
+  { key: "chat.hint.checkReportIssue", category: "first_run", states: ["S4_SCHEDULE_ISSUE"] },
+  { key: "chat.hint.nextRunTime", category: "schedule", states: ["S4_SCHEDULE_ISSUE"] },
 
-  { text: "내가 뭘 해야 하는지 모르겠어. 다음 단계 알려줘", category: "first_run", states: ["S0_NO_BOT", "S1_NO_SOURCES", "S2_NO_COLLECTION", "S3_READY", "S4_SCHEDULE_ISSUE"] },
-  { text: "봇 일시정지해줘", category: "first_run", states: ["S3_READY"] },
+  { key: "chat.hint.whatNext", category: "first_run", states: ["S0_NO_BOT", "S1_NO_SOURCES", "S2_NO_COLLECTION", "S3_READY", "S4_SCHEDULE_ISSUE"] },
+  { key: "chat.hint.pauseBot", category: "first_run", states: ["S3_READY"] },
 ];
 
 function computeConsoleState(ctx: ConsoleContext | undefined): ConsoleState {
@@ -176,13 +176,13 @@ function getStateMessage(state: ConsoleState, t: (key: string) => string): strin
   }
 }
 
-function getPlaceholder(state: ConsoleState): string {
+function getPlaceholder(state: ConsoleState, t: (key: string) => string): string {
   switch (state) {
-    case "S0_NO_BOT": return '"내 봇 목록 보여줘" or "Show my bots"';
-    case "S1_NO_SOURCES": return '"기본 소스 넣고 시작해줘" or "Add source https://..."';
-    case "S2_NO_COLLECTION": return '"매일 아침 9시에 자동 실행되게 설정해줘"';
-    case "S3_READY": return '"봇 상태 보여줘" or "스케줄 시간 바꿔줘"';
-    case "S4_SCHEDULE_ISSUE": return '"왜 리포트가 안 왔는지 점검해줘"';
+    case "S0_NO_BOT": return t("chat.placeholder.noBot");
+    case "S1_NO_SOURCES": return t("chat.placeholder.noSources");
+    case "S2_NO_COLLECTION": return t("chat.placeholder.noCollection");
+    case "S3_READY": return t("chat.placeholder.ready");
+    case "S4_SCHEDULE_ISSUE": return t("chat.placeholder.scheduleIssue");
   }
 }
 
@@ -330,30 +330,34 @@ function MessageBubble({
 
 function HintChip({ hint, onClick, location, index }: { hint: Hint; onClick: (text: string) => void; location: string; index: number }) {
   const Icon = CATEGORY_ICONS[hint.category];
+  const { t } = useLanguage();
+  const text = t(hint.key);
   return (
     <button
       type="button"
       className="flex items-center gap-2 px-3 py-2 text-left text-sm rounded-md bg-muted/50 hover-elevate active-elevate-2 transition-colors w-full"
-      onClick={() => onClick(hint.text)}
+      onClick={() => onClick(text)}
       data-testid={`hint-chip-${location}-${index}`}
     >
       <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-      <span className="text-muted-foreground">{hint.text}</span>
+      <span className="text-muted-foreground">{text}</span>
     </button>
   );
 }
 
 function BotHintChip({ hint, onClick, index }: { hint: BotHint; onClick: (text: string) => void; index: number }) {
   const Icon = BOT_HINT_CATEGORY_ICONS[hint.category];
+  const { t } = useLanguage();
+  const text = t(hint.key);
   return (
     <button
       type="button"
       className="flex items-center gap-2 px-3 py-2 text-left text-sm rounded-md bg-muted/50 hover-elevate active-elevate-2 transition-colors w-full"
-      onClick={() => onClick(hint.text)}
+      onClick={() => onClick(text)}
       data-testid={`bot-hint-chip-${index}`}
     >
       <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-      <span className="text-muted-foreground">{hint.text}</span>
+      <span className="text-muted-foreground">{text}</span>
     </button>
   );
 }
@@ -380,7 +384,7 @@ function OnboardingView({
             {stateMsg}
           </h3>
           <p className="text-sm text-muted-foreground mt-1">
-            Try one of these — just click to fill in, then press Enter
+            {t("chat.onboardingSubtitle")}
           </p>
         </div>
 
@@ -435,10 +439,10 @@ function HintDropdown({
               key={i}
               type="button"
               className="w-full text-left px-3 py-2 text-sm hover-elevate active-elevate-2 transition-colors"
-              onClick={() => onSelect(hint.text)}
+              onClick={() => onSelect(t(hint.key))}
               data-testid={`hint-option-${cat}-${i}`}
             >
-              {hint.text}
+              {t(hint.key)}
             </button>
           ))}
         </div>
@@ -564,7 +568,7 @@ export default function Chat() {
 
   const consoleState = useMemo(() => computeConsoleState(consoleContext), [consoleContext]);
   const stateHints = useMemo(() => getHintsForState(consoleState), [consoleState]);
-  const placeholderText = useMemo(() => getPlaceholder(consoleState), [consoleState]);
+  const placeholderText = useMemo(() => getPlaceholder(consoleState, t), [consoleState, t]);
 
   const activeBotTopic = consoleContext?.activeBotTopic ?? null;
   const botSpecificHints = useMemo(() => {
@@ -679,9 +683,9 @@ export default function Chat() {
 
     if (cmdType === "pipeline_run") {
       return [
-        { text: "매일 아침 9시에 자동 실행되게 설정해줘", category: "schedule", states: ["S3_READY"] },
-        { text: "봇 상태 보여줘", category: "first_run", states: ["S3_READY"] },
-        { text: "다음 실행 시간 알려줘", category: "schedule", states: ["S3_READY"] },
+        { key: "chat.hint.scheduleDailyNine", category: "schedule", states: ["S3_READY"] },
+        { key: "chat.hint.botStatus", category: "first_run", states: ["S3_READY"] },
+        { key: "chat.hint.nextRunTime", category: "schedule", states: ["S3_READY"] },
       ];
     }
     if (cmdType === "list_bots" || cmdType === "switch_bot") {
@@ -689,8 +693,8 @@ export default function Chat() {
     }
     if (cmdType === "add_source") {
       return [
-        { text: "매일 아침 9시에 자동 실행되게 설정해줘", category: "schedule", states: ["S2_NO_COLLECTION"] },
-        { text: "봇 상태 보여줘", category: "first_run", states: ["S2_NO_COLLECTION"] },
+        { key: "chat.hint.scheduleDailyNine", category: "schedule", states: ["S2_NO_COLLECTION"] },
+        { key: "chat.hint.botStatus", category: "first_run", states: ["S2_NO_COLLECTION"] },
       ];
     }
     return [];
@@ -759,10 +763,10 @@ export default function Chat() {
                           key={i}
                           type="button"
                           className="text-xs px-2.5 py-1.5 rounded-md bg-muted/50 text-muted-foreground hover-elevate active-elevate-2 transition-colors"
-                          onClick={() => handleHintClick(hint.text)}
+                          onClick={() => handleHintClick(t(hint.key))}
                           data-testid={`next-action-${i}`}
                         >
-                          {hint.text}
+                          {t(hint.key)}
                         </button>
                       ))}
                     </div>
