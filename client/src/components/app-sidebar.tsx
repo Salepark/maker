@@ -65,7 +65,7 @@ export function AppSidebar() {
             <span className="text-primary-foreground font-bold text-sm">M</span>
           </div>
           <div className="flex flex-col">
-            <span className="font-semibold text-sm">Makelr</span>
+            <span className="font-semibold text-sm">Make<span className="text-primary">l</span>r</span>
             <span className="text-xs text-muted-foreground">{t("sidebar.subtitle")}</span>
           </div>
         </div>
