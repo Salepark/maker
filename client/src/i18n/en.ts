@@ -345,6 +345,7 @@ export const en: Record<string, string> = {
   "profiles.wizard.createBot": "Create Bot",
   "profiles.wizard.sourceDisclaimer": "Source Disclaimer",
   "profiles.botCreated": "Bot created successfully",
+  "profiles.botCreateFailed": "Failed to create bot",
   "profiles.botDeleted": "Bot deleted",
   "profiles.urlAlreadyAdded": "This source URL is already added",
   "profiles.invalidUrl": "Please enter a valid URL",

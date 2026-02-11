@@ -135,11 +135,15 @@ export default function Profiles() {
         setLocation(`/bots/${data.bot.id}`);
       }
     },
-    onError: async (error: any) => {
-      let msg = "Failed to create bot";
+    onError: (error: any) => {
+      let msg = t("profiles.botCreateFailed");
       try {
-        const body = await error?.response?.json();
-        msg = body?.error || msg;
+        const errStr = error?.message || "";
+        const jsonStart = errStr.indexOf("{");
+        if (jsonStart >= 0) {
+          const parsed = JSON.parse(errStr.slice(jsonStart));
+          msg = parsed?.error || msg;
+        }
       } catch {}
       toast({ title: msg, variant: "destructive" });
     },

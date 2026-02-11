@@ -345,6 +345,7 @@ export const ko: Record<string, string> = {
   "profiles.wizard.createBot": "봇 만들기",
   "profiles.wizard.sourceDisclaimer": "소스 참고사항",
   "profiles.botCreated": "봇이 성공적으로 생성되었습니다",
+  "profiles.botCreateFailed": "봇 생성에 실패했습니다",
   "profiles.botDeleted": "봇 삭제됨",
   "profiles.urlAlreadyAdded": "이 소스 URL은 이미 추가되었습니다",
   "profiles.invalidUrl": "유효한 URL을 입력하세요",
