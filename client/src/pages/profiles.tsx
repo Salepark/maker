@@ -112,6 +112,7 @@ export default function Profiles() {
   const [customSources, setCustomSources] = useState<SuggestedSource[]>([]);
   const [customSourceUrl, setCustomSourceUrl] = useState("");
   const [customSourceName, setCustomSourceName] = useState("");
+  const [customTopicInput, setCustomTopicInput] = useState("");
 
   const { data: botsResponse, isLoading: botsLoading } = useQuery<{ bots: BotData[] }>({
     queryKey: ["/api/bots"],
@@ -178,6 +179,7 @@ export default function Profiles() {
     setCustomSources([]);
     setCustomSourceUrl("");
     setCustomSourceName("");
+    setCustomTopicInput("");
   };
 
   const pickDefaultSources = (allSources: SuggestedSource[], topic: string): Set<string> => {
@@ -561,6 +563,50 @@ export default function Profiles() {
                   {topic.charAt(0).toUpperCase() + topic.slice(1).replace(/_/g, " ")}
                 </Button>
               ))}
+
+              <div className="mt-2 pt-3 border-t border-border space-y-2">
+                <Label className="text-xs text-muted-foreground">{t("profiles.wizard.customTopicLabel")}</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={customTopicInput}
+                    onChange={(e) => {
+                      const sanitized = e.target.value
+                        .toLowerCase()
+                        .replace(/\s+/g, "_")
+                        .replace(/[^a-z0-9_]/g, "")
+                        .replace(/_{2,}/g, "_")
+                        .replace(/^_+/, "");
+                      setCustomTopicInput(sanitized);
+                    }}
+                    placeholder={t("profiles.wizard.customTopicPlaceholder")}
+                    data-testid="input-wizard-custom-topic"
+                  />
+                  <Button
+                    variant="outline"
+                    disabled={
+                      !customTopicInput ||
+                      customTopicInput.length < 2 ||
+                      (selectedPreset?.variantsJson || []).includes(customTopicInput) ||
+                      botsList.some(b => b.key === customTopicInput)
+                    }
+                    onClick={() => {
+                      const cleaned = customTopicInput.replace(/_+$/, "");
+                      if (cleaned.length >= 2) {
+                        handleTopicSelect(cleaned);
+                        setCustomTopicInput("");
+                      }
+                    }}
+                    data-testid="button-wizard-custom-topic-add"
+                  >
+                    {t("profiles.wizard.customTopicUse")}
+                  </Button>
+                </div>
+                {customTopicInput && botsList.some(b => b.key === customTopicInput) && (
+                  <p className="text-xs text-destructive">{t("profiles.wizard.customTopicDuplicate")}</p>
+                )}
+                <p className="text-xs text-muted-foreground">{t("profiles.wizard.customTopicHint")}</p>
+              </div>
+
               <Button variant="ghost" size="sm" onClick={() => setWizardStep("preset")} data-testid="button-wizard-back">
                 <ArrowLeft className="h-4 w-4 mr-1" /> {t("profiles.wizard.back")}
               </Button>
