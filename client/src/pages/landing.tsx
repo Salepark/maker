@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Bot, Layers, Rss, Settings, Zap, ArrowRight, TrendingUp, BookOpen, Building2, Newspaper, ChevronDown, Key, MessageSquare, PenTool, Laptop, Store, ShoppingCart, LogIn, User, Monitor, Users, Landmark, Check } from "lucide-react";
 import { ShareButton } from "@/components/share-button";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/lib/language-provider";
 
@@ -177,6 +178,7 @@ export default function Landing() {
           <div className="flex items-center gap-2">
             <ShareButton />
             <LanguageSwitcher />
+            <ThemeToggle />
             <Button asChild data-testid="button-login-nav">
               <a href="/api/login">{t("landing.nav.signIn")}</a>
             </Button>
