@@ -1,0 +1,140 @@
+Permission Keys v1.0 (Final-ish) — 표준 목록
+A) Web & Sources
+
+WEB_RSS
+
+설명: RSS/Atom 피드 수집 허용
+
+기본값: ON
+
+승인모드 기본: AUTO_ALLOWED
+
+resourceScope 예시: { allowedDomains?: ["reuters.com", ...], maxFetchPerRun?: 50 } (v1.0에서는 옵션)
+
+WEB_FETCH
+
+설명: RSS가 아닌 일반 URL(웹페이지) 가져오기(스크래핑/본문 추출 포함)
+
+기본값: OFF
+
+승인모드 기본: APPROVAL_REQUIRED
+
+resourceScope 예시: { allowedDomains?: [], blockedDomains?: [], maxBytes?: 2_000_000 }
+
+SOURCE_WRITE
+
+설명: 소스 추가/수정/삭제(봇의 sources 관리)
+
+기본값: ON (사용성 위해 ON 권장)
+
+승인모드 기본: APPROVAL_REQUIRED (실수 방지)
+
+resourceScope 예시: { maxSources?: 30 }
+
+B) Scheduling
+
+SCHEDULE_WRITE
+
+설명: 스케줄 생성/수정/중지(“매일 9시 브리핑” 같은 설정)
+
+기본값: ON
+
+승인모드 기본: APPROVAL_REQUIRED
+
+resourceScope 예시: { allowedHours?: [6..12], maxRunsPerDay?: 24 }
+
+C) AI & Data Egress
+
+LLM_USE
+
+설명: LLM 호출 자체를 허용
+
+기본값: ON
+
+승인모드 기본: APPROVAL_REQUIRED (초기 신뢰 확보용)
+
+resourceScope 예시: { providersAllowed?: ["openai","anthropic","google","custom"] }
+
+LLM_EGRESS_LEVEL (값 기반 권한)
+
+설명: LLM로 어떤 수준의 데이터를 보내도 되는지
+
+기본값: METADATA_ONLY
+
+승인모드 기본: AUTO_ALLOWED (단, LLM_USE에서 승인으로 한번 더 걸림)
+
+값(enum):
+
+NO_EGRESS: 외부로 어떤 텍스트도 전송 금지(LLM 호출 자체를 막거나, 상태리포트/로컬 요약으로 대체)
+
+METADATA_ONLY: title, url, sourceName, 날짜, 아주 짧은 snippet(예: 200자 제한)만
+
+FULL_CONTENT_ALLOWED: 본문(contentText)까지 전송 가능
+
+resourceScope 예시: { maxSnippetChars?: 200, allowAttachments?: false }
+
+D) Files (로컬판 핵심 — v1.0에서는 UI만 두고 OFF 권장)
+
+FS_READ
+
+설명: 로컬 파일 읽기(지정 폴더/확장자 범위 내)
+
+기본값: OFF
+
+승인모드 기본: APPROVAL_REQUIRED
+
+resourceScope 예시: { allowedPaths: ["~/Documents/Maker"], allowedExtensions: [".pdf",".docx",".md",".txt"] }
+
+FS_WRITE
+
+설명: 로컬 파일 쓰기/생성(지정 폴더)
+
+기본값: OFF
+
+승인모드 기본: APPROVAL_REQUIRED
+
+resourceScope 예시: { allowedPaths: ["~/Documents/Maker/Output"], maxFileSizeBytes?: 10_000_000 }
+
+FS_DELETE (강제 제한)
+
+설명: 로컬 파일 삭제
+
+기본값: OFF
+
+승인모드 기본: AUTO_DENIED (초기) 또는 APPROVAL_REQUIRED (사용자 원할 때만)
+
+고정 정책: TRASH_ONLY만 허용, 영구삭제는 없음
+
+resourceScope 예시: { mode: "TRASH_ONLY" }
+
+E) Calendar (연동은 v1.0 이후여도 키는 먼저 정의)
+
+CAL_READ
+
+설명: 캘린더 읽기(일정 조회)
+
+기본값: OFF
+
+승인모드 기본: APPROVAL_REQUIRED
+
+resourceScope 예시: { allowedCalendarIds?: ["primary"], maxLookaheadDays?: 30 }
+
+CAL_WRITE
+
+설명: 캘린더 쓰기(일정 생성/수정/삭제)
+
+기본값: OFF
+
+승인모드 기본: APPROVAL_REQUIRED
+
+resourceScope 예시: { allowedCalendarIds?: ["primary"] }
+
+v1.0 “초기 배포(Free)” 추천 기본 세트
+
+ON: WEB_RSS, SOURCE_WRITE, SCHEDULE_WRITE, LLM_USE
+
+LLM_EGRESS_LEVEL: METADATA_ONLY
+
+OFF: WEB_FETCH, FS_*, CAL_*
+
+승인필요: SOURCE_WRITE, SCHEDULE_WRITE, LLM_USE (초기 신뢰 확보용)
