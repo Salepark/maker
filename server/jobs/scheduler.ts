@@ -77,9 +77,8 @@ export function startScheduler() {
     }
   }, { timezone: tz });
 
-  reportTask = cron.schedule("* * * * *", async () => {
+  reportTask = cron.schedule("*/5 * * * *", async () => {
     if (!hasSystemLLMKey()) return;
-    console.log("📊 Running Profile Report generation job...");
     try {
       const results = await generateReportsForDueProfiles();
       lastReportRun = new Date();
@@ -121,7 +120,7 @@ export function getSchedulerStatus() {
     collectInterval: "10 minutes",
     analyzeInterval: systemLLMAvailable ? "5 minutes" : "paused (no system LLM key)",
     draftInterval: systemLLMAvailable ? "5 minutes" : "paused (no system LLM key)",
-    reportInterval: "1 minute (profile-based)",
+    reportInterval: "5 minutes (profile-based)",
     dailyBriefSchedule: systemLLMAvailable ? (process.env.DAILY_BRIEF_CRON || "0 22 * * * (KST)") : "paused (no system LLM key)",
     lastCollect: lastCollect?.toISOString(),
     lastAnalyze: lastAnalyze?.toISOString(),

@@ -23,48 +23,41 @@ async function callLLMForProfile(prompt: string, userId: string, topic: string, 
   throw new Error("No AI key configured. Please add an AI Provider in Settings or contact your administrator.");
 }
 
-// Check if current time matches the profile's scheduleCron
-function shouldRunNow(scheduleCron: string, timezone: string): boolean {
+function isDueToday(scheduleCron: string, timezone: string, lastRunAt: Date | null): boolean {
   try {
     const now = new Date();
-    
-    // Get current time in the profile's timezone
+
     const options = { timeZone: timezone, hour12: false } as const;
     const formatter = new Intl.DateTimeFormat('en-US', {
       ...options,
       hour: 'numeric',
       minute: 'numeric',
       weekday: 'short',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
     });
     const parts = formatter.formatToParts(now);
-    
+
     const currentHour = parseInt(parts.find(p => p.type === 'hour')?.value || '0');
     const currentMinute = parseInt(parts.find(p => p.type === 'minute')?.value || '0');
     const weekdayStr = parts.find(p => p.type === 'weekday')?.value || 'Mon';
-    
-    // Map weekday string to number (0=Sun, 1=Mon, ..., 6=Sat)
+    const currentYear = parts.find(p => p.type === 'year')?.value || '';
+    const currentMonth = parts.find(p => p.type === 'month')?.value || '';
+    const currentDay = parts.find(p => p.type === 'day')?.value || '';
+    const todayKey = `${currentYear}-${currentMonth}-${currentDay}`;
+
     const weekdayMap: Record<string, number> = {
       'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6
     };
     const currentDow = weekdayMap[weekdayStr] ?? 1;
 
-    // Parse cron: "minute hour dayOfMonth month dayOfWeek"
     const cronParts = scheduleCron.trim().split(/\s+/);
     if (cronParts.length < 5) return false;
 
     const [cronMinute, cronHour, , , cronDow] = cronParts;
 
-    // Check minute (allow 0-1 minute tolerance for scheduler timing)
-    const targetMinute = cronMinute === '*' ? currentMinute : parseInt(cronMinute);
-    if (Math.abs(currentMinute - targetMinute) > 1) return false;
-
-    // Check hour
-    const targetHour = cronHour === '*' ? currentHour : parseInt(cronHour);
-    if (currentHour !== targetHour) return false;
-
-    // Check day of week
     if (cronDow !== '*') {
-      // Handle formats like "1-5" (Mon-Fri) or "0,6" (Sat,Sun)
       if (cronDow.includes('-')) {
         const [start, end] = cronDow.split('-').map(Number);
         if (currentDow < start || currentDow > end) return false;
@@ -76,9 +69,32 @@ function shouldRunNow(scheduleCron: string, timezone: string): boolean {
       }
     }
 
+    const targetHour = cronHour === '*' ? 0 : parseInt(cronHour);
+    const targetMinute = cronMinute === '*' ? 0 : parseInt(cronMinute);
+    const scheduledMinuteOfDay = targetHour * 60 + targetMinute;
+    const currentMinuteOfDay = currentHour * 60 + currentMinute;
+
+    if (currentMinuteOfDay < scheduledMinuteOfDay) return false;
+
+    if (lastRunAt) {
+      const lastRunFormatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      });
+      const lastRunParts = lastRunFormatter.formatToParts(lastRunAt);
+      const lastRunYear = lastRunParts.find(p => p.type === 'year')?.value || '';
+      const lastRunMonth = lastRunParts.find(p => p.type === 'month')?.value || '';
+      const lastRunDay = lastRunParts.find(p => p.type === 'day')?.value || '';
+      const lastRunKey = `${lastRunYear}-${lastRunMonth}-${lastRunDay}`;
+
+      if (lastRunKey === todayKey) return false;
+    }
+
     return true;
   } catch (error) {
-    console.error('[ReportJob] Error parsing scheduleCron:', error);
+    console.error('[ReportJob] Error in isDueToday:', error);
     return false;
   }
 }
@@ -100,15 +116,8 @@ export async function generateReportsForDueProfiles(): Promise<ReportJobResult[]
 
   for (const profile of activeProfiles) {
     try {
-      if (!shouldRunNow(profile.scheduleCron, profile.timezone)) {
+      if (!isDueToday(profile.scheduleCron, profile.timezone, profile.lastRunAt ? new Date(profile.lastRunAt) : null)) {
         continue;
-      }
-
-      if (profile.lastRunAt) {
-        const hoursSinceLastRun = (now.getTime() - new Date(profile.lastRunAt).getTime()) / (1000 * 60 * 60);
-        if (hoursSinceLastRun < 23) {
-          continue;
-        }
       }
 
       console.log(`[ReportJob] Processing profile: ${profile.name} (id=${profile.id}, topic=${profile.topic})`);
