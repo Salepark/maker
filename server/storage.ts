@@ -2,14 +2,15 @@ import { db } from "./db";
 import { 
   sources, items, analysis, drafts, posts, reports, chatMessages, chatThreads, settings,
   presets, profiles, profileSources, outputs, outputItems,
-  bots, botSettings, sourceBotLinks, llmProviders,
+  bots, botSettings, sourceBotLinks, llmProviders, jobRuns,
   type Source, type Item, type Analysis, type Draft, type Post, type Report, 
   type InsertSource, type InsertItem, type InsertAnalysis, type InsertDraft, type InsertReport, 
   type ChatMessage, type InsertChatMessage, type ChatThread, type InsertChatThread, type Setting,
   type Preset, type InsertPreset, type Profile, type InsertProfile, 
   type Output, type InsertOutput, type OutputItem,
   type Bot, type InsertBot, type BotSettings, type InsertBotSettings, type SourceBotLink,
-  type LlmProvider, type InsertLlmProvider
+  type LlmProvider, type InsertLlmProvider,
+  type JobRun, type InsertJobRun
 } from "@shared/schema";
 import { eq, desc, sql, and, count, gte, lt, lte, or, isNull, inArray } from "drizzle-orm";
 
@@ -174,6 +175,12 @@ export interface IStorage {
     settings: Partial<Omit<InsertBotSettings, 'botId'>>;
     sourceData: Array<{ name: string; url: string; type?: string; topic: string }>;
   }): Promise<Bot>;
+
+  // Job Runs
+  createJobRun(data: Omit<InsertJobRun, 'id'>): Promise<JobRun>;
+  finishJobRun(id: number, patch: Partial<InsertJobRun>): Promise<JobRun | null>;
+  listJobRunsForBot(userId: string, botId: number, limit?: number): Promise<JobRun[]>;
+  getLastJobRunForBot(userId: string, botId: number): Promise<JobRun | null>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1497,6 +1504,31 @@ export class DatabaseStorage implements IStorage {
     const bot = await this.getBotByUserAndKey(userId, topic);
     if (!bot) return null;
     return this.resolveLLMForBot(bot.id);
+  }
+
+  async createJobRun(data: Omit<InsertJobRun, 'id'>): Promise<JobRun> {
+    const [run] = await db.insert(jobRuns).values(data as any).returning();
+    return run;
+  }
+
+  async finishJobRun(id: number, patch: Partial<InsertJobRun>): Promise<JobRun | null> {
+    const [run] = await db.update(jobRuns).set(patch as any).where(eq(jobRuns.id, id)).returning();
+    return run || null;
+  }
+
+  async listJobRunsForBot(userId: string, botId: number, limit: number = 20): Promise<JobRun[]> {
+    return db.select().from(jobRuns)
+      .where(and(eq(jobRuns.userId, userId), eq(jobRuns.botId, botId)))
+      .orderBy(desc(jobRuns.startedAt))
+      .limit(limit);
+  }
+
+  async getLastJobRunForBot(userId: string, botId: number): Promise<JobRun | null> {
+    const [run] = await db.select().from(jobRuns)
+      .where(and(eq(jobRuns.userId, userId), eq(jobRuns.botId, botId)))
+      .orderBy(desc(jobRuns.startedAt))
+      .limit(1);
+    return run || null;
   }
 }
 

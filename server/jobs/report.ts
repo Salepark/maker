@@ -2,6 +2,7 @@ import { storage } from "../storage";
 import { callLLM, callLLMWithConfig, callLLMWithTimeout, hasSystemLLMKey, type LLMConfig } from "../llm/client";
 import { buildDailyBriefPrompt, ReportConfig } from "../llm/prompts";
 import { analyzeNewItemsBySourceIds } from "./analyze_items";
+import { startRun, endRunOk, endRunError, endRunSkipped } from "./runLogger";
 
 interface ReportJobResult {
   profileId: number;
@@ -124,8 +125,19 @@ export async function generateReportsForDueProfiles(): Promise<ReportJobResult[]
 
       const userBots = await storage.listBots(profile.userId);
       const matchingBot = userBots.find(b => b.key === profile.topic);
+
+      const runId = await startRun({
+        userId: profile.userId,
+        botId: matchingBot?.id ?? null,
+        botKey: profile.topic,
+        jobType: "report",
+        trigger: "schedule",
+        meta: { profileId: profile.id, scheduleCron: profile.scheduleCron, tz: profile.timezone },
+      });
+
       if (matchingBot && !matchingBot.isEnabled) {
         console.log(`[ReportJob] Bot '${matchingBot.name}' is disabled, skipping profile ${profile.id}`);
+        await endRunSkipped(runId, "BOT_DISABLED");
         continue;
       }
 
@@ -133,6 +145,7 @@ export async function generateReportsForDueProfiles(): Promise<ReportJobResult[]
       
       if (sourceIds.length === 0) {
         console.log(`[ReportJob] Profile ${profile.id} has no sources linked, skipping`);
+        await endRunSkipped(runId, "NO_SOURCES");
         continue;
       }
 
@@ -143,6 +156,7 @@ export async function generateReportsForDueProfiles(): Promise<ReportJobResult[]
       const exists = await storage.outputExists(profile.id, periodStart, periodEnd);
       if (exists) {
         console.log(`[ReportJob] Report already exists for profile ${profile.id} in this period, skipping`);
+        await endRunSkipped(runId, "ALREADY_EXISTS");
         continue;
       }
 
@@ -162,6 +176,12 @@ export async function generateReportsForDueProfiles(): Promise<ReportJobResult[]
       });
 
       console.log(`[ReportJob] Fast report ${fastResult.reportId} created for profile ${profile.id}, scheduling background upgrade...`);
+
+      await endRunOk(runId, {
+        outputId: fastResult.reportId,
+        reportStage: "fast",
+        itemsCollected: fastResult.itemsCount,
+      });
 
       results.push(fastResult);
 

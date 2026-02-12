@@ -505,3 +505,37 @@ export const settings = pgTable("settings", {
 });
 
 export type Setting = typeof settings.$inferSelect;
+
+// ============================================
+// JOB RUNS - Execution log for all jobs
+// ============================================
+export const jobRuns = pgTable("job_runs", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  botId: integer("bot_id").references(() => bots.id),
+  botKey: text("bot_key").notNull(),
+  jobType: text("job_type").notNull(),
+  trigger: text("trigger").notNull(),
+  status: text("status").notNull(),
+  startedAt: timestamp("started_at").notNull().defaultNow(),
+  finishedAt: timestamp("finished_at"),
+  durationMs: integer("duration_ms"),
+  itemsCollected: integer("items_collected"),
+  itemsAnalyzed: integer("items_analyzed"),
+  outputId: integer("output_id"),
+  reportStage: text("report_stage"),
+  errorCode: text("error_code"),
+  errorMessage: text("error_message"),
+  errorDetailJson: jsonb("error_detail_json"),
+  metaJson: jsonb("meta_json"),
+}, (table) => [
+  index("idx_job_runs_user_bot").on(table.userId, table.botId, table.startedAt),
+  index("idx_job_runs_status").on(table.status, table.startedAt),
+]);
+
+export const insertJobRunSchema = createInsertSchema(jobRuns).omit({
+  id: true,
+});
+
+export type JobRun = typeof jobRuns.$inferSelect;
+export type InsertJobRun = z.infer<typeof insertJobRunSchema>;

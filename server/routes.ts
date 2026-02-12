@@ -1237,6 +1237,106 @@ export async function registerRoutes(
   });
 
   // ============================================
+  // JOB RUNS / EXECUTION HISTORY API
+  // ============================================
+  app.get("/api/bots/:botId/runs", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      const botId = parseInt(req.params.botId);
+      if (isNaN(botId)) return res.status(400).json({ error: "Invalid botId" });
+      const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
+      const runs = await storage.listJobRunsForBot(userId, botId, limit);
+      res.json(runs);
+    } catch (error) {
+      handleApiError(res, error, "Failed to list job runs");
+    }
+  });
+
+  app.get("/api/bots/:botId/last-run", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      const botId = parseInt(req.params.botId);
+      if (isNaN(botId)) return res.status(400).json({ error: "Invalid botId" });
+      const run = await storage.getLastJobRunForBot(userId, botId);
+      res.json(run || null);
+    } catch (error) {
+      handleApiError(res, error, "Failed to get last run");
+    }
+  });
+
+  app.get("/api/system/status", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      const bots = await storage.listBots(userId);
+      const botStatuses = await Promise.all(
+        bots.map(async (bot) => {
+          const lastRun = await storage.getLastJobRunForBot(userId, bot.id);
+          return {
+            botId: bot.id,
+            botName: bot.name,
+            botKey: bot.key,
+            isEnabled: bot.isEnabled,
+            lastRun: lastRun ? {
+              id: lastRun.id,
+              status: lastRun.status,
+              jobType: lastRun.jobType,
+              trigger: lastRun.trigger,
+              startedAt: lastRun.startedAt,
+              finishedAt: lastRun.finishedAt,
+              durationMs: lastRun.durationMs,
+              itemsCollected: lastRun.itemsCollected,
+              errorCode: lastRun.errorCode,
+            } : null,
+          };
+        })
+      );
+      res.json({ bots: botStatuses, timestamp: new Date().toISOString() });
+    } catch (error) {
+      handleApiError(res, error, "Failed to get system status");
+    }
+  });
+
+  app.get("/api/bots/:botId/diagnosis", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      const botId = parseInt(req.params.botId);
+      if (isNaN(botId)) return res.status(400).json({ error: "Invalid botId" });
+      const bot = await storage.getBot(botId, userId);
+      if (!bot) return res.status(404).json({ error: "Bot not found" });
+
+      const { diagnoseBot } = await import("./services/diagnostics");
+      const diagnosis = await diagnoseBot(userId, bot);
+      res.json(diagnosis);
+    } catch (error) {
+      handleApiError(res, error, "Failed to diagnose bot");
+    }
+  });
+
+  app.get("/api/diagnostics", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      const bots = await storage.listBots(userId);
+      const { diagnoseBot } = await import("./services/diagnostics");
+      const results = await Promise.all(
+        bots.map(async (bot) => ({
+          botId: bot.id,
+          botName: bot.name,
+          botKey: bot.key,
+          ...(await diagnoseBot(userId, bot)),
+        }))
+      );
+      res.json(results);
+    } catch (error) {
+      handleApiError(res, error, "Failed to run diagnostics");
+    }
+  });
+
+  // ============================================
   // SOURCES API (with userId support)
   // ============================================
   app.get("/api/user-sources", isAuthenticated, async (req, res) => {

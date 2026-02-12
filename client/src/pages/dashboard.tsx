@@ -127,8 +127,16 @@ const statusColors: Record<string, string> = {
   skipped: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200",
 };
 
+interface DiagBotResult {
+  botId: number;
+  botName: string;
+  botKey: string;
+  health: "healthy" | "warning" | "error";
+  items: { rule: string; severity: "error" | "warning" | "info"; messageEn: string; messageKo: string }[];
+}
+
 export default function Dashboard() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [, setLocation] = useLocation();
 
   const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
@@ -157,6 +165,12 @@ export default function Dashboard() {
     queryKey: ["/api/llm-providers"],
     queryFn: () => fetch("/api/llm-providers", { credentials: "include" }).then(r => r.json()),
   });
+  const { data: diagResults } = useQuery<DiagBotResult[]>({
+    queryKey: ["/api/diagnostics"],
+    refetchInterval: 60000,
+    enabled: botsList.length > 0,
+  });
+
   const hasProviders = (providersResponse?.providers?.length ?? 0) > 0;
   const isNewUser = botsList.length === 0;
 
@@ -459,6 +473,36 @@ export default function Dashboard() {
                 </span>
               </div>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {diagResults && diagResults.some(d => d.health !== "healthy") && (
+        <Card data-testid="card-dashboard-diagnostics">
+          <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4" />
+              {t("diag.title")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0 grid gap-2">
+            {diagResults
+              .filter(d => d.health !== "healthy")
+              .map(d => (
+                <div key={d.botId} className="space-y-1">
+                  <Link href={`/bots/${d.botId}`}>
+                    <div className="flex items-center gap-2 hover-elevate p-2 rounded-md cursor-pointer" data-testid={`diag-bot-${d.botId}`}>
+                      <Badge variant={d.health === "error" ? "destructive" : "outline"}>
+                        {d.botName}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {d.items.map(i => language === "ko" ? i.messageKo : i.messageEn).join(" · ")}
+                      </span>
+                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground ml-auto shrink-0" />
+                    </div>
+                  </Link>
+                </div>
+              ))}
           </CardContent>
         </Card>
       )}

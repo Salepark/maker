@@ -13,7 +13,35 @@ import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/lib/language-provider";
-import { ArrowLeft, Save, Loader2, Brain, Clock, FileText, Filter, Rss, AlertTriangle, Layers, Plus, X } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Brain, Clock, FileText, Filter, Rss, AlertTriangle, Layers, Plus, X, CheckCircle2, XCircle, Timer, SkipForward, Play, Activity, Info } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+
+interface JobRunData {
+  id: number;
+  botId: number;
+  botKey: string;
+  jobType: string;
+  trigger: string;
+  status: string;
+  startedAt: string;
+  finishedAt: string | null;
+  durationMs: number | null;
+  itemsCollected: number | null;
+  errorCode: string | null;
+  errorMessage: string | null;
+}
+
+interface DiagnosticItem {
+  rule: string;
+  severity: "error" | "warning" | "info";
+  messageEn: string;
+  messageKo: string;
+}
+
+interface DiagnosisData {
+  health: "healthy" | "warning" | "error";
+  items: DiagnosticItem[];
+}
 
 interface BotSettings {
   id: number;
@@ -84,7 +112,7 @@ export default function BotDetail() {
   const [, params] = useRoute("/bots/:id");
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const botId = params?.id ? parseInt(params.id) : null;
 
   const [name, setName] = useState("");
@@ -126,6 +154,20 @@ export default function BotDetail() {
   const { data: providersResponse } = useQuery<{ providers: LlmProviderSafe[] }>({
     queryKey: ["/api/llm-providers"],
     queryFn: () => fetch("/api/llm-providers", { credentials: "include" }).then(r => r.json()),
+  });
+
+  const { data: runsData } = useQuery<JobRunData[]>({
+    queryKey: ["/api/bots", botId, "runs"],
+    queryFn: () => fetch(`/api/bots/${botId}/runs?limit=50`, { credentials: "include" }).then(r => r.json()),
+    enabled: !!botId,
+    refetchInterval: 30000,
+  });
+
+  const { data: diagnosisData } = useQuery<DiagnosisData>({
+    queryKey: ["/api/bots", botId, "diagnosis"],
+    queryFn: () => fetch(`/api/bots/${botId}/diagnosis`, { credentials: "include" }).then(r => r.json()),
+    enabled: !!botId,
+    refetchInterval: 60000,
   });
 
   const bot = botResponse?.bot;
@@ -604,6 +646,132 @@ export default function BotDetail() {
             )}
           </CardContent>
         </Card>
+
+        {diagnosisData && diagnosisData.items.length > 0 && (
+          <Card data-testid="card-bot-diagnosis">
+            <CardHeader className="flex flex-row items-center justify-between gap-2">
+              <CardTitle className="flex items-center gap-2">
+                <Activity className="h-5 w-5" />
+                {t("diag.title")}
+              </CardTitle>
+              <Badge
+                variant={diagnosisData.health === "healthy" ? "secondary" : diagnosisData.health === "warning" ? "outline" : "destructive"}
+                data-testid="badge-bot-health"
+              >
+                {diagnosisData.health === "healthy"
+                  ? t("diag.healthy")
+                  : diagnosisData.health === "warning"
+                    ? t("diag.warnings", { count: String(diagnosisData.items.filter(i => i.severity === "warning").length) })
+                    : t("diag.errors", { count: String(diagnosisData.items.filter(i => i.severity === "error").length) })}
+              </Badge>
+            </CardHeader>
+            <CardContent className="grid gap-2">
+              {diagnosisData.items.map((item, idx) => (
+                <div key={idx} className="flex items-start gap-2 p-2 rounded-md border" data-testid={`diag-item-${item.rule}`}>
+                  {item.severity === "error" && <XCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />}
+                  {item.severity === "warning" && <AlertTriangle className="h-4 w-4 text-yellow-500 shrink-0 mt-0.5" />}
+                  {item.severity === "info" && <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />}
+                  <span className="text-sm">{language === "ko" ? item.messageKo : item.messageEn}</span>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
+        <Card data-testid="card-execution-history">
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              {t("runs.title")}
+            </CardTitle>
+            {runsData && runsData.length > 0 && (
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="outline" size="sm" data-testid="button-view-all-runs">
+                    {t("runs.viewAll")}
+                  </Button>
+                </SheetTrigger>
+                <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+                  <SheetHeader>
+                    <SheetTitle>{t("runs.title")}</SheetTitle>
+                  </SheetHeader>
+                  <div className="grid gap-3 mt-4">
+                    {runsData.map(run => (
+                      <RunRow key={run.id} run={run} t={t} language={language} />
+                    ))}
+                  </div>
+                </SheetContent>
+              </Sheet>
+            )}
+          </CardHeader>
+          <CardContent>
+            {!runsData || runsData.length === 0 ? (
+              <p className="text-sm text-muted-foreground" data-testid="text-runs-empty">{t("runs.empty")}</p>
+            ) : (
+              <div className="grid gap-2">
+                {runsData.slice(0, 5).map(run => (
+                  <RunRow key={run.id} run={run} t={t} language={language} />
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function RunStatusIcon({ status }: { status: string }) {
+  switch (status) {
+    case "ok": return <CheckCircle2 className="h-4 w-4 text-green-500" />;
+    case "error": return <XCircle className="h-4 w-4 text-destructive" />;
+    case "timeout": return <Timer className="h-4 w-4 text-yellow-500" />;
+    case "skipped": return <SkipForward className="h-4 w-4 text-muted-foreground" />;
+    case "started": return <Play className="h-4 w-4 text-blue-500" />;
+    default: return <Activity className="h-4 w-4 text-muted-foreground" />;
+  }
+}
+
+function formatDuration(ms: number | null): string {
+  if (ms == null) return "-";
+  if (ms < 1000) return `${ms}ms`;
+  return `${(ms / 1000).toFixed(1)}s`;
+}
+
+function formatTimeAgo(dateStr: string, language: string): string {
+  const diffMs = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return language === "ko" ? "방금 전" : "just now";
+  if (mins < 60) return language === "ko" ? `${mins}분 전` : `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return language === "ko" ? `${hours}시간 전` : `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return language === "ko" ? `${days}일 전` : `${days}d ago`;
+}
+
+function RunRow({ run, t, language }: { run: JobRunData; t: (key: string) => string; language: string }) {
+  return (
+    <div className="flex items-center justify-between gap-2 p-2 rounded-md border" data-testid={`run-row-${run.id}`}>
+      <div className="flex items-center gap-2 min-w-0">
+        <RunStatusIcon status={run.status} />
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Badge variant="secondary">{t(`runs.jobType.${run.jobType}`) || run.jobType}</Badge>
+            <span className="text-xs text-muted-foreground">{t(`runs.trigger.${run.trigger}`) || run.trigger}</span>
+          </div>
+          {run.status === "error" && run.errorMessage && (
+            <p className="text-xs text-destructive mt-0.5 truncate">{run.errorMessage}</p>
+          )}
+          {run.status === "skipped" && run.errorCode && (
+            <p className="text-xs text-muted-foreground mt-0.5">{run.errorCode}</p>
+          )}
+        </div>
+      </div>
+      <div className="text-right shrink-0">
+        <p className="text-xs text-muted-foreground">{formatTimeAgo(run.startedAt, language)}</p>
+        {run.durationMs != null && run.durationMs > 0 && (
+          <p className="text-xs text-muted-foreground">{formatDuration(run.durationMs)}</p>
+        )}
       </div>
     </div>
   );

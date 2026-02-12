@@ -2,7 +2,7 @@ import { db } from "./db";
 import {
   sources, items, analysis, drafts, posts, reports, chatMessages, chatThreads, settings,
   presets, profiles, profileSources, outputs, outputItems,
-  bots, botSettings, sourceBotLinks, llmProviders,
+  bots, botSettings, sourceBotLinks, llmProviders, jobRuns,
 } from "../shared/schema.sqlite";
 import type {
   Source, Item, Analysis, Draft, Post, Report,
@@ -11,7 +11,8 @@ import type {
   Preset, InsertPreset, Profile, InsertProfile,
   Output, InsertOutput, OutputItem,
   Bot, InsertBot, BotSettings, InsertBotSettings, SourceBotLink,
-  LlmProvider, InsertLlmProvider
+  LlmProvider, InsertLlmProvider,
+  JobRun, InsertJobRun
 } from "@shared/schema";
 import type { IStorage } from "./storage";
 import { eq, desc, sql, and, count, gte, lt, lte, or, isNull, inArray } from "drizzle-orm";
@@ -1298,5 +1299,30 @@ export class SqliteStorage implements IStorage {
     const bot = await this.getBotByUserAndKey(userId, topic);
     if (!bot) return null;
     return this.resolveLLMForBot(bot.id);
+  }
+
+  async createJobRun(data: Omit<InsertJobRun, 'id'>): Promise<JobRun> {
+    const [run] = await db.insert(jobRuns).values(data as any).returning();
+    return run as any;
+  }
+
+  async finishJobRun(id: number, patch: Partial<InsertJobRun>): Promise<JobRun | null> {
+    const [run] = await db.update(jobRuns).set(patch as any).where(eq(jobRuns.id, id)).returning();
+    return (run as any) || null;
+  }
+
+  async listJobRunsForBot(userId: string, botId: number, limit: number = 20): Promise<JobRun[]> {
+    return db.select().from(jobRuns)
+      .where(and(eq(jobRuns.userId, userId), eq(jobRuns.botId, botId)))
+      .orderBy(desc(jobRuns.startedAt))
+      .limit(limit) as any;
+  }
+
+  async getLastJobRunForBot(userId: string, botId: number): Promise<JobRun | null> {
+    const [run] = await db.select().from(jobRuns)
+      .where(and(eq(jobRuns.userId, userId), eq(jobRuns.botId, botId)))
+      .orderBy(desc(jobRuns.startedAt))
+      .limit(1);
+    return (run as any) || null;
   }
 }

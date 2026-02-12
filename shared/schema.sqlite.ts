@@ -258,3 +258,27 @@ export const settings = sqliteTable("settings", {
   value: text("value").notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => Date.now()),
 });
+
+export const jobRuns = sqliteTable("job_runs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id").notNull().references(() => users.id),
+  botId: integer("bot_id").references(() => bots.id),
+  botKey: text("bot_key").notNull(),
+  jobType: text("job_type").notNull(),
+  trigger: text("trigger").notNull(),
+  status: text("status").notNull(),
+  startedAt: integer("started_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => Date.now()),
+  finishedAt: integer("finished_at", { mode: "timestamp_ms" }),
+  durationMs: integer("duration_ms"),
+  itemsCollected: integer("items_collected"),
+  itemsAnalyzed: integer("items_analyzed"),
+  outputId: integer("output_id"),
+  reportStage: text("report_stage"),
+  errorCode: text("error_code"),
+  errorMessage: text("error_message"),
+  errorDetailJson: text("error_detail_json", { mode: "json" }),
+  metaJson: text("meta_json", { mode: "json" }),
+}, (table) => [
+  index("idx_job_runs_user_bot").on(table.userId, table.botId, table.startedAt),
+  index("idx_job_runs_status").on(table.status, table.startedAt),
+]);

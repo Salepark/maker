@@ -5,6 +5,7 @@ import { analyzeNewItemsBySourceIds } from "../jobs/analyze_items";
 import { generateFastReport, upgradeToFullReport } from "../jobs/report";
 import { hasSystemLLMKey } from "../llm/client";
 import { storage } from "../storage";
+import { startRun, endRunOk, endRunError, endRunTimeout } from "../jobs/runLogger";
 
 export interface ExecutionResult {
   ok: boolean;
@@ -542,14 +543,41 @@ async function execPipelineRun(
   const lang = (args.lang) || "en";
   const ko = lang === "ko";
 
+  const bot = await resolveBot(userId, cmd.botKey);
+  const runId = await startRun({
+    userId,
+    botId: bot?.id ?? null,
+    botKey: cmd.botKey || bot?.key || "unknown",
+    jobType: "pipeline",
+    trigger: "console",
+    meta: { scheduleTimeLocal: args.scheduleTimeLocal, lang },
+  });
+
   try {
-    return await withTimeout(
+    const result = await withTimeout(
       execPipelineRunInner(userId, cmd, onStepComplete),
       PIPELINE_HARD_TIMEOUT_MS,
       "pipeline_run",
     );
+
+    if (result.ok) {
+      const reportStep = result.result?.steps?.find((s: any) => s.step === "report" && s.ok);
+      await endRunOk(runId, {
+        outputId: reportStep?.data?.reportId,
+        reportStage: "fast",
+        itemsCollected: reportStep?.data?.itemsCount,
+      });
+    } else {
+      await endRunError(runId, {
+        errorCode: "PIPELINE_FAILED",
+        errorMessage: result.assistantMessage?.slice(0, 200) || "Pipeline failed",
+      });
+    }
+
+    return result;
   } catch (error: any) {
     if (error instanceof PipelineTimeoutError) {
+      await endRunTimeout(runId, "Pipeline hard timeout (25s)");
       if (onStepComplete) {
         await onStepComplete({
           step: "timeout",
@@ -568,6 +596,11 @@ async function execPipelineRun(
         result: { timedOut: true },
       };
     }
+    await endRunError(runId, {
+      errorCode: "PIPELINE_ERROR",
+      errorMessage: String(error.message || error).slice(0, 200),
+      errorDetailJson: { stack: String(error.stack || "").slice(0, 500) },
+    });
     throw error;
   }
 }
