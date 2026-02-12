@@ -107,6 +107,17 @@ Files in `electron/` directory prepare the app for desktop distribution:
 3. UI auto-refreshes to show upgraded report when ready
 This eliminates the previous 60s blocking behavior on manual report generation.
 
+### Pipeline Reliability ("running... 근절 패키지")
+Three-layer timeout cascade eliminates infinite "running..." waits:
+- **Server hard timeout (25s)**: `withTimeout` wrapper on `execPipelineRunInner`; if exceeded, sends "timeout" step message and returns graceful response with background upgrade continuing.
+- **Client stall detection (12s)**: Monitors last pipeline message timestamp; if no new messages for 12s, auto-terminates with toast notification.
+- **Client hard timeout (30s)**: Absolute fallback; terminates pipeline indicator with bilingual toast.
+- **Immediate feedback**: Pipeline emits "start" step message instantly before any async work begins. Schedule saves happen first (sub-second), then collect, then report.
+- **Step-by-step progress**: Each pipeline phase (start → schedule → collect → report) emits a bilingual progress message saved to DB and shown in UI.
+- **Elapsed timer**: Pipeline indicator shows running seconds counter.
+- **Bilingual progress text**: `getPipelineProgressLabel` supports EN/KO.
+- Step types: `"start" | "collect" | "analyze" | "report" | "schedule" | "timeout"`.
+
 ## External Dependencies
 
 ### Environment Variables

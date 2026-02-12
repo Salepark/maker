@@ -192,23 +192,27 @@ function getHintsForState(state: ConsoleState): Hint[] {
 
 function getPipelineStepLabel(step: string, t: (key: string) => string): string {
   switch (step) {
+    case "start": return t("chat.pipeline.start");
     case "collect": return t("chat.pipeline.collect");
     case "analyze": return t("chat.pipeline.analyze");
     case "report": return t("chat.pipeline.report");
     case "schedule": return t("chat.pipeline.schedule");
+    case "timeout": return t("chat.pipeline.timeout");
     default: return step;
   }
 }
 
-function getPipelineProgressLabel(completedSteps: string[]): string {
+function getPipelineProgressLabel(completedSteps: string[], ko: boolean): string {
   const last = completedSteps[completedSteps.length - 1];
-  if (!last) return "Collecting data...";
+  if (!last) return ko ? "자료 수집 중..." : "Collecting data...";
   switch (last) {
-    case "collect": return "Generating report...";
-    case "analyze": return "Generating report...";
-    case "report": return "Finishing up...";
-    case "schedule": return "Finishing up...";
-    default: return "Processing...";
+    case "start": return ko ? "자료 수집 중..." : "Collecting data...";
+    case "schedule": return ko ? "자료 수집 중..." : "Collecting data...";
+    case "collect": return ko ? "브리핑 생성 중..." : "Generating briefing...";
+    case "analyze": return ko ? "브리핑 생성 중..." : "Generating briefing...";
+    case "report": return ko ? "마무리 중..." : "Finishing up...";
+    case "timeout": return ko ? "완료" : "Done";
+    default: return ko ? "처리 중..." : "Processing...";
   }
 }
 
@@ -502,8 +506,15 @@ export default function Chat() {
     refetchInterval: pipelineRunning ? 1500 : 5000,
   });
 
+  const [pipelineStartTime, setPipelineStartTime] = useState<number | null>(null);
+  const [pipelineElapsed, setPipelineElapsed] = useState(0);
+  const [lastProgressTime, setLastProgressTime] = useState<number>(0);
+  const isKo = useMemo(() => {
+    try { return t("chat.title") !== "Console"; } catch { return false; }
+  }, [t]);
+
   const pipelineProgressText = useMemo(() => {
-    if (!pipelineRunning || !messages) return "자료 수집 중...";
+    if (!pipelineRunning || !messages) return isKo ? "준비 중..." : "Preparing...";
     const completedSteps: string[] = [];
     for (let i = messages.length - 1; i >= 0; i--) {
       const m = messages[i];
@@ -512,31 +523,94 @@ export default function Chat() {
       }
       if (m.commandJson?.type === "pipeline_run" && m.kind !== "command_result") break;
     }
-    return getPipelineProgressLabel(completedSteps);
-  }, [messages, pipelineRunning]);
+    return getPipelineProgressLabel(completedSteps, isKo);
+  }, [messages, pipelineRunning, isKo]);
+
+  const endPipeline = () => {
+    setPipelineRunning(false);
+    setPipelineStartTime(null);
+    setLastProgressTime(0);
+    setPipelineElapsed(0);
+  };
 
   useEffect(() => {
     if (pipelineRunning && messages && messages.length > 0) {
-      const recentMsgs = messages.slice(-5);
+      const recentMsgs = messages.slice(-8);
       const hasFinalPipelineMsg = recentMsgs.some(
         m => m.commandJson?.type === "pipeline_run" && m.kind === "command_result"
+      );
+      const hasTimeoutStep = recentMsgs.some(
+        m => m.commandJson?.type === "pipeline_step" && m.commandJson?.step === "timeout"
       );
       const hasFailedStep = recentMsgs.some(
         m => m.commandJson?.type === "pipeline_step" && m.resultJson?.ok === false
       );
-      if (hasFinalPipelineMsg || hasFailedStep) {
-        setPipelineRunning(false);
+      if (hasFinalPipelineMsg || hasTimeoutStep || hasFailedStep) {
+        endPipeline();
+      }
+    }
+  }, [messages, pipelineRunning]);
+
+  useEffect(() => {
+    if (!pipelineRunning || !messages) return;
+    const pipelineMsgs = messages.filter(
+      m => m.commandJson?.type === "pipeline_step" || m.commandJson?.type === "pipeline_run"
+    );
+    if (pipelineMsgs.length > 0) {
+      const lastMsg = pipelineMsgs[pipelineMsgs.length - 1];
+      const ts = new Date(lastMsg.createdAt).getTime();
+      if (ts > lastProgressTime) {
+        setLastProgressTime(ts);
       }
     }
   }, [messages, pipelineRunning]);
 
   useEffect(() => {
     if (!pipelineRunning) return;
+    const STALL_THRESHOLD_MS = 12_000;
+    const interval = setInterval(() => {
+      if (lastProgressTime > 0) {
+        const stallDuration = Date.now() - lastProgressTime;
+        if (stallDuration > STALL_THRESHOLD_MS) {
+          endPipeline();
+          toast({
+            title: isKo ? "파이프라인 완료" : "Pipeline finished",
+            description: isKo
+              ? "빠른 브리핑이 제공되었습니다. 심화 분석은 백그라운드에서 계속됩니다."
+              : "Quick briefing delivered. Deep analysis continues in the background.",
+          });
+        }
+      }
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [pipelineRunning, lastProgressTime, isKo, toast]);
+
+  useEffect(() => {
+    if (!pipelineRunning) return;
     const timeout = setTimeout(() => {
-      setPipelineRunning(false);
-    }, 45000);
+      endPipeline();
+      toast({
+        title: isKo ? "시간 초과" : "Timed out",
+        description: isKo
+          ? "파이프라인이 시간 초과되었습니다. Reports 페이지에서 결과를 확인하세요."
+          : "Pipeline timed out. Check the Reports page for any results.",
+      });
+    }, 30000);
     return () => clearTimeout(timeout);
-  }, [pipelineRunning]);
+  }, [pipelineRunning, isKo, toast]);
+
+  useEffect(() => {
+    if (!pipelineRunning) {
+      setPipelineElapsed(0);
+      return;
+    }
+    const interval = setInterval(() => {
+      if (pipelineStartTime) {
+        setPipelineElapsed(Math.floor((Date.now() - pipelineStartTime) / 1000));
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [pipelineRunning, pipelineStartTime]);
 
   const currentThread = threads?.find(t => t.id === threadId);
   const currentActiveBotId = currentThread?.activeBotId ?? null;
@@ -622,6 +696,9 @@ export default function Chat() {
       setConfirmingId(null);
       if (data?.mode === "pipeline_started") {
         setPipelineRunning(true);
+        setPipelineStartTime(Date.now());
+        setLastProgressTime(Date.now());
+        setPipelineElapsed(0);
       }
       queryClient.invalidateQueries({ queryKey: ["/api/chat/threads", threadId, "messages"] });
       queryClient.invalidateQueries({ queryKey: ["/api/chat/threads"] });
@@ -778,9 +855,16 @@ export default function Chat() {
           </div>
 
           {pipelineRunning && (
-            <div className="px-4 py-2 border-t border-border bg-muted/50 flex items-center gap-2" data-testid="pipeline-running-indicator">
-              <Loader2 className="h-4 w-4 animate-spin text-primary" />
-              <span className="text-sm text-muted-foreground">{pipelineProgressText}</span>
+            <div className="px-4 py-2 border-t border-border bg-muted/50 flex items-center gap-2 justify-between" data-testid="pipeline-running-indicator">
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                <span className="text-sm text-muted-foreground">{pipelineProgressText}</span>
+              </div>
+              {pipelineElapsed > 0 && (
+                <span className="text-xs text-muted-foreground tabular-nums" data-testid="text-pipeline-elapsed">
+                  {pipelineElapsed}s
+                </span>
+              )}
             </div>
           )}
 

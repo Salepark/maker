@@ -240,13 +240,29 @@ async function execRunNow(userId: string, cmd: ChatCommand): Promise<ExecutionRe
 }
 
 export interface PipelineStepResult {
-  step: "collect" | "analyze" | "report" | "schedule";
+  step: "collect" | "analyze" | "report" | "schedule" | "start" | "timeout";
   ok: boolean;
   message: string;
   data?: any;
 }
 
-async function execPipelineRun(
+const PIPELINE_HARD_TIMEOUT_MS = 25_000;
+
+class PipelineTimeoutError extends Error {
+  constructor() { super("Pipeline timeout"); this.name = "PipelineTimeoutError"; }
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new PipelineTimeoutError()), ms);
+    promise.then(
+      (v) => { clearTimeout(timer); resolve(v); },
+      (e) => { clearTimeout(timer); reject(e); },
+    );
+  });
+}
+
+async function execPipelineRunInner(
   userId: string,
   cmd: ChatCommand,
   onStepComplete?: (step: PipelineStepResult) => Promise<void>
@@ -298,6 +314,55 @@ async function execPipelineRun(
   const steps: PipelineStepResult[] = [];
   const botSourceIds = botSources.map(s => s.id);
 
+  if (onStepComplete) {
+    await onStepComplete({
+      step: "start",
+      ok: true,
+      message: ko
+        ? `'${bot.name}' 파이프라인을 시작합니다... (${botSources.length}개 소스)`
+        : `Starting '${bot.name}' pipeline... (${botSources.length} source(s))`,
+    });
+  }
+
+  if (args.scheduleTimeLocal) {
+    try {
+      const scheduleRule = args.scheduleRule || "DAILY";
+      await storage.updateBotSettings(bot.id, {
+        scheduleTimeLocal: args.scheduleTimeLocal,
+        scheduleRule,
+      });
+
+      const topic = bot.key;
+      let profile = await storage.getProfileByUserAndTopic(userId, topic);
+      if (profile) {
+        const [hour, minute] = args.scheduleTimeLocal.split(":");
+        const cronRule = scheduleRule === "WEEKDAYS" ? "1-5" : scheduleRule === "WEEKENDS" ? "0,6" : "*";
+        const newCron = `${minute || "0"} ${hour || "7"} * * ${cronRule}`;
+        await storage.updateProfile(profile.id, userId, { scheduleCron: newCron });
+      }
+
+      const scheduleStep: PipelineStepResult = {
+        step: "schedule",
+        ok: true,
+        message: ko
+          ? `스케줄 설정 완료 — 매일 ${args.scheduleTimeLocal}에 자동으로 실행됩니다.`
+          : `Schedule set — will run daily at ${args.scheduleTimeLocal}.`,
+      };
+      steps.push(scheduleStep);
+      if (onStepComplete) await onStepComplete(scheduleStep);
+    } catch (error: any) {
+      const scheduleStep: PipelineStepResult = {
+        step: "schedule",
+        ok: false,
+        message: ko
+          ? "스케줄 저장에 실패했습니다. 봇 설정 페이지에서 직접 설정해주세요."
+          : "Failed to save schedule. Please set it manually on the bot settings page.",
+      };
+      steps.push(scheduleStep);
+      if (onStepComplete) await onStepComplete(scheduleStep);
+    }
+  }
+
   let collectResult: { totalCollected: number; sourcesProcessed: number };
   try {
     collectResult = await collectFromSourceIds(botSourceIds);
@@ -338,7 +403,9 @@ async function execPipelineRun(
     if (!matchingPreset) {
       return {
         ok: false,
-        assistantMessage: "리포트 템플릿을 찾을 수 없습니다.\n\n템플릿 갤러리에서 봇을 다시 만들어주세요.",
+        assistantMessage: ko
+          ? "리포트 템플릿을 찾을 수 없습니다.\n\n템플릿 갤러리에서 봇을 다시 만들어주세요."
+          : "No report template found.\n\nPlease create a bot from the Template Gallery.",
         executed: cmd,
         result: { steps },
       };
@@ -414,43 +481,6 @@ async function execPipelineRun(
     if (onStepComplete) await onStepComplete(reportStep);
   }
 
-  if (args.scheduleTimeLocal) {
-    try {
-      const scheduleRule = args.scheduleRule || "DAILY";
-      await storage.updateBotSettings(bot.id, {
-        scheduleTimeLocal: args.scheduleTimeLocal,
-        scheduleRule,
-      });
-
-      if (profile) {
-        const [hour, minute] = args.scheduleTimeLocal.split(":");
-        const cronRule = scheduleRule === "WEEKDAYS" ? "1-5" : scheduleRule === "WEEKENDS" ? "0,6" : "*";
-        const newCron = `${minute || "0"} ${hour || "7"} * * ${cronRule}`;
-        await storage.updateProfile(profile.id, userId, { scheduleCron: newCron });
-      }
-
-      const scheduleStep: PipelineStepResult = {
-        step: "schedule",
-        ok: true,
-        message: ko
-          ? `스케줄 설정 완료 — 매일 ${args.scheduleTimeLocal}에 자동으로 실행됩니다.`
-          : `Schedule set — will run daily at ${args.scheduleTimeLocal}.`,
-      };
-      steps.push(scheduleStep);
-      if (onStepComplete) await onStepComplete(scheduleStep);
-    } catch (error: any) {
-      const scheduleStep: PipelineStepResult = {
-        step: "schedule",
-        ok: false,
-        message: ko
-          ? "스케줄 저장에 실패했습니다. 봇 설정 페이지에서 직접 설정해주세요."
-          : "Failed to save schedule. Please set it manually on the bot settings page.",
-      };
-      steps.push(scheduleStep);
-      if (onStepComplete) await onStepComplete(scheduleStep);
-    }
-  }
-
   const profileIdForUpgrade = profile.id;
   const reportIdForUpgrade = fastReportId;
   if (reportIdForUpgrade) {
@@ -474,7 +504,8 @@ async function execPipelineRun(
   const summaryLines = steps
     .filter(s => s.ok)
     .map(s => s.message);
-  const scheduleNote = args.scheduleTimeLocal
+  const hasSchedule = steps.some(s => s.step === "schedule" && s.ok);
+  const scheduleNote = hasSchedule && args.scheduleTimeLocal
     ? ko
       ? `\n\n앞으로 매일 ${args.scheduleTimeLocal}에 자동 실행됩니다.`
       : `\n\nScheduled to run daily at ${args.scheduleTimeLocal}.`
@@ -500,6 +531,45 @@ async function execPipelineRun(
     executed: cmd,
     result: { steps },
   };
+}
+
+async function execPipelineRun(
+  userId: string,
+  cmd: ChatCommand,
+  onStepComplete?: (step: PipelineStepResult) => Promise<void>
+): Promise<ExecutionResult> {
+  const args = (cmd.args || {}) as PipelineRunArgs;
+  const lang = (args.lang) || "en";
+  const ko = lang === "ko";
+
+  try {
+    return await withTimeout(
+      execPipelineRunInner(userId, cmd, onStepComplete),
+      PIPELINE_HARD_TIMEOUT_MS,
+      "pipeline_run",
+    );
+  } catch (error: any) {
+    if (error instanceof PipelineTimeoutError) {
+      if (onStepComplete) {
+        await onStepComplete({
+          step: "timeout",
+          ok: true,
+          message: ko
+            ? "시간이 초과되어 빠른 브리핑만 제공했습니다.\n심화 분석은 백그라운드에서 계속 진행됩니다.\n\nReports 페이지에서 확인하세요."
+            : "Pipeline timed out — quick briefing has been delivered.\nDeep analysis continues in the background.\n\nCheck the Reports page for updates.",
+        });
+      }
+      return {
+        ok: true,
+        assistantMessage: ko
+          ? "시간이 초과되어 빠른 브리핑만 제공했습니다.\n심화 분석은 백그라운드에서 계속 진행됩니다.\n\nReports 페이지에서 확인하세요."
+          : "Pipeline timed out — quick briefing has been delivered.\nDeep analysis continues in the background.\n\nCheck the Reports page for updates.",
+        executed: cmd,
+        result: { timedOut: true },
+      };
+    }
+    throw error;
+  }
 }
 
 async function execPauseBot(userId: string, cmd: ChatCommand): Promise<ExecutionResult> {
