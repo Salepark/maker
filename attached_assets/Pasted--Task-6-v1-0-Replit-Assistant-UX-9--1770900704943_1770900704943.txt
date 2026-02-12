@@ -1,0 +1,224 @@
+# Task 6 v1.0 (Replit Assistant 복붙용) — “스케줄/리포트 신뢰성” 증거 만들기 + 자동 진단 UX
+목표: “매일 9시 리포트”가 실제로 돌고 있다는 **증거(실행 로그)**를 남기고, 리포트가 안 나올 때 앱이 **이유를 자동 진단**해서 사용자에게 알려준다.
+
+우선순위: (1) 실행 로그 저장/조회 → (2) 스케줄러 상태/타임존 가시화 → (3) 자동 진단 카드 → (4) Bot Detail/Reports UI에 표시
+
+---
+
+## 0) 원칙
+- 사용자에게 “기다려”를 요구하지 않는다.
+- 실패/미생성도 ‘이유’가 UI에 보여야 한다.
+- Fast Report는 항상 즉시 저장(2~3초) + 업그레이드는 별도 처리.
+- 로컬(Desktop/SQLite)과 웹(PG) 모두 동일하게 동작해야 한다.
+
+---
+
+## 1) DB: job_runs 테이블 추가 (필수)
+### 1-1. shared/schema.ts (pg-core) 추가
+테이블명: job_runs
+컬럼(권장):
+- id: serial/uuid (프로젝트 스타일에 맞춰)
+- userId: text (NOT NULL)
+- botId: integer/text (NOT NULL)  // bots PK 타입에 맞춰
+- botKey: text (NOT NULL)         // "investing" 같은 토픽 키
+- jobType: text (NOT NULL)        // "collect" | "analyze" | "report" | "pipeline" | "schedule_tick"
+- trigger: text (NOT NULL)        // "schedule" | "manual" | "console"
+- status: text (NOT NULL)         // "started" | "ok" | "error" | "timeout" | "skipped"
+- startedAt: timestamp (NOT NULL)
+- finishedAt: timestamp (nullable)
+- durationMs: integer (nullable)
+- itemsCollected: integer (nullable)
+- itemsAnalyzed: integer (nullable)
+- outputId: integer/text (nullable) // outputs PK 타입
+- reportStage: text (nullable)      // "fast" | "status" | "full"
+- errorCode: text (nullable)        // "RSS_404" | "RSS_PARSE" | "NO_SOURCES" | "NO_ITEMS" | "LLM_MISSING" | "LLM_TIMEOUT" | ...
+- errorMessage: text (nullable)     // 사용자 친화 요약(짧게)
+- errorDetailJson: jsonb (nullable) // 기술 상세(스택/원인/응답코드)
+- metaJson: jsonb (nullable)        // tz, scheduleAt, sourceCount 등
+
+인덱스:
+- (userId, botId, startedAt desc)
+- (userId, botKey, startedAt desc)
+- (status, startedAt desc) optional
+
+### 1-2. shared/schema.sqlite.ts (sqlite-core)도 동일 미러링
+- jsonb → text(JSON)로 저장
+- timestamp → integer(ms) 또는 text ISO (프로젝트 기존 스타일에 맞추기)
+
+### 1-3. 마이그레이션/푸시
+- drizzle-kit push (pg/sqlite 모두 반영)
+
+---
+
+## 2) Storage: IStorage 메서드 추가
+server/storage.ts (IStorage)에 추가:
+- createJobRun(data)
+- finishJobRun(id, patch)
+- listJobRunsForBot(userId, botId, limit)
+- getLastJobRunForBot(userId, botId)  // 최근 실행 1개
+- getSchedulerStatus(userId)          // 시스템/사용자 단위 상태 (아래 4 참고)
+
+DatabaseStorage/SqliteStorage에 전부 구현.
+주의: userId 스코핑 필수.
+
+---
+
+## 3) Jobs/Router: 실행 로그 “표준 삽입”
+### 3-1. 공통 유틸 추가: server/jobs/runLogger.ts
+함수:
+- startRun({ userId, botId, botKey, jobType, trigger, meta? }) -> runId
+- endRunOk(runId, { finishedAt, durationMs, itemsCollected?, itemsAnalyzed?, outputId?, reportStage?, meta? })
+- endRunError(runId, { finishedAt, durationMs, errorCode, errorMessage, errorDetailJson?, reportStage? })
+- endRunTimeout(runId, ...)
+
+모든 job/명령 실행은 이 유틸을 통한다(최소 pipeline + report부터).
+
+### 3-2. 스케줄러 tick에서 “리포트 생성” 시 로그 남기기
+- cron이 특정 봇 리포트를 실행할 때:
+  - runId = startRun(... jobType="schedule_tick", trigger="schedule")
+  - 실제 수행은 pipeline/report로 이어지더라도, tick 자체도 1개로 기록하거나
+  - 권장: schedule_tick(짧게) + report(실제) 두 개 기록 (가시성 좋아짐)
+
+### 3-3. Console pipeline_run / run_now에서 로그 남기기
+- pipeline_run confirm 후 실행:
+  - startRun(jobType="pipeline", trigger="console")
+  - step별로 metaJson 업데이트(선택)
+  - 완료 시 ok/error/timeout으로 종료
+- runReportNow 실행:
+  - startRun(jobType="report", trigger="manual|console")
+  - fast report 저장되면 outputId + reportStage="fast"
+  - LLM 업그레이드는 별도 run(log)로 1개 더 남기거나(meta로 linkedRunId)
+
+---
+
+## 4) System/Scheduler 상태 엔드포인트 + 타임존 고정
+### 4-1. server/system/hasScheduler.ts (또는 기존 scheduler 모듈)
+- 현재 스케줄러가 등록/실행 중인지 상태를 반환하는 함수 준비:
+  - isSchedulerRunning: boolean
+  - tz: string (기본 "Asia/Seoul" 또는 user 설정)
+  - now: ISO string
+  - nextTicks: 간단 요약(optional)
+
+### 4-2. API 추가 (routes.ts)
+- GET /api/system/status
+  반환 예:
+  {
+    ok: true,
+    time: { now: "...", tz: "Asia/Seoul" },
+    llm: { systemKey: boolean },
+    scheduler: { running: boolean },
+    db: { driver: "pg"|"sqlite" }
+  }
+
+- GET /api/bots/:botId/runs?limit=20
+  -> listJobRunsForBot
+
+- GET /api/bots/:botId/last-run
+  -> getLastJobRunForBot
+
+(기존 auth/userId 미들웨어 스코핑 그대로)
+
+---
+
+## 5) “자동 진단” 로직 (핵심 UX)
+server/services/diagnostics.ts 생성:
+- diagnoseBot(userId, botId) -> DiagnosticResult
+
+진단 규칙(최소):
+1) 소스 0개면:
+   - code: "NO_SOURCES"
+   - message: "이 봇은 아직 소스가 없습니다. 소스를 추가하면 내일 아침 리포트가 생성됩니다."
+   - action: { label: "Sources로 이동", href: `/sources?bot=${botId}` } (라우팅 맞춰 수정)
+
+2) 최근 수집이 너무 오래됨(예: 24h 이상):
+   - code: "STALE_COLLECTION"
+   - message: "최근 수집이 오래되었습니다. 지금 한 번 수집을 실행해 보세요."
+   - action: "콘솔에서 '지금 수집해'"
+
+3) 마지막 실행이 error/timeout:
+   - code: "LAST_RUN_FAILED"
+   - message: "지난 실행이 실패했습니다: {errorMessage}"
+   - action: "실행 로그 보기" / "지금 테스트 실행"
+
+4) 스케줄 있음 + lastRunAt 없음(또는 48h 이상 없음):
+   - code: "SCHEDULE_NOT_FIRING"
+   - message: "스케줄이 설정돼 있지만 실행 기록이 없습니다. 스케줄러 상태를 확인하세요."
+   - action: "System Status 보기"
+
+5) LLM 없어서 full upgrade 불가:
+   - code: "LLM_NOT_CONFIGURED"
+   - message: "빠른 브리핑은 가능하지만 심화 리포트는 LLM 설정이 필요합니다."
+   - action: "Settings > Providers"
+
+반환 형식:
+{
+  ok: true,
+  severity: "info"|"warn"|"error",
+  code: "...",
+  message: "...",
+  action?: { label: string, href?: string, consoleHint?: string }
+}
+
+---
+
+## 6) UI: Bot Detail / Reports / Dashboard에 “증거” 노출
+### 6-1. Bot Detail 상단에 “실행 상태” 카드 추가
+표시:
+- 다음 실행: nextRunAt (있으면)
+- 마지막 실행: lastRunAt + status + reportStage
+- 마지막 실패 사유: errorMessage (있으면)
+- 버튼:
+  - “실행 로그 보기” (아래 Runs drawer)
+  - “지금 테스트 실행” (콘솔 run_now/pipeline_run 유도)
+
+구현:
+- React Query로:
+  - GET /api/bots/:id/last-run
+  - GET /api/bots/:id/runs?limit=10
+- shadcn/ui: Card + Badge + Dialog(또는 Sheet)로 Runs 리스트
+
+Runs 리스트 항목:
+- 시간, jobType, status, durationMs
+- itemsCollected/itemsAnalyzed
+- reportStage
+- errorMessage (있으면)
+
+### 6-2. Reports 페이지에 배지 추가
+- “스케줄로 생성됨” / “수동 생성됨” / “콘솔로 생성됨”
+- outputs에 metaJson 또는 output 생성 시 trigger 저장(없으면 job_runs에서 join)
+MVP 단순:
+- report 출력 상세 화면에서 outputId 기준으로 job_runs 1건 조회해서 trigger 표시
+
+### 6-3. Dashboard에 “오늘 리포트가 안 나온 이유” 카드
+- diagnoseBot 결과를 표시 (severity 따라 색상)
+- action 링크 제공
+- 봇이 여러개면 상위 1~3개만 표시(경고 우선)
+
+---
+
+## 7) 스케줄 “시간대” 고정/표시
+- 서버 cron은 Asia/Seoul 기준으로 등록(이미 있다면, system/status에 tz 표시만 추가)
+- UI에서도 “KST 기준” 문구를 명확히 표시
+- Electron/로컬에서도 tz가 동일하게 보이게 system/status가 source of truth
+
+---
+
+## 8) 완료 기준 (DoD)
+1) 봇에 스케줄이 설정되어 있으면, 최소 하루 안에 job_runs에 tick/run 기록이 남는다.
+2) “리포트가 안 나온다” 상황에서 Dashboard/Bot Detail이 **이유를 자동으로 말한다**.
+3) Bot Detail에서 “마지막 실행/다음 실행”이 항상 보인다.
+4) Reports에서 스케줄/수동/콘솔 트리거가 구분된다.
+5) 어떤 실패든 UI에서 확인 가능(로그 + 요약 메시지).
+
+---
+
+## 9) 구현 순서(고정)
+1) job_runs 스키마(pg/sqlite) + migration
+2) IStorage 메서드 + 구현(Postgres/SQLite)
+3) runLogger 유틸 + pipeline/report 경로에 먼저 적용
+4) /api/system/status + /api/bots/:id/runs + /last-run
+5) diagnostics 서비스 + Dashboard 카드
+6) Bot Detail “실행 상태” 카드 + Runs drawer
+7) Reports 트리거 배지
+
+끝.
