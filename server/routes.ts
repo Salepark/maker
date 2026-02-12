@@ -1616,10 +1616,99 @@ export async function registerRoutes(
         const days = parseInt(req.query.days as string, 10);
         if (days > 0) filters.since = new Date(Date.now() - days * 86400000);
       }
+      if (req.query.since) {
+        const since = new Date(req.query.since as string);
+        if (!isNaN(since.getTime())) filters.since = since;
+      }
       const logs = await storage.listAuditLogs(userId, filters);
       res.json(logs);
     } catch (error) {
       handleApiError(res, error, "Failed to list audit logs");
+    }
+  });
+
+  app.get("/api/audit-logs/timeline", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const days = parseInt(req.query.days as string, 10) || 7;
+      const since = new Date(Date.now() - days * 86400000);
+      const logs = await storage.listAuditLogs(userId, { since, limit: 1000 });
+
+      const dailyMap: Record<string, { date: string; denied: number; approved: number; changed: number; requested: number; total: number }> = {};
+      for (let i = 0; i < days; i++) {
+        const d = new Date(Date.now() - i * 86400000);
+        const key = d.toISOString().slice(0, 10);
+        dailyMap[key] = { date: key, denied: 0, approved: 0, changed: 0, requested: 0, total: 0 };
+      }
+
+      for (const log of logs) {
+        const key = new Date(log.createdAt).toISOString().slice(0, 10);
+        if (!dailyMap[key]) continue;
+        dailyMap[key].total++;
+        if (log.eventType === "PERMISSION_DENIED") dailyMap[key].denied++;
+        else if (log.eventType.startsWith("APPROVAL_GRANTED")) dailyMap[key].approved++;
+        else if (log.eventType === "PERMISSION_CHANGED" || log.eventType === "PERMISSION_DELETED") dailyMap[key].changed++;
+        else if (log.eventType === "APPROVAL_REQUESTED") dailyMap[key].requested++;
+      }
+
+      const timeline = Object.values(dailyMap).sort((a, b) => a.date.localeCompare(b.date));
+      res.json({ days, timeline, totalEvents: logs.length });
+    } catch (error) {
+      handleApiError(res, error, "Failed to build audit timeline");
+    }
+  });
+
+  app.get("/api/permissions/risk-scores", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const bots = await storage.listBots(userId);
+      const last7days = new Date(Date.now() - 7 * 86400000);
+      const allLogs = await storage.listAuditLogs(userId, { since: last7days, limit: 5000 });
+      const { getEffectivePermissions: getEffPerms } = await import("./policy/engine");
+
+      const HIGH_RISK_KEYS = ["FS_DELETE", "LLM_EGRESS_LEVEL", "FS_WRITE"];
+      const MED_RISK_KEYS = ["WEB_FETCH", "LLM_USE", "FS_READ", "CAL_WRITE"];
+
+      const botScores = await Promise.all(bots.map(async (bot) => {
+        const effective = await getEffPerms(userId, bot.id);
+        const botLogs = allLogs.filter((l: any) => l.botId === bot.id);
+        const denials = botLogs.filter((l: any) => l.eventType === "PERMISSION_DENIED").length;
+
+        let score = 0;
+        for (const [key, perm] of Object.entries(effective)) {
+          const p = perm as any;
+          if (!p.enabled) continue;
+          if (HIGH_RISK_KEYS.includes(key)) {
+            score += p.approvalMode === "AUTO_ALLOWED" ? 30 : p.approvalMode === "APPROVAL_REQUIRED" ? 15 : 0;
+          } else if (MED_RISK_KEYS.includes(key)) {
+            score += p.approvalMode === "AUTO_ALLOWED" ? 15 : p.approvalMode === "APPROVAL_REQUIRED" ? 5 : 0;
+          } else {
+            score += p.approvalMode === "AUTO_ALLOWED" ? 5 : 0;
+          }
+          if (key === "LLM_EGRESS_LEVEL" && p.egressLevel === "FULL_CONTENT_ALLOWED") score += 20;
+        }
+        score += denials * 5;
+        score = Math.min(score, 100);
+
+        let level: string;
+        if (score <= 25) level = "low";
+        else if (score <= 50) level = "moderate";
+        else if (score <= 75) level = "elevated";
+        else level = "high";
+
+        return {
+          botId: bot.id,
+          botName: bot.name,
+          score,
+          level,
+          denials7d: denials,
+          totalEvents7d: botLogs.length,
+        };
+      }));
+
+      res.json(botScores);
+    } catch (error) {
+      handleApiError(res, error, "Failed to compute risk scores");
     }
   });
 
