@@ -736,6 +736,7 @@ interface EffPerm {
 const PERM_KEYS_DISPLAY = [
   { key: "WEB_RSS", en: "RSS Feeds", ko: "RSS 피드" },
   { key: "WEB_FETCH", en: "Web Fetch", ko: "웹 가져오기" },
+  { key: "SOURCE_WRITE", en: "Manage Sources", ko: "소스 관리" },
   { key: "LLM_USE", en: "AI Usage", ko: "AI 사용" },
   { key: "LLM_EGRESS_LEVEL", en: "Data to AI", ko: "AI 데이터" },
   { key: "FS_READ", en: "Read Files", ko: "파일 읽기" },

@@ -56,11 +56,11 @@ The system includes infrastructure for tracking job executions in a `job_runs` t
 ### Permission System v1.0
 A comprehensive permission and policy system controlling bot capabilities:
 - **Schema**: `permissions` table (userId, scope global/bot, scopeId, permissionKey, valueJson) and `audit_logs` table for security event tracking. Both PG and SQLite schemas.
-- **Policy Engine** (`server/policy/`): `types.ts` defines 10 permission keys across 5 groups (web_sources, ai_data, files, calendar, scheduling). `engine.ts` provides `getEffectivePermissions` (merge default → global → bot override), `checkPermission`, `checkEgress` (3-level LLM data control: NO_EGRESS < METADATA_ONLY < FULL_CONTENT_ALLOWED), and `logPermissionAction`.
+- **Policy Engine** (`server/policy/`): `types.ts` defines 11 permission keys across 5 groups (web_sources, ai_data, files, calendar, scheduling). `engine.ts` provides `getEffectivePermissions` (merge default → global → bot override), `checkPermission`, `checkEgress` (3-level LLM data control: NO_EGRESS < METADATA_ONLY < FULL_CONTENT_ALLOWED), and `logPermissionAction`.
 - **ApprovalMode**: AUTO_ALLOWED, APPROVAL_REQUIRED, AUTO_DENIED.
-- **Defaults**: WEB_RSS/FETCH/LLM_USE/SCHEDULE_WRITE = AUTO_ALLOWED, FS_*/CAL_* = AUTO_DENIED, LLM egress = METADATA_ONLY.
+- **Defaults**: WEB_RSS = AUTO_ALLOWED (ON), SOURCE_WRITE/SCHEDULE_WRITE/LLM_USE = APPROVAL_REQUIRED (ON), WEB_FETCH = APPROVAL_REQUIRED (OFF), FS_READ/FS_WRITE/CAL_READ/CAL_WRITE = APPROVAL_REQUIRED (OFF), FS_DELETE = AUTO_DENIED (OFF), LLM egress = METADATA_ONLY.
 - **API Routes**: GET/PUT/DELETE `/api/permissions`, GET `/api/permissions/effective`, POST `/api/permissions/check`, GET `/api/audit-logs`.
-- **Integration**: Policy checks enforced on RSS collect and LLM analyze routes, with audit logging on denials.
+- **Integration**: Policy checks enforced on RSS collect, LLM analyze (with egress level validation), and source management (create/update/delete) routes, with audit logging on denials.
 - **UI**: Dedicated `/permissions` page with global defaults management (group cards, switches, approval mode selects, egress level control) and audit log tab. Bot-level permission override card in bot detail page.
 - **i18n**: Full EN/KR translations for all permission and audit log UI strings.
 

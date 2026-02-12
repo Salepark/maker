@@ -43,7 +43,8 @@ const PERMISSION_GROUPS: PermissionGroupDef[] = [
     group: "web_sources",
     keys: [
       { key: "WEB_RSS", labelEn: "RSS Feed Collection", labelKo: "RSS 피드 수집", descEn: "Allow collecting content from RSS/Atom feeds", descKo: "RSS/Atom 피드에서 콘텐츠를 수집하도록 허용", risk: "LOW" },
-      { key: "WEB_FETCH", labelEn: "Web Page Fetching", labelKo: "웹 페이지 가져오기", descEn: "Allow fetching public web pages for analysis", descKo: "분석을 위해 공개 웹 페이지를 가져오도록 허용", risk: "LOW" },
+      { key: "WEB_FETCH", labelEn: "Web Page Fetching", labelKo: "웹 페이지 가져오기", descEn: "Allow fetching public web pages (including scraping/extraction)", descKo: "공개 웹 페이지 가져오기 허용 (스크래핑/본문 추출 포함)", risk: "MED" },
+      { key: "SOURCE_WRITE", labelEn: "Manage Sources", labelKo: "소스 관리", descEn: "Allow adding, editing, and deleting bot sources", descKo: "봇의 소스 추가/수정/삭제 허용", risk: "LOW" },
     ],
   },
   {

@@ -22,7 +22,8 @@ export async function getEffectivePermissions(
   const result: Record<string, PermissionValue & { egressLevel?: EgressLevel; source: "default" | "global" | "bot" }> = {};
 
   const allKeys: PermissionKey[] = [
-    "WEB_RSS", "WEB_FETCH", "LLM_USE", "LLM_EGRESS_LEVEL",
+    "WEB_RSS", "WEB_FETCH", "SOURCE_WRITE",
+    "LLM_USE", "LLM_EGRESS_LEVEL",
     "FS_READ", "FS_WRITE", "FS_DELETE",
     "CAL_READ", "CAL_WRITE", "SCHEDULE_WRITE",
   ];

@@ -111,6 +111,13 @@ export async function registerRoutes(
 
   app.post("/api/sources", isAuthenticated, async (req, res) => {
     try {
+      const userId = getUserId(req);
+      const { checkPermission, logPermissionAction } = await import("./policy/engine");
+      const perm = await checkPermission({ userId }, "SOURCE_WRITE");
+      if (!perm.allowed) {
+        await logPermissionAction({ userId }, "PERMISSION_DENIED", "SOURCE_WRITE", { action: "create_source" });
+        return res.status(403).json({ error: perm.reason });
+      }
       const { name, url, type = "rss", topic = "general", trustLevel = "medium", region = "global" } = req.body;
       if (!name || !url) {
         return res.status(400).json({ error: "Name and URL are required" });
@@ -128,6 +135,13 @@ export async function registerRoutes(
 
   app.patch("/api/sources/:id", isAuthenticated, async (req, res) => {
     try {
+      const userId = getUserId(req);
+      const { checkPermission, logPermissionAction } = await import("./policy/engine");
+      const perm = await checkPermission({ userId }, "SOURCE_WRITE");
+      if (!perm.allowed) {
+        await logPermissionAction({ userId }, "PERMISSION_DENIED", "SOURCE_WRITE", { action: "update_source" });
+        return res.status(403).json({ error: perm.reason });
+      }
       const id = parseInt(req.params.id);
       const source = await storage.updateSource(id, req.body);
       if (!source) {
@@ -141,6 +155,13 @@ export async function registerRoutes(
 
   app.delete("/api/sources/:id", isAuthenticated, async (req, res) => {
     try {
+      const userId = getUserId(req);
+      const { checkPermission, logPermissionAction } = await import("./policy/engine");
+      const perm = await checkPermission({ userId }, "SOURCE_WRITE");
+      if (!perm.allowed) {
+        await logPermissionAction({ userId }, "PERMISSION_DENIED", "SOURCE_WRITE", { action: "delete_source" });
+        return res.status(403).json({ error: perm.reason });
+      }
       const id = parseInt(req.params.id);
       await storage.deleteSource(id);
       res.status(204).send();
