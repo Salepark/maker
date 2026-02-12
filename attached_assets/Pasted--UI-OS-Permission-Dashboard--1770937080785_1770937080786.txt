@@ -1,0 +1,286 @@
+좋습니다.
+이건 단순 UI 추가가 아니라, **메이커를 “통제 가능한 자동화 OS”로 보이게 만드는 핵심 화면**입니다.
+
+---
+
+# 🎯 Permission Dashboard v1.0 설계
+
+목표:
+
+> 사용자가 “이 봇이 무엇을 할 수 있는지 / 못하는지”를
+> 한눈에 이해하고, 직접 통제할 수 있게 한다.
+
+---
+
+# 📍 위치
+
+## 1차 위치 (MVP)
+
+**Bot Detail 페이지 상단**
+
+```
+[ 이 봇의 워크플로우 요약 ]
+[ 🔐 Permission Dashboard ]
+[ Sources ]
+[ Schedule ]
+[ LLM ]
+```
+
+Bot 단위 권한을 먼저 명확히 보여주는 것이 중요합니다.
+
+---
+
+# 🧩 화면 구조
+
+## 🔐 Permission Dashboard
+
+### 상단 요약 카드
+
+```
+🔐 현재 권한 상태 요약
+
+총 11개 권한 중:
+🟢 활성화: 3
+🟡 승인 필요: 4
+🔴 비활성화: 4
+```
+
+---
+
+# 📊 권한 그룹화 (중요)
+
+권한을 나열하면 복잡해 보입니다.
+그룹으로 묶어야 합니다.
+
+---
+
+## 1️⃣ 데이터 수집 권한
+
+* WEB_FETCH
+* WEB_RSS
+* SOURCE_WRITE
+
+표시 예:
+
+```
+🌐 데이터 수집
+
+WEB_FETCH       🟡 승인 필요
+WEB_RSS         🟢 자동 허용
+SOURCE_WRITE    🟡 승인 필요
+```
+
+---
+
+## 2️⃣ AI 처리 권한
+
+* LLM_USE
+* LLM_EGRESS_LEVEL
+
+```
+🧠 AI 처리
+
+LLM_USE             🟡 승인 필요
+LLM_EGRESS_LEVEL    FULL_CONTENT
+```
+
+---
+
+## 3️⃣ 로컬 시스템 권한 (자비스 영역)
+
+* FS_READ
+* FS_WRITE
+* FS_DELETE
+* CAL_READ
+* CAL_WRITE
+
+```
+💻 로컬 시스템
+
+FS_READ      🔴 비활성화
+FS_WRITE     🔴 비활성화
+CAL_READ     🔴 비활성화
+CAL_WRITE    🔴 비활성화
+```
+
+이 영역이 자비스의 핵심입니다.
+
+---
+
+## 4️⃣ 자동화 제어
+
+* SCHEDULE_WRITE
+* BOT_ENABLE_DISABLE
+
+```
+⚙ 자동화 제어
+
+SCHEDULE_WRITE     🟡 승인 필요
+BOT_ENABLE         🟢 자동 허용
+```
+
+---
+
+# 🟢🟡🔴 상태 정의
+
+| 상태                | 의미      | 색  |
+| ----------------- | ------- | -- |
+| AUTO_ALLOWED      | 자동 실행   | 🟢 |
+| APPROVAL_REQUIRED | 실행 전 승인 | 🟡 |
+| AUTO_DENIED       | 실행 불가   | 🔴 |
+
+---
+
+# 📎 각 권한 클릭 시
+
+모달 열기:
+
+```
+권한: FS_READ
+
+현재 상태: 🔴 비활성화
+
+설명:
+이 권한은 로컬 파일을 읽을 수 있게 합니다.
+
+왜 필요할 수 있나요?
+- 문서 정리
+- 보고서 초안 생성
+- 파일 기반 자동화
+
+위험성:
+- 민감 정보 접근 가능
+```
+
+버튼:
+
+* 자동 허용
+* 승인 필요
+* 비활성화
+* 전역으로 적용
+* 이 봇에만 적용
+
+---
+
+# 🧠 중요한 UX 포인트
+
+## 1. 위험도 시각화
+
+FS_DELETE 같은 건 아이콘을 다르게:
+
+```
+FS_DELETE   🔴  (⚠ High Risk)
+```
+
+---
+
+## 2. 최근 승인 이력 표시
+
+하단:
+
+```
+최근 승인 이력 (7일)
+
+- WEB_FETCH 승인 (이 봇만)  2026-02-08 14:03
+- LLM_USE 일회성 승인     2026-02-08 13:55
+```
+
+이건 “신뢰감”을 만듭니다.
+
+---
+
+# 💡 차별화 포인트 (Make / n8n 대비)
+
+Make는 권한을 “연결 시점에만” 묻습니다.
+메이커는 **실행 시점마다 통제**합니다.
+
+이게 핵심 USP입니다.
+
+---
+
+# 🏗 기술 설계
+
+## API 필요
+
+### GET
+
+```
+GET /api/permissions?botId=...
+```
+
+### PATCH
+
+```
+PATCH /api/permissions/:permissionKey
+body:
+{
+  scope: "bot" | "global",
+  approvalMode: "AUTO_ALLOWED" | "APPROVAL_REQUIRED" | "AUTO_DENIED"
+}
+```
+
+---
+
+# 🧩 DB 설계 (이미 있음)
+
+permissions 테이블 사용:
+
+```
+scope
+scopeId
+permissionKey
+value (JSON)
+```
+
+bot override → merge(global, bot)
+
+---
+
+# 🎯 MVP 구현 단계
+
+### Step 1
+
+Bot Detail 상단에 PermissionCard 추가
+
+### Step 2
+
+GET permissions API 연결
+
+### Step 3
+
+상태별 색상 표시
+
+### Step 4
+
+PATCH 연결
+
+### Step 5
+
+승인 이력 drawer 연결 (audit_log)
+
+---
+
+# 🔥 전략적 의미
+
+이 화면이 생기는 순간
+
+메이커는
+
+> “AI 자동화 툴”
+> 가 아니라
+> “자동화 운영체제(OS)”
+
+로 보입니다.
+
+이건 투자 피칭에서도 매우 강력합니다.
+
+---
+
+# 📌 다음 선택
+
+1️⃣ UI 컴포넌트 구조 코드 설계
+2️⃣ API 스펙 문서화
+3️⃣ 투자용 스크린샷 스토리보드 설계
+4️⃣ Permission Dashboard 개발지시서 (Replit 복붙용)
+
+어디로 갈까요?
