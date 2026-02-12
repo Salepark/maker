@@ -1,0 +1,269 @@
+# 로컬 메이커 Permission Spec v1.0
+목표: 로컬 다운로드(데스크톱) 메이커에서 **“사용자 통제 가능한 무제한”**을 구현하기 위한 권한(permissions) 스위치 표준.
+원칙: (1) 기본값은 최소 권한 (2) 위험한 작업은 단계적 승인을 요구 (3) 언제든 철회 가능 (4) 모든 실행은 로그로 남김.
+
+---
+
+## 0) 권한 모델 개요
+
+### 0.1 권한 스코프(권장 구조)
+- **Capability**: 어떤 종류의 능력인가? (예: 파일 읽기, 캘린더 쓰기)
+- **Resource Scope**: 어디까지 가능한가? (예: 특정 폴더, 특정 캘린더)
+- **Action Level**: 작업 성격 (READ / WRITE / DELETE / SHARE / EXECUTE)
+- **Approval Mode**: 실행 방식
+  - `AUTO_ALLOWED`: 자동 실행 허용
+  - `APPROVAL_REQUIRED`: 매번 승인 필요
+  - `AUTO_DENIED`: 금지
+- **Data Egress Policy**: 외부 전송(LLM/API) 허용 범위
+  - `NO_EGRESS` (기본)
+  - `METADATA_ONLY`
+  - `REDACTED_CONTENT_ONLY`
+  - `FULL_CONTENT_ALLOWED`
+
+### 0.2 권한의 적용 단위
+- **전역(Global)**: 앱 전체 기본 정책
+- **봇(Bot) 단위**: 봇별로 추가/축소 가능
+- **스레드(Thread) 단위(선택)**: 콘솔 대화맥락별 임시 권한(시간 제한 토큰)
+
+---
+
+## 1) Permission Groups (권한 그룹)
+
+아래 그룹은 UI에서 **토글 + 세부 범위 설정(폴더/캘린더 선택 등)** 으로 제공.
+
+### G1. Local Filesystem (로컬 파일)
+**목적**: 내 문서 정리/요약/검색/분류/리포트 생성
+
+#### 스위치
+1. `FS_READ` (기본 OFF)
+   - 설명: 로컬 파일을 읽고 요약/검색 가능
+   - 범위: `Allowed Roots` 필수 (예: ~/Documents/ProjectA)
+   - 승인: `AUTO_ALLOWED` 가능 (읽기만)
+
+2. `FS_WRITE` (기본 OFF)
+   - 설명: 파일 생성/수정(메모, 요약본 저장, 리포트 파일 생성)
+   - 범위: `Write Roots` 별도 지정(권장: 전용 폴더만)
+   - 승인: 기본 `APPROVAL_REQUIRED` 권장, 옵션으로 AUTO
+
+3. `FS_MOVE_RENAME` (기본 OFF)
+   - 설명: 이동/이름변경/정리 자동화
+   - 승인: 기본 `APPROVAL_REQUIRED`
+
+4. `FS_DELETE` (기본 OFF)
+   - 설명: 삭제(휴지통 포함)
+   - 승인: 항상 `APPROVAL_REQUIRED` + “2단계 확인(문구 입력)” 권장
+   - 옵션: `TRASH_ONLY`(휴지통으로만), `PERMANENT_DELETE`는 금지 권장
+
+5. `FS_WATCH` (기본 OFF)
+   - 설명: 폴더 변경 감지(새 파일/수정 감지) 트리거
+   - 범위: Watch Roots 지정
+   - 승인: AUTO 가능 (단, 데이터 전송은 별도 정책)
+
+#### 최소 UI 범위 옵션
+- Allowed Roots (multi-select)
+- Write Roots (multi-select)
+- File Types allowlist (예: pdf, docx, md, txt)
+- Max file size (예: 20MB)
+- Exclude patterns (node_modules, .git 등)
+
+---
+
+### G2. Email (이메일) — 선택(초기 MVP에선 OFF 유지 추천)
+**목적**: 메일 요약/후속 조치/초안 작성
+
+#### 스위치
+1. `EMAIL_READ` (기본 OFF)
+   - 범위: 계정 선택(로컬 클라이언트/IMAP/구글 연동 등)
+   - 제한: Sender allowlist / label allowlist / 기간 제한
+
+2. `EMAIL_DRAFT` (기본 OFF)
+   - 설명: 답장 초안 생성(발송 X)
+   - 승인: AUTO_ALLOWED 가능
+
+3. `EMAIL_SEND` (기본 OFF)
+   - 설명: 실제 발송
+   - 승인: 항상 `APPROVAL_REQUIRED`
+
+4. `EMAIL_ATTACHMENTS_READ` (기본 OFF)
+   - 설명: 첨부 다운로드/분석
+   - 승인: 기본 `APPROVAL_REQUIRED` 권장
+
+---
+
+### G3. Calendar (캘린더)
+**목적**: 일정 요약/브리핑/리마인드/자동 일정 생성
+
+#### 스위치
+1. `CAL_READ` (기본 OFF)
+   - 범위: 특정 캘린더 선택
+   - 승인: AUTO_ALLOWED 가능
+
+2. `CAL_CREATE` (기본 OFF)
+   - 설명: 새 일정 생성
+   - 승인: 기본 `APPROVAL_REQUIRED` 권장
+
+3. `CAL_UPDATE` (기본 OFF)
+   - 설명: 일정 수정(시간/장소/메모)
+   - 승인: 항상 `APPROVAL_REQUIRED` 권장
+
+4. `CAL_DELETE` (기본 OFF)
+   - 승인: 항상 `APPROVAL_REQUIRED` + 2단계 확인 권장
+
+---
+
+### G4. Contacts (연락처)
+**목적**: 사람/조직 정보 참조, 메일/일정 자동화 보조
+
+#### 스위치
+1. `CONTACTS_READ` (기본 OFF)
+2. `CONTACTS_WRITE` (기본 OFF) — 기본 승인 필요
+
+---
+
+### G5. Browser / Web Access (웹 접근)
+**목적**: 뉴스/자료 수집, RSS 외 일반 웹 스크랩, 경쟁사 모니터링
+
+#### 스위치
+1. `WEB_FETCH` (기본 ON 가능)
+   - 설명: 공개 웹페이지 HTTP fetch (크롤링)
+   - 제한: robots/레이트리밋 준수 옵션
+   - 범위: Allowed domains / Blocked domains
+
+2. `WEB_RSS` (기본 ON)
+   - 설명: RSS/Atom 피드 수집
+
+3. `WEB_AUTOMATION` (기본 OFF)
+   - 설명: 브라우저 자동 조작(로그인, 클릭) — 고위험
+   - 승인: 항상 `APPROVAL_REQUIRED` + 사이트별 allowlist
+
+---
+
+### G6. LLM / External AI Calls (외부 AI 호출)
+**목적**: 요약/분석/리포트 고도화
+
+#### 스위치
+1. `LLM_USE` (기본 OFF 또는 ON: “키 등록 시만”)
+   - 설명: 외부 LLM API 호출 자체 허용
+   - 세부: Provider/Model 선택
+
+2. `LLM_EGRESS_LEVEL` (기본 `NO_EGRESS` 또는 `REDACTED_CONTENT_ONLY`)
+   - `NO_EGRESS`: 파일/메일/캘린더 본문 전송 금지, 제목/메타만 가능
+   - `METADATA_ONLY`: 제목/발신자/시간 등
+   - `REDACTED_CONTENT_ONLY`: 마스킹 후 본문 일부(예: 전화번호/주소 제거)
+   - `FULL_CONTENT_ALLOWED`: 전체 본문 전송 가능(경고 필수)
+
+3. `LLM_CONTEXT_RETENTION` (기본 OFF)
+   - 설명: 대화/문서 일부를 “장기기억”으로 저장 허용
+   - 로컬 저장/암호화 옵션 필수
+
+4. `LLM_TOOL_CALLS` (기본 ON)
+   - 설명: LLM이 메이커 내부 도구 호출 가능(단, 실제 실행은 정책엔진이 통제)
+
+---
+
+### G7. OS Integration (운영체제 통합)
+**목적**: 사용자 경험(알림, 단축키, 파일 열기 등)
+
+#### 스위치
+1. `OS_NOTIFICATIONS` (기본 ON)
+2. `OS_STARTUP_RUN` (기본 OFF) — 부팅 시 자동 실행
+3. `OS_TRAY_AGENT` (기본 OFF) — 트레이 상주
+4. `OS_OPEN_FILES` (기본 ON) — 결과 파일 열기
+5. `OS_CLIPBOARD_READ` (기본 OFF) — 클립보드 읽기(고위험)
+6. `OS_CLIPBOARD_WRITE` (기본 ON) — 복사(저위험)
+
+---
+
+### G8. Plugins / Custom Tools (플러그인)
+**목적**: 확장성(사용자/커뮤니티가 만든 커넥터)
+
+#### 스위치
+1. `PLUGIN_INSTALL` (기본 OFF)
+2. `PLUGIN_RUN` (기본 OFF)
+3. `PLUGIN_NETWORK` (기본 OFF) — 플러그인 네트워크 접근
+4. `PLUGIN_FS_ACCESS` (기본 OFF) — 플러그인 파일 접근
+- 플러그인별 서명/출처 표시 권장
+
+---
+
+## 2) Approval Policy (승인 정책) 표준
+
+### 2.1 기본 정책(권장)
+- READ 계열: AUTO_ALLOWED 가능
+- WRITE/MOVE/UPDATE: APPROVAL_REQUIRED 기본
+- DELETE/SEND/WEB_AUTOMATION/PLUGIN_RUN: 항상 APPROVAL_REQUIRED + 추가 확인
+
+### 2.2 “승인”이 필요한 액션의 UX 요구사항
+- 실행 전: **무엇을 / 어디에 / 왜 / 결과가 무엇인지** 1줄 요약
+- 버튼: `승인` / `거절` / `수정 후 실행`
+- 로그: 승인자(로컬 사용자), 승인 시각, 실행 결과 저장
+
+---
+
+## 3) 권한 초기값 (Local MVP Default)
+
+### 3.1 “안전 기본값” 추천
+- FS_READ: OFF (온보딩에서 폴더 선택하면 ON)
+- FS_WRITE: OFF
+- FS_DELETE: OFF
+- WEB_RSS: ON
+- WEB_FETCH: ON
+- CAL_READ: OFF (연동 시 ON)
+- CAL_CREATE/UPDATE/DELETE: OFF
+- LLM_USE: 키 등록 시 ON
+- LLM_EGRESS_LEVEL: `METADATA_ONLY` 또는 `REDACTED_CONTENT_ONLY` (권장)
+- OS_NOTIFICATIONS: ON
+
+---
+
+## 4) UI 설계 요구사항 (권한 설정 화면)
+
+### 4.1 화면 구성
+- “권한 그룹” 카드 리스트
+- 각 카드: (토글) + (세부 범위 설정) + (리스크 라벨)
+  - 리스크 라벨: LOW / MED / HIGH
+- “현재 허용 범위” 요약 칩(예: Documents/Work, Calendar: Personal)
+
+### 4.2 위험 권한 토글 시 경고 문구(예시)
+- FS_DELETE 켤 때:
+  - “이 권한은 파일 삭제를 포함합니다. 실수로 데이터 손실이 발생할 수 있어요.”
+- FULL_CONTENT_ALLOWED 켤 때:
+  - “문서/일정 내용이 외부 LLM API로 전송될 수 있습니다.”
+
+---
+
+## 5) 로깅/감사 (필수)
+권한이 걸린 작업은 반드시 job_runs 또는 audit_log에 기록.
+
+### 5.1 기록 필드(최소)
+- userId / botId / threadId
+- permissionUsed: 예) FS_WRITE, CAL_CREATE
+- resource: 경로/캘린더ID/도메인
+- action: READ/WRITE/DELETE/SEND/EXECUTE
+- approval: required/approved/denied
+- timestamps: requestedAt/approvedAt/completedAt
+- result: ok/error + errorCode
+
+---
+
+## 6) v1.0 범위 제안 (MVP)
+로컬 “자비스 초기버전(Drive+Calendar)” 기준 최소 구현 권한:
+- FS_READ, FS_WRITE (전용폴더)
+- WEB_RSS, WEB_FETCH
+- CAL_READ, CAL_CREATE(승인필수)
+- LLM_USE + LLM_EGRESS_LEVEL (기본 METADATA_ONLY)
+- OS_NOTIFICATIONS
+
+나머지는 v1.1+로.
+
+---
+## 부록 A) 권한 키 네이밍 규칙
+- 그룹_행위 형태: FS_READ, FS_WRITE, CAL_READ, EMAIL_SEND
+- 정책/레벨: LLM_EGRESS_LEVEL, LLM_CONTEXT_RETENTION
+- 플러그인: PLUGIN_RUN, PLUGIN_NETWORK
+
+---
+## 부록 B) 콘솔 문장 예시(권한 연동)
+- “내 Documents/Projects 폴더만 읽을 수 있게 설정해줘”
+- “캘린더는 읽기만 허용하고, 일정 생성은 승인받게 해줘”
+- “리포트는 문서 내용 전체를 보내지 말고 제목/요약만 보내”
