@@ -802,6 +802,9 @@ export const ko: Record<string, string> = {
   "pd.reset": "초기화됨",
   "pd.resetToGlobal": "전역으로 초기화",
   "pd.viewAll": "전체 보기",
+  "pd.localOnly": "로컬 전용",
+  "pd.webHidden": "데스크톱 전용 권한은 웹에서 숨겨집니다",
+  "pd.egressWebNote": "전체 콘텐츠 공유는 데스크톱에서만 가능합니다",
 
   "approval.title": "권한이 필요합니다",
   "approval.why": "왜 필요한가요?",

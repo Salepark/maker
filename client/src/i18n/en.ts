@@ -802,6 +802,9 @@ export const en: Record<string, string> = {
   "pd.reset": "Reset",
   "pd.resetToGlobal": "Reset to global",
   "pd.viewAll": "View all",
+  "pd.localOnly": "Local Only",
+  "pd.webHidden": "Desktop-only permissions are hidden on web",
+  "pd.egressWebNote": "Full content sharing is available only on desktop",
 
   "approval.title": "Permission Required",
   "approval.why": "Why is this needed?",

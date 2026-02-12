@@ -10,11 +10,15 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Shield, Globe, Brain, HardDrive, Settings2, AlertTriangle, RotateCcw, Clock, ChevronRight } from "lucide-react";
+import { Shield, Globe, Brain, HardDrive, Settings2, AlertTriangle, RotateCcw, Clock, ChevronRight, Monitor } from "lucide-react";
 
 type ApprovalMode = "AUTO_ALLOWED" | "APPROVAL_REQUIRED" | "AUTO_DENIED";
 type EgressLevel = "NO_EGRESS" | "METADATA_ONLY" | "FULL_CONTENT_ALLOWED";
 type RiskLevel = "LOW" | "MED" | "HIGH";
+
+function useIsDesktop() {
+  return typeof window !== "undefined" && !!(window as any).electronAPI;
+}
 
 interface EffPerm {
   enabled: boolean;
@@ -39,6 +43,7 @@ interface PermKeyDef {
   descKo: string;
   risk: RiskLevel;
   isEgress?: boolean;
+  localOnly?: boolean;
 }
 
 interface DashboardGroup {
@@ -69,11 +74,11 @@ const DASHBOARD_GROUPS: DashboardGroup[] = [
     id: "local_system",
     icon: HardDrive,
     keys: [
-      { key: "FS_READ", labelEn: "Read Local Files", labelKo: "로컬 파일 읽기", descEn: "Allow reading files from selected folders", descKo: "선택한 폴더에서 파일 읽기 허용", risk: "MED" },
-      { key: "FS_WRITE", labelEn: "Write Local Files", labelKo: "로컬 파일 쓰기", descEn: "Allow creating and modifying files in designated folders", descKo: "지정된 폴더에서 파일 생성/수정 허용", risk: "MED" },
-      { key: "FS_DELETE", labelEn: "Delete Files (Trash Only)", labelKo: "파일 삭제 (휴지통만)", descEn: "Allow moving files to trash (permanent deletion is never allowed)", descKo: "파일을 휴지통으로 이동 허용 (영구 삭제는 불가)", risk: "HIGH" },
-      { key: "CAL_READ", labelEn: "Read Calendar", labelKo: "캘린더 읽기", descEn: "Allow reading calendar events for briefings", descKo: "브리핑을 위한 캘린더 이벤트 읽기 허용", risk: "LOW" },
-      { key: "CAL_WRITE", labelEn: "Create/Update Events", labelKo: "일정 생성/수정", descEn: "Allow creating and modifying calendar events", descKo: "캘린더 이벤트 생성/수정 허용", risk: "MED" },
+      { key: "FS_READ", labelEn: "Read Local Files", labelKo: "로컬 파일 읽기", descEn: "Allow reading files from selected folders", descKo: "선택한 폴더에서 파일 읽기 허용", risk: "MED", localOnly: true },
+      { key: "FS_WRITE", labelEn: "Write Local Files", labelKo: "로컬 파일 쓰기", descEn: "Allow creating and modifying files in designated folders", descKo: "지정된 폴더에서 파일 생성/수정 허용", risk: "MED", localOnly: true },
+      { key: "FS_DELETE", labelEn: "Delete Files (Trash Only)", labelKo: "파일 삭제 (휴지통만)", descEn: "Allow moving files to trash (permanent deletion is never allowed)", descKo: "파일을 휴지통으로 이동 허용 (영구 삭제는 불가)", risk: "HIGH", localOnly: true },
+      { key: "CAL_READ", labelEn: "Read Calendar", labelKo: "캘린더 읽기", descEn: "Allow reading calendar events for briefings", descKo: "브리핑을 위한 캘린더 이벤트 읽기 허용", risk: "LOW", localOnly: true },
+      { key: "CAL_WRITE", labelEn: "Create/Update Events", labelKo: "일정 생성/수정", descEn: "Allow creating and modifying calendar events", descKo: "캘린더 이벤트 생성/수정 허용", risk: "MED", localOnly: true },
     ],
   },
   {
@@ -128,6 +133,7 @@ interface PermissionDashboardProps {
 
 export function PermissionDashboard({ botId, t, language }: PermissionDashboardProps) {
   const { toast } = useToast();
+  const isDesktop = useIsDesktop();
   const [selectedPerm, setSelectedPerm] = useState<PermKeyDef | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [scope, setScope] = useState<"bot" | "global">("bot");
@@ -180,7 +186,13 @@ export function PermissionDashboard({ botId, t, language }: PermissionDashboardP
 
   if (!effective) return null;
 
-  const allKeys = DASHBOARD_GROUPS.flatMap(g => g.keys);
+  const filteredGroups = DASHBOARD_GROUPS.map(group => ({
+    ...group,
+    keys: group.keys.filter(k => isDesktop || !k.localOnly),
+  })).filter(group => group.keys.length > 0);
+
+  const allKeys = filteredGroups.flatMap(g => g.keys);
+  const hiddenCount = DASHBOARD_GROUPS.flatMap(g => g.keys).length - allKeys.length;
   const activeCount = allKeys.filter(k => effective[k.key]?.approvalMode === "AUTO_ALLOWED").length;
   const approvalCount = allKeys.filter(k => effective[k.key]?.approvalMode === "APPROVAL_REQUIRED").length;
   const deniedCount = allKeys.filter(k => effective[k.key]?.approvalMode === "AUTO_DENIED").length;
@@ -246,8 +258,15 @@ export function PermissionDashboard({ botId, t, language }: PermissionDashboardP
             </div>
           </div>
 
+          {!isDesktop && hiddenCount > 0 && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-muted/40 text-xs text-muted-foreground" data-testid="web-hidden-notice">
+              <Monitor className="w-3.5 h-3.5 shrink-0" />
+              {t("pd.webHidden")}
+            </div>
+          )}
+
           <div className="grid gap-4">
-            {DASHBOARD_GROUPS.map(group => {
+            {filteredGroups.map(group => {
               const GroupIcon = group.icon;
               return (
                 <div key={group.id} data-testid={`perm-group-${group.id}`}>
@@ -277,6 +296,12 @@ export function PermissionDashboard({ botId, t, language }: PermissionDashboardP
                               <Badge variant="destructive" className="text-[10px] gap-0.5" data-testid={`risk-badge-${pk.key}`}>
                                 <AlertTriangle className="w-2.5 h-2.5" />
                                 {t("pd.highRisk")}
+                              </Badge>
+                            )}
+                            {isDesktop && pk.localOnly && (
+                              <Badge variant="outline" className="text-[10px] gap-0.5" data-testid={`local-badge-${pk.key}`}>
+                                <Monitor className="w-2.5 h-2.5" />
+                                {t("pd.localOnly")}
                               </Badge>
                             )}
                             {isOverride && (
@@ -372,16 +397,23 @@ export function PermissionDashboard({ botId, t, language }: PermissionDashboardP
                   <div className="border-t pt-3">
                     <p className="text-sm font-medium mb-2">{t("pd.changeStatus")}</p>
                     {selectedPerm.isEgress ? (
-                      <Select value={pendingEgress} onValueChange={(v) => setPendingEgress(v as EgressLevel)}>
-                        <SelectTrigger data-testid="select-egress-level">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="NO_EGRESS">{t("perm.egress.NO_EGRESS")}</SelectItem>
-                          <SelectItem value="METADATA_ONLY">{t("perm.egress.METADATA_ONLY")}</SelectItem>
-                          <SelectItem value="FULL_CONTENT_ALLOWED">{t("perm.egress.FULL_CONTENT_ALLOWED")}</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <>
+                        <Select value={pendingEgress} onValueChange={(v) => setPendingEgress(v as EgressLevel)}>
+                          <SelectTrigger data-testid="select-egress-level">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="NO_EGRESS">{t("perm.egress.NO_EGRESS")}</SelectItem>
+                            <SelectItem value="METADATA_ONLY">{t("perm.egress.METADATA_ONLY")}</SelectItem>
+                            {isDesktop && (
+                              <SelectItem value="FULL_CONTENT_ALLOWED">{t("perm.egress.FULL_CONTENT_ALLOWED")}</SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                        {!isDesktop && (
+                          <p className="text-xs text-muted-foreground mt-1">{t("pd.egressWebNote")}</p>
+                        )}
+                      </>
                     ) : (
                       <RadioGroup value={pendingMode} onValueChange={(v) => setPendingMode(v as ApprovalMode)} className="grid gap-2">
                         <div className="flex items-center gap-2">

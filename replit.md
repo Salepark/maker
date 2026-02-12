@@ -62,7 +62,8 @@ A comprehensive permission and policy system controlling bot capabilities:
 - **API Routes**: GET/PUT/DELETE `/api/permissions`, GET `/api/permissions/effective`, POST `/api/permissions/check`, POST `/api/permissions/approve-once`, GET `/api/audit-logs`.
 - **Integration**: Policy checks enforced on RSS collect, LLM analyze (with egress level validation), and source management (create/update/delete) routes, with audit logging on denials.
 - **Permission Request UX**: When APPROVAL_REQUIRED is triggered, the API returns structured 403 with `requiresApproval: true` and bilingual message templates (title/why/impact/risk). Frontend shows a `PermissionRequestModal` with scope selection (once/bot/global). One-time approvals use an in-memory allowlist with 60s TTL. Bot/global approvals persist via the permissions API.
-- **UI**: Dedicated `/permissions` page with global defaults management (group cards, switches, approval mode selects, egress level control) and audit log tab. Bot-level permission override card in bot detail page.
+- **UI**: Dedicated `/permissions` page with global defaults management (group cards, switches, approval mode selects, egress level control) and audit log tab. Bot-level Permission Dashboard card in bot detail page with summary bar, 4 groups, risk badges, detail modal, and recent audit history.
+- **Platform-Aware Filtering**: Permissions are filtered by platform (web vs desktop/Electron). On web: FS_READ, FS_WRITE, FS_DELETE, CAL_READ, CAL_WRITE are hidden (localOnly). LLM_EGRESS_LEVEL hides FULL_CONTENT_ALLOWED on web. On desktop: all permissions shown with "Local Only" badges on desktop-specific items. Detection via `window.electronAPI`.
 - **i18n**: Full EN/KR translations for all permission, audit log, and approval UI strings.
 
 ## External Dependencies

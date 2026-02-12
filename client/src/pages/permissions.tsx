@@ -10,10 +10,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useLanguage } from "@/lib/language-provider";
-import { Shield, ShieldCheck, ShieldX, ShieldAlert, RotateCcw, Loader2, Clock, AlertTriangle } from "lucide-react";
+import { Shield, ShieldCheck, ShieldX, ShieldAlert, RotateCcw, Loader2, Clock, AlertTriangle, Monitor } from "lucide-react";
 
 type ApprovalMode = "AUTO_ALLOWED" | "APPROVAL_REQUIRED" | "AUTO_DENIED";
 type EgressLevel = "NO_EGRESS" | "METADATA_ONLY" | "FULL_CONTENT_ALLOWED";
+
+function useIsDesktop() {
+  return typeof window !== "undefined" && !!(window as any).electronAPI;
+}
 
 interface EffectivePermission {
   enabled: boolean;
@@ -31,6 +35,7 @@ interface PermissionKeyDef {
   descKo: string;
   risk: "LOW" | "MED" | "HIGH";
   egressLevel?: EgressLevel;
+  localOnly?: boolean;
 }
 
 interface PermissionGroupDef {
@@ -57,16 +62,16 @@ const PERMISSION_GROUPS: PermissionGroupDef[] = [
   {
     group: "files",
     keys: [
-      { key: "FS_READ", labelEn: "Read Local Files", labelKo: "로컬 파일 읽기", descEn: "Allow reading files from selected folders", descKo: "선택한 폴더에서 파일 읽기 허용", risk: "MED" },
-      { key: "FS_WRITE", labelEn: "Write Local Files", labelKo: "로컬 파일 쓰기", descEn: "Allow creating and modifying files", descKo: "파일 생성/수정 허용", risk: "MED" },
-      { key: "FS_DELETE", labelEn: "Delete Files (Trash Only)", labelKo: "파일 삭제 (휴지통만)", descEn: "Allow moving files to trash", descKo: "파일을 휴지통으로 이동 허용", risk: "HIGH" },
+      { key: "FS_READ", labelEn: "Read Local Files", labelKo: "로컬 파일 읽기", descEn: "Allow reading files from selected folders", descKo: "선택한 폴더에서 파일 읽기 허용", risk: "MED", localOnly: true },
+      { key: "FS_WRITE", labelEn: "Write Local Files", labelKo: "로컬 파일 쓰기", descEn: "Allow creating and modifying files", descKo: "파일 생성/수정 허용", risk: "MED", localOnly: true },
+      { key: "FS_DELETE", labelEn: "Delete Files (Trash Only)", labelKo: "파일 삭제 (휴지통만)", descEn: "Allow moving files to trash", descKo: "파일을 휴지통으로 이동 허용", risk: "HIGH", localOnly: true },
     ],
   },
   {
     group: "calendar",
     keys: [
-      { key: "CAL_READ", labelEn: "Read Calendar", labelKo: "캘린더 읽기", descEn: "Allow reading calendar events", descKo: "캘린더 이벤트 읽기 허용", risk: "LOW" },
-      { key: "CAL_WRITE", labelEn: "Create/Update Events", labelKo: "일정 생성/수정", descEn: "Allow creating and modifying events", descKo: "캘린더 이벤트 생성/수정 허용", risk: "MED" },
+      { key: "CAL_READ", labelEn: "Read Calendar", labelKo: "캘린더 읽기", descEn: "Allow reading calendar events", descKo: "캘린더 이벤트 읽기 허용", risk: "LOW", localOnly: true },
+      { key: "CAL_WRITE", labelEn: "Create/Update Events", labelKo: "일정 생성/수정", descEn: "Allow creating and modifying events", descKo: "캘린더 이벤트 생성/수정 허용", risk: "MED", localOnly: true },
     ],
   },
   {
@@ -78,7 +83,6 @@ const PERMISSION_GROUPS: PermissionGroupDef[] = [
 ];
 
 const APPROVAL_MODES: ApprovalMode[] = ["AUTO_ALLOWED", "APPROVAL_REQUIRED", "AUTO_DENIED"];
-const EGRESS_LEVELS: EgressLevel[] = ["NO_EGRESS", "METADATA_ONLY", "FULL_CONTENT_ALLOWED"];
 
 interface AuditLogEntry {
   id: number;
@@ -113,12 +117,14 @@ function PermissionRow({
   onUpdate,
   onReset,
   isUpdating,
+  isDesktop,
 }: {
   keyDef: PermissionKeyDef;
   effective: EffectivePermission | undefined;
   onUpdate: (key: string, value: any) => void;
   onReset: (key: string) => void;
   isUpdating: boolean;
+  isDesktop: boolean;
 }) {
   const { t, language } = useLanguage();
   const label = language === "ko" ? keyDef.labelKo : keyDef.labelEn;
@@ -128,14 +134,23 @@ function PermissionRow({
   const source = effective?.source ?? "default";
   const isEgressKey = keyDef.key === "LLM_EGRESS_LEVEL";
   const egressLevel = effective?.egressLevel ?? "NO_EGRESS";
+  const egressLevels: EgressLevel[] = isDesktop
+    ? ["NO_EGRESS", "METADATA_ONLY", "FULL_CONTENT_ALLOWED"]
+    : ["NO_EGRESS", "METADATA_ONLY"];
 
   return (
     <div className="flex flex-col gap-2 p-3 rounded-md border" data-testid={`perm-row-${keyDef.key}`}>
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex items-center gap-2 min-w-0 flex-1">
+        <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
           <span className="font-medium text-sm">{label}</span>
           <RiskBadge risk={keyDef.risk} />
           <SourceBadge source={source} />
+          {isDesktop && keyDef.localOnly && (
+            <Badge variant="outline" className="text-[10px] gap-0.5" data-testid={`local-badge-${keyDef.key}`}>
+              <Monitor className="w-2.5 h-2.5" />
+              {t("pd.localOnly")}
+            </Badge>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {source !== "default" && (
@@ -187,25 +202,30 @@ function PermissionRow({
         </div>
       )}
       {isEnabled && isEgressKey && (
-        <div className="flex items-center gap-2">
-          <Select
-            value={egressLevel}
-            onValueChange={(val: EgressLevel) =>
-              onUpdate(keyDef.key, { enabled: true, approvalMode: "AUTO_ALLOWED", egressLevel: val })
-            }
-            disabled={isUpdating}
-          >
-            <SelectTrigger className="w-[200px]" data-testid={`select-egress-${keyDef.key}`}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {EGRESS_LEVELS.map((lvl) => (
-                <SelectItem key={lvl} value={lvl} data-testid={`option-egress-${lvl}`}>
-                  {t(`perm.egress.${lvl}` as any)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <Select
+              value={egressLevel}
+              onValueChange={(val: EgressLevel) =>
+                onUpdate(keyDef.key, { enabled: true, approvalMode: "AUTO_ALLOWED", egressLevel: val })
+              }
+              disabled={isUpdating}
+            >
+              <SelectTrigger className="w-[200px]" data-testid={`select-egress-${keyDef.key}`}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {egressLevels.map((lvl) => (
+                  <SelectItem key={lvl} value={lvl} data-testid={`option-egress-${lvl}`}>
+                    {t(`perm.egress.${lvl}` as any)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {!isDesktop && (
+            <p className="text-xs text-muted-foreground">{t("pd.egressWebNote")}</p>
+          )}
         </div>
       )}
     </div>
@@ -215,7 +235,14 @@ function PermissionRow({
 export default function Permissions() {
   const { toast } = useToast();
   const { t, language } = useLanguage();
+  const isDesktop = useIsDesktop();
   const [activeTab, setActiveTab] = useState<string>("permissions");
+
+  const filteredGroups = PERMISSION_GROUPS.map(group => ({
+    ...group,
+    keys: group.keys.filter(k => isDesktop || !k.localOnly),
+  })).filter(group => group.keys.length > 0);
+  const hasHiddenPerms = !isDesktop && filteredGroups.flatMap(g => g.keys).length < PERMISSION_GROUPS.flatMap(g => g.keys).length;
 
   const { data: effective, isLoading } = useQuery<Record<string, EffectivePermission>>({
     queryKey: ["/api/permissions/effective"],
@@ -298,7 +325,13 @@ export default function Permissions() {
         </TabsList>
 
         <TabsContent value="permissions" className="space-y-4 mt-4">
-          {PERMISSION_GROUPS.map((group) => (
+          {hasHiddenPerms && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-muted/40 text-xs text-muted-foreground" data-testid="web-hidden-notice-global">
+              <Monitor className="w-3.5 h-3.5 shrink-0" />
+              {t("pd.webHidden")}
+            </div>
+          )}
+          {filteredGroups.map((group) => (
             <Card key={group.group} data-testid={`card-group-${group.group}`}>
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg" data-testid={`text-group-title-${group.group}`}>
@@ -314,6 +347,7 @@ export default function Permissions() {
                     onUpdate={(key, value) => updateMutation.mutate({ permissionKey: key, value })}
                     onReset={(key) => resetMutation.mutate(key)}
                     isUpdating={isUpdating}
+                    isDesktop={isDesktop}
                   />
                 ))}
               </CardContent>
