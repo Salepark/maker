@@ -8,10 +8,75 @@ import { routeCommand, execPipelineRun } from "./chat/commandRouter";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { runAllSeeds } from "./seed";
 import { NotImplementedError, handleApiError } from "./lib/safe-storage";
+import { PERMISSION_REQUEST_MESSAGES } from "@shared/permission-messages";
 
 function getUserId(req: Request): string | undefined {
   const user = req.user as any;
   return user?.claims?.sub;
+}
+
+const oneTimeApprovals = new Map<string, number>();
+
+function getOneTimeKey(userId: string, permissionKey: string): string {
+  return `${userId}:${permissionKey}`;
+}
+
+function hasOneTimeApproval(userId: string, permissionKey: string): boolean {
+  const key = getOneTimeKey(userId, permissionKey);
+  const expiry = oneTimeApprovals.get(key);
+  if (!expiry) return false;
+  if (Date.now() > expiry) {
+    oneTimeApprovals.delete(key);
+    return false;
+  }
+  oneTimeApprovals.delete(key);
+  return true;
+}
+
+function grantOneTimeApproval(userId: string, permissionKey: string): void {
+  const key = getOneTimeKey(userId, permissionKey);
+  oneTimeApprovals.set(key, Date.now() + 60_000);
+}
+
+async function enforcePermission(
+  req: Request,
+  res: Response,
+  permissionKey: string,
+  action: string,
+  botId?: number | null,
+): Promise<boolean> {
+  const userId = getUserId(req);
+  if (!userId) {
+    res.status(401).json({ error: "Unauthorized" });
+    return false;
+  }
+  const { checkPermission, logPermissionAction } = await import("./policy/engine");
+  const ctx = { userId, botId };
+  const perm = await checkPermission(ctx, permissionKey as any);
+
+  if (perm.allowed) return true;
+
+  if (perm.requiresApproval && hasOneTimeApproval(userId, permissionKey)) {
+    return true;
+  }
+
+  if (perm.requiresApproval) {
+    const msg = PERMISSION_REQUEST_MESSAGES[permissionKey];
+    await logPermissionAction(ctx, "APPROVAL_REQUESTED", permissionKey, { action });
+    res.status(403).json({
+      error: perm.reason,
+      requiresApproval: true,
+      permissionKey,
+      action,
+      botId: botId ?? null,
+      message: msg || null,
+    });
+    return false;
+  }
+
+  await logPermissionAction(ctx, "PERMISSION_DENIED", permissionKey, { action });
+  res.status(403).json({ error: perm.reason, requiresApproval: false });
+  return false;
 }
 
 export async function registerRoutes(
@@ -111,13 +176,7 @@ export async function registerRoutes(
 
   app.post("/api/sources", isAuthenticated, async (req, res) => {
     try {
-      const userId = getUserId(req);
-      const { checkPermission, logPermissionAction } = await import("./policy/engine");
-      const perm = await checkPermission({ userId }, "SOURCE_WRITE");
-      if (!perm.allowed) {
-        await logPermissionAction({ userId }, "PERMISSION_DENIED", "SOURCE_WRITE", { action: "create_source" });
-        return res.status(403).json({ error: perm.reason });
-      }
+      if (!(await enforcePermission(req, res, "SOURCE_WRITE", "create_source"))) return;
       const { name, url, type = "rss", topic = "general", trustLevel = "medium", region = "global" } = req.body;
       if (!name || !url) {
         return res.status(400).json({ error: "Name and URL are required" });
@@ -135,13 +194,7 @@ export async function registerRoutes(
 
   app.patch("/api/sources/:id", isAuthenticated, async (req, res) => {
     try {
-      const userId = getUserId(req);
-      const { checkPermission, logPermissionAction } = await import("./policy/engine");
-      const perm = await checkPermission({ userId }, "SOURCE_WRITE");
-      if (!perm.allowed) {
-        await logPermissionAction({ userId }, "PERMISSION_DENIED", "SOURCE_WRITE", { action: "update_source" });
-        return res.status(403).json({ error: perm.reason });
-      }
+      if (!(await enforcePermission(req, res, "SOURCE_WRITE", "update_source"))) return;
       const id = parseInt(req.params.id);
       const source = await storage.updateSource(id, req.body);
       if (!source) {
@@ -155,13 +208,7 @@ export async function registerRoutes(
 
   app.delete("/api/sources/:id", isAuthenticated, async (req, res) => {
     try {
-      const userId = getUserId(req);
-      const { checkPermission, logPermissionAction } = await import("./policy/engine");
-      const perm = await checkPermission({ userId }, "SOURCE_WRITE");
-      if (!perm.allowed) {
-        await logPermissionAction({ userId }, "PERMISSION_DENIED", "SOURCE_WRITE", { action: "delete_source" });
-        return res.status(403).json({ error: perm.reason });
-      }
+      if (!(await enforcePermission(req, res, "SOURCE_WRITE", "delete_source"))) return;
       const id = parseInt(req.params.id);
       await storage.deleteSource(id);
       res.status(204).send();
@@ -172,13 +219,7 @@ export async function registerRoutes(
 
   app.post("/api/sources/:id/collect", isAuthenticated, async (req, res) => {
     try {
-      const userId = getUserId(req);
-      const { checkPermission, logPermissionAction } = await import("./policy/engine");
-      const perm = await checkPermission({ userId }, "WEB_RSS");
-      if (!perm.allowed) {
-        await logPermissionAction({ userId }, "PERMISSION_DENIED", "WEB_RSS", { action: "collect_source" });
-        return res.status(403).json({ error: perm.reason });
-      }
+      if (!(await enforcePermission(req, res, "WEB_RSS", "collect_source"))) return;
       const id = parseInt(req.params.id);
       const source = await storage.getSource(id);
       if (!source) {
@@ -260,17 +301,20 @@ export async function registerRoutes(
 
   app.post("/api/scheduler/run/analyze", isAuthenticated, async (req, res) => {
     try {
+      if (!(await enforcePermission(req, res, "LLM_USE", "analyze"))) return;
       const userId = getUserId(req);
-      const { checkPermission, checkEgress, logPermissionAction } = await import("./policy/engine");
-      const perm = await checkPermission({ userId }, "LLM_USE");
-      if (!perm.allowed) {
-        await logPermissionAction({ userId }, "PERMISSION_DENIED", "LLM_USE", { action: "analyze" });
-        return res.status(403).json({ error: perm.reason });
-      }
+      const { checkEgress, logPermissionAction } = await import("./policy/engine");
       const egress = await checkEgress({ userId }, "FULL_CONTENT_ALLOWED");
       if (!egress.allowed) {
-        await logPermissionAction({ userId }, "PERMISSION_DENIED", "LLM_EGRESS_LEVEL", { action: "analyze", requiredLevel: "FULL_CONTENT_ALLOWED", effectiveLevel: egress.effectiveLevel });
-        return res.status(403).json({ error: egress.reason });
+        const msg = PERMISSION_REQUEST_MESSAGES["LLM_EGRESS_LEVEL"];
+        await logPermissionAction({ userId }, "APPROVAL_REQUESTED", "LLM_EGRESS_LEVEL", { action: "analyze", requiredLevel: "FULL_CONTENT_ALLOWED", effectiveLevel: egress.effectiveLevel });
+        return res.status(403).json({
+          error: egress.reason,
+          requiresApproval: true,
+          permissionKey: "LLM_EGRESS_LEVEL",
+          action: "analyze",
+          message: msg || null,
+        });
       }
       const count = await runAnalyzeNow();
       res.json({ analyzed: count });
@@ -1536,6 +1580,27 @@ export async function registerRoutes(
       res.json(result);
     } catch (error) {
       handleApiError(res, error, "Failed to check permission");
+    }
+  });
+
+  app.post("/api/permissions/approve-once", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const { permissionKey, action, botId } = req.body;
+      if (!permissionKey || !action) {
+        return res.status(400).json({ error: "Missing permissionKey or action" });
+      }
+      grantOneTimeApproval(userId!, permissionKey);
+      const { logPermissionAction } = await import("./policy/engine");
+      await logPermissionAction(
+        { userId, botId: botId ?? null },
+        "APPROVAL_GRANTED_ONCE",
+        permissionKey,
+        { action, scope: "once" },
+      );
+      res.json({ approved: true, scope: "once", permissionKey, action });
+    } catch (error) {
+      handleApiError(res, error, "Failed to approve permission");
     }
   });
 

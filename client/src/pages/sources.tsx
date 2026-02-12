@@ -49,6 +49,7 @@ import {
 import { Rss, Plus, Trash2, RefreshCw, ExternalLink, Power, PowerOff, Shield, Globe } from "lucide-react";
 import { format } from "date-fns";
 import { useLanguage } from "@/lib/language-provider";
+import { usePermissionApproval } from "@/lib/permission-request-context";
 
 interface Source {
   id: number;
@@ -96,10 +97,20 @@ const REGIONS = [
   { value: "asia", label: "Asia" },
 ];
 
+async function rawApiRequest(method: string, url: string, data?: unknown): Promise<Response> {
+  return fetch(url, {
+    method,
+    headers: data ? { "Content-Type": "application/json" } : {},
+    body: data ? JSON.stringify(data) : undefined,
+    credentials: "include",
+  });
+}
+
 export default function Sources() {
   const { toast } = useToast();
   const { t } = useLanguage();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const { requestApproval } = usePermissionApproval();
 
   const form = useForm<SourceFormValues>({
     resolver: zodResolver(sourceFormSchema),
@@ -119,9 +130,28 @@ export default function Sources() {
 
   const createMutation = useMutation({
     mutationFn: async (data: SourceFormValues) => {
-      return apiRequest("POST", "/api/sources", data);
+      const res = await rawApiRequest("POST", "/api/sources", data);
+      if (res.status === 403) {
+        const body = await res.json();
+        if (body.requiresApproval) {
+          requestApproval(body, async () => {
+            const retryRes = await rawApiRequest("POST", "/api/sources", data);
+            if (retryRes.ok) {
+              queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
+              setIsDialogOpen(false);
+              form.reset();
+              toast({ title: t("sources.created") });
+            }
+          });
+          return;
+        }
+        throw new Error(body.error || "Permission denied");
+      }
+      if (!res.ok) throw new Error("Failed to create source");
+      return res;
     },
-    onSuccess: () => {
+    onSuccess: (res) => {
+      if (!res) return;
       queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
       setIsDialogOpen(false);
       form.reset();
@@ -143,9 +173,26 @@ export default function Sources() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      return apiRequest("DELETE", `/api/sources/${id}`);
+      const res = await rawApiRequest("DELETE", `/api/sources/${id}`);
+      if (res.status === 403) {
+        const body = await res.json();
+        if (body.requiresApproval) {
+          requestApproval(body, async () => {
+            const retryRes = await rawApiRequest("DELETE", `/api/sources/${id}`);
+            if (retryRes.ok || retryRes.status === 204) {
+              queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
+              toast({ title: t("sources.deleted") });
+            }
+          });
+          return;
+        }
+        throw new Error(body.error || "Permission denied");
+      }
+      if (!res.ok && res.status !== 204) throw new Error("Failed to delete source");
+      return res;
     },
-    onSuccess: () => {
+    onSuccess: (res) => {
+      if (!res) return;
       queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
       toast({ title: t("sources.deleted") });
     },
@@ -156,9 +203,27 @@ export default function Sources() {
 
   const collectMutation = useMutation({
     mutationFn: async (id: number) => {
-      return apiRequest("POST", `/api/sources/${id}/collect`);
+      const res = await rawApiRequest("POST", `/api/sources/${id}/collect`);
+      if (res.status === 403) {
+        const body = await res.json();
+        if (body.requiresApproval) {
+          requestApproval(body, async () => {
+            const retryRes = await rawApiRequest("POST", `/api/sources/${id}/collect`);
+            if (retryRes.ok) {
+              queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
+              queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+              toast({ title: t("sources.collectionStarted") });
+            }
+          });
+          return;
+        }
+        throw new Error(body.error || "Permission denied");
+      }
+      if (!res.ok) throw new Error("Failed to collect");
+      return res;
     },
-    onSuccess: () => {
+    onSuccess: (res) => {
+      if (!res) return;
       queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       toast({ title: t("sources.collectionStarted") });

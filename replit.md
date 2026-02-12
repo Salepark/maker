@@ -59,10 +59,11 @@ A comprehensive permission and policy system controlling bot capabilities:
 - **Policy Engine** (`server/policy/`): `types.ts` defines 11 permission keys across 5 groups (web_sources, ai_data, files, calendar, scheduling). `engine.ts` provides `getEffectivePermissions` (merge default → global → bot override), `checkPermission`, `checkEgress` (3-level LLM data control: NO_EGRESS < METADATA_ONLY < FULL_CONTENT_ALLOWED), and `logPermissionAction`.
 - **ApprovalMode**: AUTO_ALLOWED, APPROVAL_REQUIRED, AUTO_DENIED.
 - **Defaults**: WEB_RSS = AUTO_ALLOWED (ON), SOURCE_WRITE/SCHEDULE_WRITE/LLM_USE = APPROVAL_REQUIRED (ON), WEB_FETCH = APPROVAL_REQUIRED (OFF), FS_READ/FS_WRITE/CAL_READ/CAL_WRITE = APPROVAL_REQUIRED (OFF), FS_DELETE = AUTO_DENIED (OFF), LLM egress = METADATA_ONLY.
-- **API Routes**: GET/PUT/DELETE `/api/permissions`, GET `/api/permissions/effective`, POST `/api/permissions/check`, GET `/api/audit-logs`.
+- **API Routes**: GET/PUT/DELETE `/api/permissions`, GET `/api/permissions/effective`, POST `/api/permissions/check`, POST `/api/permissions/approve-once`, GET `/api/audit-logs`.
 - **Integration**: Policy checks enforced on RSS collect, LLM analyze (with egress level validation), and source management (create/update/delete) routes, with audit logging on denials.
+- **Permission Request UX**: When APPROVAL_REQUIRED is triggered, the API returns structured 403 with `requiresApproval: true` and bilingual message templates (title/why/impact/risk). Frontend shows a `PermissionRequestModal` with scope selection (once/bot/global). One-time approvals use an in-memory allowlist with 60s TTL. Bot/global approvals persist via the permissions API.
 - **UI**: Dedicated `/permissions` page with global defaults management (group cards, switches, approval mode selects, egress level control) and audit log tab. Bot-level permission override card in bot detail page.
-- **i18n**: Full EN/KR translations for all permission and audit log UI strings.
+- **i18n**: Full EN/KR translations for all permission, audit log, and approval UI strings.
 
 ## External Dependencies
 

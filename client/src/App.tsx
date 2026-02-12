@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Loader2 } from "lucide-react";
 import { ShareButton } from "@/components/share-button";
+import { PermissionRequestProvider } from "@/lib/permission-request-context";
 
 import Dashboard from "@/pages/dashboard";
 import Items from "@/pages/items";
@@ -69,33 +70,35 @@ function AuthenticatedApp() {
     : user?.email?.[0]?.toUpperCase() || "U";
 
   return (
-    <SidebarProvider style={style as React.CSSProperties}>
-      <div className="flex h-screen w-full">
-        <AppSidebar />
-        <div className="flex flex-col flex-1 overflow-hidden">
-          <header className="flex items-center justify-between p-3 border-b border-border bg-background shrink-0">
-            <SidebarTrigger data-testid="button-sidebar-toggle" />
-            <div className="flex items-center gap-3">
-              <ShareButton />
-              <LanguageSwitcher />
-              <ThemeToggle />
-              <div className="flex items-center gap-2">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={user?.profileImageUrl || undefined} />
-                  <AvatarFallback>{userInitials}</AvatarFallback>
-                </Avatar>
-                <Button variant="ghost" size="sm" asChild data-testid="button-logout">
-                  <a href="/api/logout">{t("header.logout")}</a>
-                </Button>
+    <PermissionRequestProvider>
+      <SidebarProvider style={style as React.CSSProperties}>
+        <div className="flex h-screen w-full">
+          <AppSidebar />
+          <div className="flex flex-col flex-1 overflow-hidden">
+            <header className="flex items-center justify-between p-3 border-b border-border bg-background shrink-0">
+              <SidebarTrigger data-testid="button-sidebar-toggle" />
+              <div className="flex items-center gap-3">
+                <ShareButton />
+                <LanguageSwitcher />
+                <ThemeToggle />
+                <div className="flex items-center gap-2">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={user?.profileImageUrl || undefined} />
+                    <AvatarFallback>{userInitials}</AvatarFallback>
+                  </Avatar>
+                  <Button variant="ghost" size="sm" asChild data-testid="button-logout">
+                    <a href="/api/logout">{t("header.logout")}</a>
+                  </Button>
+                </div>
               </div>
-            </div>
-          </header>
-          <main className="flex-1 overflow-auto bg-muted/30">
-            <Router />
-          </main>
+            </header>
+            <main className="flex-1 overflow-auto bg-muted/30">
+              <Router />
+            </main>
+          </div>
         </div>
-      </div>
-    </SidebarProvider>
+      </SidebarProvider>
+    </PermissionRequestProvider>
   );
 }
 
