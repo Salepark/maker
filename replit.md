@@ -94,6 +94,12 @@ Files in `electron/` directory prepare the app for desktop distribution:
 - `electron/electron-builder.yml`: Build config for Mac/Win/Linux targets.
 - `/api/health` endpoint (unauthenticated): Returns `{ status, timestamp, driver }` for Electron health polling.
 
+### Graceful Error Handling (SQLite MVP)
+- `server/lib/safe-storage.ts`: Exports `NotImplementedError` class and `handleApiError(res, error, fallbackMsg)` utility.
+- All 46 simple route catch blocks in `server/routes.ts` use `handleApiError` which detects `NotImplementedError` and returns 501 with user-friendly bilingual message instead of generic 500.
+- `safeStorageCall(fallback, label, fn)` utility for jobs: catches `NotImplementedError` and returns a safe fallback value instead of crashing.
+- IStorage additions: `addSourceToBot(botId, userId, sourceId, weight?)`, `removeSourceFromBot(botId, userId, sourceId)`, `findItemByDedupeKey(sourceId, url)` — implemented in both DatabaseStorage and SqliteStorage.
+
 ### Report Pipeline Reliability (Phase C)
 `generateReportForProfile` (manual "run now" path) now uses fast-first approach identical to the scheduled path:
 1. Instantly generates a fast report (no LLM blocking)

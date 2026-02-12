@@ -1,0 +1,115 @@
+0) MVP가 반드시 통과해야 하는 3개 사용자 플로우
+
+봇 1개 만들기(프리셋) → 소스 확인
+
+콘솔에서 “리포트 만들어줘/매일 9시” → 즉시 Fast Report 생성
+
+Reports 페이지에서 리포트 확인(상태/fast/full 단계 포함)
+
+이 3개 플로우에 필요한 메서드만 먼저 구현합니다.
+
+1) SQLite MVP 핵심 25개 메서드 목록
+P0. Console/Thread 최소 동작 (6개)
+
+콘솔이 살아야 “명령 → 진행 메시지 → 완료” UX가 됩니다.
+
+getOrCreateDefaultThread(userId)
+
+listThreads(userId)
+
+getThread(threadId, userId) (권한 스코핑 필수)
+
+listThreadMessages(threadId, userId, limit)
+
+createThreadMessage({ threadId, userId, role, content, commandJson?, status? })
+
+updateThreadMessage(messageId, userId, patch) (confirm/execute 상태 변경용)
+
+✅ 이 6개가 없으면 “running…”에서 진행 로그가 안 쌓여서 사용자 체감이 최악이 됩니다.
+
+P0. Bots + Settings (6개)
+
+콘솔이 “어느 봇”에게 명령하는지 결정하고, 스케줄/형식이 저장돼야 합니다.
+
+listBots(userId)
+
+getBot(botId, userId)
+
+createBot({ userId, key, name, ... }) (프리셋에서 생성)
+
+getBotSettings(botId, userId)
+
+upsertBotSettings(botId, userId, patch) (schedule/format/llm 등 저장)
+
+setActiveBotForThread(threadId, userId, botId) (스레드별 active bot)
+
+✅ “매일 9시 리포트”는 결국 upsertBotSettings로 schedule 저장이 핵심입니다.
+
+P0. Sources + BotSources 연결 (6개)
+
+수집은 소스가 없으면 아무 것도 못 합니다.
+
+listSources(userId)
+
+createSource({ userId, name, url, rulesJson? })
+
+findSourceByUrl(userId, url) (중복 방지/위자드 custom source용)
+
+listBotSources(botId, userId) (봇에 연결된 소스 목록)
+
+addSourceToBot(botId, userId, sourceId) (bot_sources insert)
+
+removeSourceFromBot(botId, userId, sourceId) (bot_sources delete)
+
+✅ 프리셋 위자드에서 “기본 소스 자동 체크”가 되려면 이 세트가 필요합니다.
+
+P0. Collect/Items (4개)
+
+Fast Report는 “수집된 items”로 바로 만들어야 하니, 최소 조회/저장만 있으면 됩니다.
+
+createItem(item) (dedupe 키 포함: sourceId+guid/url 등)
+
+findItemByDedupeKey(userId, sourceId, dedupeKey) (중복 수집 방지)
+
+getItemsForBot(botId, userId, { since?, limit? }) (리포트용 최신 N개)
+
+updateItemStatus(itemId, userId, status) (new/analyzed/skipped…; MVP는 최소)
+
+✅ 분석(LLM) 없이도 Fast Report는 21번만 있으면 가능합니다.
+
+P0. Reports/Outputs (3개)
+
+사용자가 “당장 보는 것”이 리포트이기 때문에 여기가 MVP의 심장입니다.
+
+createReport({ botId, userId, stage: "fast"|"status"|"full", content, metaJson, createdAt })
+
+listReports(userId, { botId?, limit? })
+
+updateReport(reportId, userId, patch) (fast → full 업그레이드, errorReason 기록)
+
+✅ “0 items면 status report”도 여기서 stage만 바꿔 저장하면 됩니다.
+
+2) SQLite MVP에서 “미구현이어도 되는 것” (후순위 예시)
+
+아래는 MVP 25개 이후로 미뤄도 됩니다(없어도 Fast Report는 됨).
+
+Drafts/Approval(홍보 댓글/승인 워크플로우)
+
+Analysis 테이블(LLM 분석 결과 상세 저장)
+
+사용자/권한 다중화(로컬 단일 사용자면 불필요)
+
+LLM Providers(로컬도 가능하지만, Fast Report 우선이면 후순위)
+
+3) 구현 팁: “Not implemented” 처리 방식(중요)
+
+남은 35개 메서드를 그냥 throw만 하면 런타임에서 앱이 깨질 수 있어요.
+
+권장:
+
+서버 라우트/잡에서 try/catch로 잡고
+
+사용자 메시지로 변환:
+“SQLite MVP에서는 아직 이 기능이 비활성입니다(기능명). Fast Report는 정상 작동합니다.”
+
+이렇게 해야 신뢰가 유지됩니다.

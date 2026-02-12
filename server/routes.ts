@@ -1,4 +1,4 @@
-import type { Express, Request } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { collectFromSource, collectAllSources } from "./services/rss";
@@ -7,6 +7,7 @@ import { parseCommand } from "./chat/command-parser";
 import { routeCommand, execPipelineRun } from "./chat/commandRouter";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { runAllSeeds } from "./seed";
+import { NotImplementedError, handleApiError } from "./lib/safe-storage";
 
 function getUserId(req: Request): string | undefined {
   const user = req.user as any;
@@ -34,8 +35,7 @@ export async function registerRoutes(
       const stats = await storage.getStats();
       res.json(stats);
     } catch (error) {
-      console.error("Error getting stats:", error);
-      res.status(500).json({ error: "Failed to get stats" });
+      handleApiError(res, error, "Failed to get stats");
     }
   });
 
@@ -44,8 +44,7 @@ export async function registerRoutes(
       const items = await storage.getRecentItems(10);
       res.json(items);
     } catch (error) {
-      console.error("Error getting recent items:", error);
-      res.status(500).json({ error: "Failed to get recent items" });
+      handleApiError(res, error, "Failed to get recent items");
     }
   });
 
@@ -54,8 +53,7 @@ export async function registerRoutes(
       const items = await storage.getObserveItems(50);
       res.json(items);
     } catch (error) {
-      console.error("Error getting observe items:", error);
-      res.status(500).json({ error: "Failed to get observe items" });
+      handleApiError(res, error, "Failed to get observe items");
     }
   });
 
@@ -65,8 +63,7 @@ export async function registerRoutes(
       const items = await storage.getItems(status);
       res.json(items);
     } catch (error) {
-      console.error("Error getting items:", error);
-      res.status(500).json({ error: "Failed to get items" });
+      handleApiError(res, error, "Failed to get items");
     }
   });
 
@@ -79,8 +76,7 @@ export async function registerRoutes(
       }
       res.json(item);
     } catch (error) {
-      console.error("Error getting item:", error);
-      res.status(500).json({ error: "Failed to get item" });
+      handleApiError(res, error, "Failed to get item");
     }
   });
 
@@ -90,8 +86,7 @@ export async function registerRoutes(
       await storage.updateItemStatus(id, "skipped");
       res.json({ success: true });
     } catch (error) {
-      console.error("Error skipping item:", error);
-      res.status(500).json({ error: "Failed to skip item" });
+      handleApiError(res, error, "Failed to skip item");
     }
   });
 
@@ -101,8 +96,7 @@ export async function registerRoutes(
       await storage.updateItemStatus(id, "new");
       res.json({ success: true });
     } catch (error) {
-      console.error("Error setting item for reanalysis:", error);
-      res.status(500).json({ error: "Failed to set for reanalysis" });
+      handleApiError(res, error, "Failed to set for reanalysis");
     }
   });
 
@@ -111,8 +105,7 @@ export async function registerRoutes(
       const sources = await storage.getSources();
       res.json(sources);
     } catch (error) {
-      console.error("Error getting sources:", error);
-      res.status(500).json({ error: "Failed to get sources" });
+      handleApiError(res, error, "Failed to get sources");
     }
   });
 
@@ -142,8 +135,7 @@ export async function registerRoutes(
       }
       res.json(source);
     } catch (error) {
-      console.error("Error updating source:", error);
-      res.status(500).json({ error: "Failed to update source" });
+      handleApiError(res, error, "Failed to update source");
     }
   });
 
@@ -153,8 +145,7 @@ export async function registerRoutes(
       await storage.deleteSource(id);
       res.status(204).send();
     } catch (error) {
-      console.error("Error deleting source:", error);
-      res.status(500).json({ error: "Failed to delete source" });
+      handleApiError(res, error, "Failed to delete source");
     }
   });
 
@@ -168,8 +159,7 @@ export async function registerRoutes(
       const count = await collectFromSource(id, source.url, source.topic);
       res.json({ collected: count });
     } catch (error) {
-      console.error("Error collecting from source:", error);
-      res.status(500).json({ error: "Failed to collect from source" });
+      handleApiError(res, error, "Failed to collect from source");
     }
   });
 
@@ -179,8 +169,7 @@ export async function registerRoutes(
       const drafts = await storage.getDrafts(decision);
       res.json(drafts);
     } catch (error) {
-      console.error("Error getting drafts:", error);
-      res.status(500).json({ error: "Failed to get drafts" });
+      handleApiError(res, error, "Failed to get drafts");
     }
   });
 
@@ -191,8 +180,7 @@ export async function registerRoutes(
       await storage.updateDraftDecision(id, "approved", finalText);
       res.json({ success: true });
     } catch (error) {
-      console.error("Error approving draft:", error);
-      res.status(500).json({ error: "Failed to approve draft" });
+      handleApiError(res, error, "Failed to approve draft");
     }
   });
 
@@ -202,8 +190,7 @@ export async function registerRoutes(
       await storage.updateDraftDecision(id, "rejected");
       res.json({ success: true });
     } catch (error) {
-      console.error("Error rejecting draft:", error);
-      res.status(500).json({ error: "Failed to reject draft" });
+      handleApiError(res, error, "Failed to reject draft");
     }
   });
 
@@ -212,8 +199,7 @@ export async function registerRoutes(
       const status = getSchedulerStatus();
       res.json(status);
     } catch (error) {
-      console.error("Error getting scheduler status:", error);
-      res.status(500).json({ error: "Failed to get scheduler status" });
+      handleApiError(res, error, "Failed to get scheduler status");
     }
   });
 
@@ -222,8 +208,7 @@ export async function registerRoutes(
       startScheduler();
       res.json({ success: true, isRunning: true });
     } catch (error) {
-      console.error("Error starting scheduler:", error);
-      res.status(500).json({ error: "Failed to start scheduler" });
+      handleApiError(res, error, "Failed to start scheduler");
     }
   });
 
@@ -232,8 +217,7 @@ export async function registerRoutes(
       stopScheduler();
       res.json({ success: true, isRunning: false });
     } catch (error) {
-      console.error("Error stopping scheduler:", error);
-      res.status(500).json({ error: "Failed to stop scheduler" });
+      handleApiError(res, error, "Failed to stop scheduler");
     }
   });
 
@@ -242,8 +226,7 @@ export async function registerRoutes(
       const result = await runCollectNow();
       res.json(result);
     } catch (error) {
-      console.error("Error running collect:", error);
-      res.status(500).json({ error: "Failed to run collect" });
+      handleApiError(res, error, "Failed to run collect");
     }
   });
 
@@ -302,8 +285,7 @@ export async function registerRoutes(
       const outputs = await storage.listOutputs({ userId, from, to });
       res.json(outputs);
     } catch (error) {
-      console.error("Error getting reports:", error);
-      res.status(500).json({ error: "Failed to get reports" });
+      handleApiError(res, error, "Failed to get reports");
     }
   });
 
@@ -323,8 +305,7 @@ export async function registerRoutes(
 
       res.json(output);
     } catch (error) {
-      console.error("Error getting report:", error);
-      res.status(500).json({ error: "Failed to get report" });
+      handleApiError(res, error, "Failed to get report");
     }
   });
 
@@ -497,8 +478,7 @@ export async function registerRoutes(
         hasUserProviders: providers.length > 0,
       });
     } catch (error) {
-      console.error("Error getting console context:", error);
-      res.status(500).json({ error: "Failed to get console context" });
+      handleApiError(res, error, "Failed to get console context");
     }
   });
 
@@ -509,8 +489,7 @@ export async function registerRoutes(
       const thread = await storage.createThread(userId);
       res.json(thread);
     } catch (error) {
-      console.error("Error creating thread:", error);
-      res.status(500).json({ error: "Failed to create thread" });
+      handleApiError(res, error, "Failed to create thread");
     }
   });
 
@@ -521,8 +500,7 @@ export async function registerRoutes(
       const threads = await storage.getUserThreads(userId);
       res.json(threads);
     } catch (error) {
-      console.error("Error listing threads:", error);
-      res.status(500).json({ error: "Failed to list threads" });
+      handleApiError(res, error, "Failed to list threads");
     }
   });
 
@@ -539,8 +517,7 @@ export async function registerRoutes(
       const messages = await storage.listThreadMessages(threadId, userId, 100);
       res.json(messages.reverse());
     } catch (error) {
-      console.error("Error getting thread messages:", error);
-      res.status(500).json({ error: "Failed to get thread messages" });
+      handleApiError(res, error, "Failed to get thread messages");
     }
   });
 
@@ -723,8 +700,7 @@ export async function registerRoutes(
       const presetList = await storage.listPresets();
       res.json(presetList);
     } catch (error) {
-      console.error("Error getting presets:", error);
-      res.status(500).json({ error: "Failed to get presets" });
+      handleApiError(res, error, "Failed to get presets");
     }
   });
 
@@ -739,8 +715,7 @@ export async function registerRoutes(
       const profileList = await storage.listProfiles(userId);
       res.json(profileList);
     } catch (error) {
-      console.error("Error getting profiles:", error);
-      res.status(500).json({ error: "Failed to get profiles" });
+      handleApiError(res, error, "Failed to get profiles");
     }
   });
 
@@ -768,8 +743,7 @@ export async function registerRoutes(
       });
       res.json(profile);
     } catch (error) {
-      console.error("Error creating profile:", error);
-      res.status(500).json({ error: "Failed to create profile" });
+      handleApiError(res, error, "Failed to create profile");
     }
   });
 
@@ -787,8 +761,7 @@ export async function registerRoutes(
       
       res.json(profile);
     } catch (error) {
-      console.error("Error getting profile:", error);
-      res.status(500).json({ error: "Failed to get profile" });
+      handleApiError(res, error, "Failed to get profile");
     }
   });
 
@@ -814,8 +787,7 @@ export async function registerRoutes(
       
       res.json(profile);
     } catch (error) {
-      console.error("Error updating profile:", error);
-      res.status(500).json({ error: "Failed to update profile" });
+      handleApiError(res, error, "Failed to update profile");
     }
   });
 
@@ -828,8 +800,7 @@ export async function registerRoutes(
       await storage.deleteProfile(id, userId);
       res.json({ ok: true });
     } catch (error) {
-      console.error("Error deleting profile:", error);
-      res.status(500).json({ error: "Failed to delete profile" });
+      handleApiError(res, error, "Failed to delete profile");
     }
   });
 
@@ -847,8 +818,7 @@ export async function registerRoutes(
       
       res.json(cloned);
     } catch (error) {
-      console.error("Error cloning profile:", error);
-      res.status(500).json({ error: "Failed to clone profile" });
+      handleApiError(res, error, "Failed to clone profile");
     }
   });
 
@@ -864,8 +834,7 @@ export async function registerRoutes(
       const sources = await storage.getProfileSources(profileId, userId);
       res.json(sources);
     } catch (error) {
-      console.error("Error getting profile sources:", error);
-      res.status(500).json({ error: "Failed to get profile sources" });
+      handleApiError(res, error, "Failed to get profile sources");
     }
   });
 
@@ -893,8 +862,7 @@ export async function registerRoutes(
       await storage.setProfileSources(profileId, userId, sourceData);
       res.json({ ok: true });
     } catch (error) {
-      console.error("Error setting profile sources:", error);
-      res.status(500).json({ error: "Failed to set profile sources" });
+      handleApiError(res, error, "Failed to set profile sources");
     }
   });
 
@@ -909,8 +877,7 @@ export async function registerRoutes(
       const botList = await storage.listBots(userId);
       res.json({ bots: botList });
     } catch (error) {
-      console.error("Error listing bots:", error);
-      res.status(500).json({ error: "Failed to list bots" });
+      handleApiError(res, error, "Failed to list bots");
     }
   });
 
@@ -1046,8 +1013,7 @@ export async function registerRoutes(
       if (!bot) return res.status(404).json({ error: "Bot not found" });
       res.json({ bot });
     } catch (error) {
-      console.error("Error getting bot:", error);
-      res.status(500).json({ error: "Failed to get bot" });
+      handleApiError(res, error, "Failed to get bot");
     }
   });
 
@@ -1062,8 +1028,7 @@ export async function registerRoutes(
       if (!bot) return res.status(404).json({ error: "Bot not found" });
       res.json({ bot });
     } catch (error) {
-      console.error("Error updating bot:", error);
-      res.status(500).json({ error: "Failed to update bot" });
+      handleApiError(res, error, "Failed to update bot");
     }
   });
 
@@ -1077,8 +1042,7 @@ export async function registerRoutes(
       await storage.deleteBot(botId, userId);
       res.json({ ok: true });
     } catch (error) {
-      console.error("Error deleting bot:", error);
-      res.status(500).json({ error: "Failed to delete bot" });
+      handleApiError(res, error, "Failed to delete bot");
     }
   });
 
@@ -1096,8 +1060,7 @@ export async function registerRoutes(
       const settings = await storage.getBotSettings(botId);
       res.json({ settings: settings ?? null });
     } catch (error) {
-      console.error("Error getting bot settings:", error);
-      res.status(500).json({ error: "Failed to get bot settings" });
+      handleApiError(res, error, "Failed to get bot settings");
     }
   });
 
@@ -1133,8 +1096,7 @@ export async function registerRoutes(
       const botSources = await storage.getBotSources(botId);
       res.json({ links: botSources });
     } catch (error) {
-      console.error("Error getting bot sources:", error);
-      res.status(500).json({ error: "Failed to get bot sources" });
+      handleApiError(res, error, "Failed to get bot sources");
     }
   });
 
@@ -1170,8 +1132,7 @@ export async function registerRoutes(
       const safe = providers.map(p => ({ ...p, apiKeyEncrypted: undefined, apiKeyHint: p.apiKeyEncrypted ? "****" : "" }));
       res.json({ providers: safe });
     } catch (error) {
-      console.error("Error listing LLM providers:", error);
-      res.status(500).json({ error: "Failed to list LLM providers" });
+      handleApiError(res, error, "Failed to list LLM providers");
     }
   });
 
@@ -1199,8 +1160,7 @@ export async function registerRoutes(
       });
       res.json({ provider: { ...provider, apiKeyEncrypted: undefined, apiKeyHint: "****" } });
     } catch (error) {
-      console.error("Error creating LLM provider:", error);
-      res.status(500).json({ error: "Failed to create LLM provider" });
+      handleApiError(res, error, "Failed to create LLM provider");
     }
   });
 
@@ -1226,8 +1186,7 @@ export async function registerRoutes(
       if (!provider) return res.status(404).json({ error: "LLM provider not found" });
       res.json({ provider: { ...provider, apiKeyEncrypted: undefined, apiKeyHint: "****" } });
     } catch (error) {
-      console.error("Error updating LLM provider:", error);
-      res.status(500).json({ error: "Failed to update LLM provider" });
+      handleApiError(res, error, "Failed to update LLM provider");
     }
   });
 
@@ -1241,8 +1200,7 @@ export async function registerRoutes(
       await storage.deleteLlmProvider(id, userId);
       res.json({ ok: true });
     } catch (error) {
-      console.error("Error deleting LLM provider:", error);
-      res.status(500).json({ error: "Failed to delete LLM provider" });
+      handleApiError(res, error, "Failed to delete LLM provider");
     }
   });
 
@@ -1290,8 +1248,7 @@ export async function registerRoutes(
       const sourceList = await storage.listSources(userId, topic);
       res.json(sourceList);
     } catch (error) {
-      console.error("Error getting sources:", error);
-      res.status(500).json({ error: "Failed to get sources" });
+      handleApiError(res, error, "Failed to get sources");
     }
   });
 
@@ -1344,8 +1301,7 @@ export async function registerRoutes(
       
       res.json(source);
     } catch (error) {
-      console.error("Error updating source:", error);
-      res.status(500).json({ error: "Failed to update source" });
+      handleApiError(res, error, "Failed to update source");
     }
   });
 
@@ -1358,9 +1314,21 @@ export async function registerRoutes(
       await storage.deleteUserSource(userId, sourceId);
       res.json({ ok: true });
     } catch (error) {
-      console.error("Error deleting source:", error);
-      res.status(500).json({ error: "Failed to delete source" });
+      handleApiError(res, error, "Failed to delete source");
     }
+  });
+
+  app.use((err: Error, _req: Request, res: Response, next: NextFunction) => {
+    if (err instanceof NotImplementedError || err?.name === "NotImplementedError") {
+      console.warn(`[Route] ${err.message}`);
+      res.status(501).json({
+        error: err.message,
+        code: "NOT_IMPLEMENTED_SQLITE",
+        hint: "이 기능은 로컬 MVP에서 아직 비활성입니다. Fast Report와 Console은 정상 작동합니다.",
+      });
+      return;
+    }
+    next(err);
   });
 
   return httpServer;

@@ -271,6 +271,13 @@ export class SqliteStorage implements IStorage {
     return item as any;
   }
 
+  async findItemByDedupeKey(sourceId: number, url: string): Promise<Item | undefined> {
+    const [item] = await db.select().from(items)
+      .where(and(eq(items.sourceId, sourceId), eq(items.url, url)))
+      .limit(1);
+    return item as any;
+  }
+
   async updateItemStatus(id: number, status: string): Promise<void> {
     await db.update(items).set({ status }).where(eq(items.id, id));
   }
@@ -1082,6 +1089,33 @@ export class SqliteStorage implements IStorage {
         }))
       );
     }
+  }
+
+  async addSourceToBot(botId: number, userId: string, sourceId: number, weight: number = 3): Promise<void> {
+    const [bot] = await db.select().from(bots).where(and(eq(bots.id, botId), eq(bots.userId, userId))).limit(1);
+    if (!bot) throw new Error("Bot not found or access denied");
+
+    const [source] = await db.select().from(sources).where(and(
+      eq(sources.id, sourceId),
+      or(eq(sources.userId, userId), isNull(sources.userId))
+    )).limit(1);
+    if (!source) throw new Error("Source not found or access denied");
+
+    const [existing] = await db.select().from(sourceBotLinks)
+      .where(and(eq(sourceBotLinks.botId, botId), eq(sourceBotLinks.sourceId, sourceId))).limit(1);
+    if (existing) return;
+
+    await db.insert(sourceBotLinks).values({ botId, sourceId, weight, isEnabled: true });
+  }
+
+  async removeSourceFromBot(botId: number, userId: string, sourceId: number): Promise<void> {
+    const [bot] = await db.select().from(bots).where(and(eq(bots.id, botId), eq(bots.userId, userId))).limit(1);
+    if (!bot) throw new Error("Bot not found or access denied");
+
+    await db.delete(sourceBotLinks).where(and(
+      eq(sourceBotLinks.botId, botId),
+      eq(sourceBotLinks.sourceId, sourceId)
+    ));
   }
 
   async ensureDefaultBots(userId: string): Promise<Bot[]> {

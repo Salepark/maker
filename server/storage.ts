@@ -39,6 +39,7 @@ export interface IStorage {
   getItemsByStatus(status: string, limit?: number): Promise<(Item & { sourceName: string; sourceTopic: string; rulesJson?: unknown })[]>;
   getItemsByStatusAndSourceIds(status: string, sourceIds: number[], limit?: number): Promise<(Item & { sourceName: string; sourceTopic: string; rulesJson?: unknown })[]>;
   createItem(data: InsertItem): Promise<Item>;
+  findItemByDedupeKey(sourceId: number, url: string): Promise<Item | undefined>;
   updateItemStatus(id: number, status: string): Promise<void>;
 
   createAnalysis(data: InsertAnalysis): Promise<Analysis>;
@@ -148,6 +149,8 @@ export interface IStorage {
   // Source-Bot Links
   getBotSources(botId: number): Promise<(Source & { weight: number; isEnabled: boolean })[]>;
   setBotSources(botId: number, userId: string, sourceData: Array<{ sourceId: number; weight?: number; isEnabled?: boolean }>): Promise<void>;
+  addSourceToBot(botId: number, userId: string, sourceId: number, weight?: number): Promise<void>;
+  removeSourceFromBot(botId: number, userId: string, sourceId: number): Promise<void>;
 
   // Default bot creation on first login
   ensureDefaultBots(userId: string): Promise<Bot[]>;
@@ -425,6 +428,13 @@ export class DatabaseStorage implements IStorage {
 
   async createItem(data: InsertItem): Promise<Item> {
     const [item] = await db.insert(items).values(data).returning();
+    return item;
+  }
+
+  async findItemByDedupeKey(sourceId: number, url: string): Promise<Item | undefined> {
+    const [item] = await db.select().from(items)
+      .where(and(eq(items.sourceId, sourceId), eq(items.url, url)))
+      .limit(1);
     return item;
   }
 
@@ -1273,6 +1283,33 @@ export class DatabaseStorage implements IStorage {
         }))
       );
     }
+  }
+
+  async addSourceToBot(botId: number, userId: string, sourceId: number, weight: number = 3): Promise<void> {
+    const [bot] = await db.select().from(bots).where(and(eq(bots.id, botId), eq(bots.userId, userId))).limit(1);
+    if (!bot) throw new Error("Bot not found or access denied");
+
+    const [source] = await db.select().from(sources).where(and(
+      eq(sources.id, sourceId),
+      or(eq(sources.userId, userId), isNull(sources.userId))
+    )).limit(1);
+    if (!source) throw new Error("Source not found or access denied");
+
+    const [existing] = await db.select().from(sourceBotLinks)
+      .where(and(eq(sourceBotLinks.botId, botId), eq(sourceBotLinks.sourceId, sourceId))).limit(1);
+    if (existing) return;
+
+    await db.insert(sourceBotLinks).values({ botId, sourceId, weight, isEnabled: true });
+  }
+
+  async removeSourceFromBot(botId: number, userId: string, sourceId: number): Promise<void> {
+    const [bot] = await db.select().from(bots).where(and(eq(bots.id, botId), eq(bots.userId, userId))).limit(1);
+    if (!bot) throw new Error("Bot not found or access denied");
+
+    await db.delete(sourceBotLinks).where(and(
+      eq(sourceBotLinks.botId, botId),
+      eq(sourceBotLinks.sourceId, sourceId)
+    ));
   }
 
   // Default bot creation on first login
