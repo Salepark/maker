@@ -1282,7 +1282,6 @@ export class DatabaseStorage implements IStorage {
       return existingBots;
     }
 
-    // Create default bots: ai_art and investing
     const defaultBots = [
       { key: "ai_art", name: "AI Art Monitor" },
       { key: "investing", name: "Investing Brief" },
@@ -1297,7 +1296,6 @@ export class DatabaseStorage implements IStorage {
         isEnabled: true,
       }).returning();
 
-      // Create default settings for this bot
       await db.insert(botSettings).values({
         botId: bot.id,
         timezone: "Asia/Seoul",
@@ -1310,7 +1308,6 @@ export class DatabaseStorage implements IStorage {
         filtersJson: { minImportanceScore: 0, maxRiskLevel: 100 },
       });
 
-      // Link default sources for this topic
       const defaultSources = await db
         .select()
         .from(sources)
@@ -1326,6 +1323,25 @@ export class DatabaseStorage implements IStorage {
           }))
         );
       }
+
+      const matchingPreset = await db.select().from(presets).where(eq(presets.key, botDef.key === "investing" ? "daily_market_brief" : botDef.key === "ai_art" ? "news_briefing" : botDef.key)).limit(1);
+      const presetId = matchingPreset[0]?.id ?? null;
+
+      await db.insert(profiles).values({
+        userId,
+        presetId,
+        name: botDef.name,
+        topic: botDef.key,
+        timezone: "Asia/Seoul",
+        scheduleCron: "0 7 * * *",
+        configJson: {
+          sections: { tldr: true, drivers: true, risk: true, checklist: true, sources: true },
+          filters: { minImportanceScore: 0, maxRiskLevel: 100 },
+          verbosity: "normal",
+          markdownLevel: "minimal",
+        },
+        isActive: true,
+      });
 
       createdBots.push(bot);
     }
