@@ -1612,6 +1612,10 @@ export async function registerRoutes(
       if (req.query.eventType) filters.eventType = req.query.eventType as string;
       if (req.query.permissionKey) filters.permissionKey = req.query.permissionKey as string;
       if (req.query.limit) filters.limit = parseInt(req.query.limit as string, 10);
+      if (req.query.days) {
+        const days = parseInt(req.query.days as string, 10);
+        if (days > 0) filters.since = new Date(Date.now() - days * 86400000);
+      }
       const logs = await storage.listAuditLogs(userId, filters);
       res.json(logs);
     } catch (error) {

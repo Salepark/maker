@@ -1387,11 +1387,12 @@ export class SqliteStorage implements IStorage {
     } as any);
   }
 
-  async listAuditLogs(userId: string, filters?: { botId?: number; eventType?: string; permissionKey?: string; limit?: number }): Promise<any[]> {
+  async listAuditLogs(userId: string, filters?: { botId?: number; eventType?: string; permissionKey?: string; limit?: number; since?: Date }): Promise<any[]> {
     const conditions = [eq(auditLogs.userId, userId)];
     if (filters?.botId) conditions.push(eq(auditLogs.botId, filters.botId));
     if (filters?.eventType) conditions.push(eq(auditLogs.eventType, filters.eventType));
     if (filters?.permissionKey) conditions.push(eq(auditLogs.permissionKey, filters.permissionKey));
+    if (filters?.since) conditions.push(gte(auditLogs.createdAt, filters.since));
     return db.select().from(auditLogs)
       .where(and(...conditions))
       .orderBy(desc(auditLogs.createdAt))

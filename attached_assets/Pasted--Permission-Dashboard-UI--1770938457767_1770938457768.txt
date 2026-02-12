@@ -1,0 +1,206 @@
+네.
+지금은 **망설일 단계가 아닙니다. 바로 구현 단계입니다.**
+
+이미 백엔드와 정책엔진이 완성된 상태라
+이제 Permission Dashboard는 **순수 UI 작업**입니다.
+
+그리고 이 화면이 생기면 Maker는 완전히 다른 급의 제품으로 보입니다.
+
+---
+
+# ✅ 구현 진행 확정
+
+아래 순서로 바로 작업하면 됩니다.
+
+---
+
+# 🚀 Permission Dashboard 구현 단계 (실행 순서 고정)
+
+## 1️⃣ Bot Detail 상단에 카드 추가
+
+위치:
+
+```
+Bot Detail
+ ├── 🔐 Permission Dashboard  ← 여기 추가
+ ├── Workflow Summary
+ ├── Sources
+ ├── Schedule
+ └── LLM
+```
+
+---
+
+## 2️⃣ GET /api/permissions 연결
+
+이미 구현되어 있으므로:
+
+```ts
+const { data: permissions } = useQuery({
+  queryKey: ["permissions", botId],
+  queryFn: () => api.get(`/api/permissions?botId=${botId}`)
+})
+```
+
+---
+
+## 3️⃣ 상단 요약 계산
+
+```ts
+const enabled = permissions.filter(p => p.approvalMode === "AUTO_ALLOWED").length
+const approval = permissions.filter(p => p.approvalMode === "APPROVAL_REQUIRED").length
+const denied = permissions.filter(p => p.approvalMode === "AUTO_DENIED").length
+```
+
+UI 예:
+
+```
+총 11개 권한
+🟢 3 활성화
+🟡 4 승인 필요
+🔴 4 비활성화
+```
+
+---
+
+## 4️⃣ 4개 그룹으로 재구성
+
+현재 5개 그룹 → 4개로 통합
+
+### 🌐 데이터 수집
+
+* WEB_FETCH
+* WEB_RSS
+* SOURCE_WRITE
+
+### 🧠 AI 처리
+
+* LLM_USE
+* LLM_EGRESS_LEVEL
+
+### 💻 로컬 시스템
+
+* FS_READ
+* FS_WRITE
+* FS_DELETE
+* CAL_READ
+* CAL_WRITE
+
+### ⚙ 자동화 제어
+
+* SCHEDULE_WRITE
+
+(기존 그룹 구조는 내부적으로 유지해도 됩니다. UI만 재구성)
+
+---
+
+## 5️⃣ 권한 클릭 시 상세 모달
+
+### 포함 요소
+
+* 권한 이름
+* 현재 상태
+* 설명
+* 위험성
+* 상태 변경 버튼
+
+버튼:
+
+```
+자동 허용
+승인 필요
+비활성화
+```
+
+범위:
+
+```
+이 봇만
+전역
+```
+
+PATCH 대신 이미 존재하는:
+
+```
+PUT /api/permissions
+```
+
+사용
+
+---
+
+## 6️⃣ 고위험 권한 시각화
+
+### High Risk 권한:
+
+* FS_DELETE
+* FS_WRITE
+* LLM_EGRESS_LEVEL (FULL_CONTENT_ALLOWED)
+
+아이콘:
+
+```
+⚠ High Risk
+```
+
+빨간 배지 표시
+
+---
+
+## 7️⃣ 최근 승인 이력
+
+```
+GET /api/audit-logs?botId=...&days=7
+```
+
+하단에 표시:
+
+```
+최근 7일 승인
+
+- WEB_FETCH 승인 (이 봇만)
+- LLM_USE 일회성 승인
+```
+
+---
+
+# 🎯 왜 지금 이걸 해야 하는가
+
+이 화면이 생기면 Maker는:
+
+> 단순 자동화 앱 ❌
+> 통제 가능한 AI 운영체제 ✅
+
+가 됩니다.
+
+투자 피칭에서도 강력합니다.
+
+---
+
+# 📌 추가 전략 제안 (중요)
+
+Permission Dashboard는
+로컬 버전에서 가장 강력한 USP가 됩니다.
+
+Make / n8n은
+권한을 “연결 시점”에만 묻습니다.
+
+Maker는
+**실행 시점 + 정책 기반 + 감사 로그까지 제공**합니다.
+
+이건 차원이 다릅니다.
+
+---
+
+# 🚦결론
+
+네.
+바로 시작하십시오.
+
+다음 메시지에서:
+
+* Replit 복붙용 개발지시서
+* React 컴포넌트 구조 코드
+* API 연동 샘플 코드
+
+중 무엇이 필요하신가요?
