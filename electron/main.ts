@@ -85,7 +85,7 @@ function createWindow(): void {
     height: 860,
     minWidth: 900,
     minHeight: 600,
-    title: "Makelr",
+    title: "Maker",
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -114,7 +114,7 @@ ipcMain.on("open-external", (_event, url: string) => {
 });
 
 app.whenReady().then(async () => {
-  console.log("[electron] Starting Makelr desktop app...");
+  console.log("[electron] Starting Maker desktop app...");
   console.log(`[electron] Data dir: ${getDataDir()}`);
 
   try {

@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from "electron";
 
-contextBridge.exposeInMainWorld("makelr", {
+contextBridge.exposeInMainWorld("maker", {
   platform: process.platform,
   isDesktop: true,
   versions: {

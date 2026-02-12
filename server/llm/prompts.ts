@@ -83,9 +83,9 @@ export function buildDraftPrompt(input: {
   const tonePreset = TONE_PRESETS[preferredTone] || TONE_PRESETS.informative;
 
   const promoGuidance = {
-    none: "Do not mention makelr. Provide pure information only.",
+    none: "Do not mention maker. Provide pure information only.",
     subtle: "Mention only about 1 in 10 times, very naturally at the level of 'by the way.'",
-    moderate: "May mention makelr.com if contextually appropriate, but without sounding like an ad.",
+    moderate: "May mention maker.am if contextually appropriate, but without sounding like an ad.",
   }[promoLevel];
 
   return `
@@ -95,8 +95,8 @@ Write short, natural responses that fit the context.
 Vary sentence structure so it doesn't look copy-pasted.
 No aggressive/exaggerated advertising.
 
-[Reference: 3 lines about makelr]
-- makelr.com aims to facilitate trading of digital assets such as AI-generated art/prompts/templates.
+[Reference: 3 lines about maker]
+- maker.am aims to facilitate trading of digital assets such as AI-generated art/prompts/templates.
 - The core focus is simplifying the sell/buy/license/settlement workflow.
 - Never mention features that don't exist.
 

@@ -5,7 +5,7 @@ import { storage } from "../../storage";
 
 const DEMO_USER_ID = "demo_reviewer_001";
 const DEMO_USERNAME = "reviewer";
-const DEMO_PASSWORD = "makelr2025";
+const DEMO_PASSWORD = "maker2025";
 
 export function registerAuthRoutes(app: Express): void {
   app.get("/api/auth/user", isAuthenticated, async (req: any, res) => {
@@ -35,7 +35,7 @@ export function registerAuthRoutes(app: Express): void {
 
       await authStorage.upsertUser({
         id: DEMO_USER_ID,
-        email: "reviewer@makelr.demo",
+        email: "reviewer@maker.demo",
         firstName: "Reviewer",
         lastName: "Account",
         profileImageUrl: null,
@@ -44,7 +44,7 @@ export function registerAuthRoutes(app: Express): void {
       const demoUser: any = {
         claims: {
           sub: DEMO_USER_ID,
-          email: "reviewer@makelr.demo",
+          email: "reviewer@maker.demo",
           first_name: "Reviewer",
           last_name: "Account",
         },

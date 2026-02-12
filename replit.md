@@ -1,8 +1,8 @@
-# Makelr Bot Manager
+# Maker Bot Manager
 
 ## Overview
 
-Makelr is a workflow design tool that empowers users to create personal automation bots. It enables users to design custom workflows by selecting content sources (like RSS feeds), defining schedules, and specifying output formats. The platform processes content, utilizes AI for analysis, and generates customizable reports. Key features include multi-user bot management with strict topic isolation, preset templates for easy workflow creation, and the ability for users to "Bring Your Own LLM" for AI tasks. The project aims to provide a flexible platform for personalized automation rather than offering pre-built solutions.
+Maker is a workflow design tool that empowers users to create personal automation bots. It enables users to design custom workflows by selecting content sources (like RSS feeds), defining schedules, and specifying output formats. The platform processes content, utilizes AI for analysis, and generates customizable reports. Key features include multi-user bot management with strict topic isolation, preset templates for easy workflow creation, and the ability for users to "Bring Your Own LLM" for AI tasks. The project aims to provide a flexible platform for personalized automation rather than offering pre-built solutions.
 
 ## User Preferences
 

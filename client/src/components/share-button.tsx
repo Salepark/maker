@@ -9,8 +9,8 @@ import {
 } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
-const SHARE_URL = typeof window !== "undefined" ? window.location.origin : "https://makelr.com";
-const SHARE_TITLE = "Makelr — Design your own automation workflows";
+const SHARE_URL = typeof window !== "undefined" ? window.location.origin : "https://maker.am";
+const SHARE_TITLE = "Maker — Design your own automation workflows";
 const SHARE_TEXT = "Build personal automation bots: choose your sources, set schedules, and generate AI-powered reports. Your workflow, your rules.";
 
 const platforms = [

@@ -441,7 +441,7 @@ const presetData: Array<{
         { name: "Reddit (글로벌 비교)", url: "https://www.reddit.com/r/ecommerce/.rss", topic: "online_business" },
         { name: "공정거래위원회 · 소비자원", url: "https://www.kca.go.kr/", topic: "online_business" },
       ],
-      sourceDisclaimer: "기본 소스는 온라인 사업자가 일반적으로 참고하는 공개 채널입니다. 특정 플랫폼·전문 영역에 특화된 소스는 사용자가 직접 추가할 수 있습니다. Makelr는 소스를 추천하지 않으며, 판단은 사용자 책임입니다.",
+      sourceDisclaimer: "기본 소스는 온라인 사업자가 일반적으로 참고하는 공개 채널입니다. 특정 플랫폼·전문 영역에 특화된 소스는 사용자가 직접 추가할 수 있습니다. Maker는 소스를 추천하지 않으며, 판단은 사용자 책임입니다.",
     },
   },
   {
@@ -472,7 +472,7 @@ const presetData: Array<{
         { name: "Google Trends (Korea)", url: "https://trends.google.co.kr/trending?geo=KR", topic: "korea_marketplace" },
         { name: "통계청 KOSIS (소비 트렌드)", url: "https://kosis.kr/", topic: "korea_marketplace" },
       ],
-      sourceDisclaimer: "기본 소스는 한국 오픈마켓 셀러가 일반적으로 참고하는 공개 채널입니다. 특정 플랫폼·전문 영역에 특화된 소스는 사용자가 직접 추가할 수 있습니다. Makelr는 소스를 추천하지 않으며, 판단은 사용자 책임입니다.",
+      sourceDisclaimer: "기본 소스는 한국 오픈마켓 셀러가 일반적으로 참고하는 공개 채널입니다. 특정 플랫폼·전문 영역에 특화된 소스는 사용자가 직접 추가할 수 있습니다. Maker는 소스를 추천하지 않으며, 판단은 사용자 책임입니다.",
     },
   },
 ];

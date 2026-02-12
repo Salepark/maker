@@ -145,7 +145,7 @@ export default function ItemDetailPage() {
   const removeLinks = (text: string) => {
     return text
       .replace(/https?:\/\/[^\s]+/g, "")
-      .replace(/makelr\.com/gi, "")
+      .replace(/maker\.am/gi, "")
       .replace(/\s+/g, " ")
       .trim();
   };

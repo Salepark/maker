@@ -239,7 +239,7 @@ export default function Guide() {
       </Card>
 
       <div className="text-center text-xs text-muted-foreground pb-4">
-        <p>makelr.com</p>
+        <p>maker.am</p>
       </div>
     </div>
   );

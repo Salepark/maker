@@ -7,7 +7,7 @@ import {
   type SourceRules 
 } from "../llm/prompts";
 
-const APP_BASE_URL = process.env.APP_BASE_URL || "https://makelr.com";
+const APP_BASE_URL = process.env.APP_BASE_URL || "https://maker.am";
 
 function shouldAllowLink(riskFlags: string[]): boolean {
   if (riskFlags.includes("promo_ban")) return false;

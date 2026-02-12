@@ -1,5 +1,5 @@
-appId: com.makelr.desktop
-productName: Makelr
+appId: com.maker.desktop
+productName: Maker
 directories:
   output: dist-electron
 files:
