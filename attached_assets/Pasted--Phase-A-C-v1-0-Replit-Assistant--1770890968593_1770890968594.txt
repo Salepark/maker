@@ -1,0 +1,551 @@
+좋아요. 아래는 **Phase A–C v1.0 (Replit Assistant 복붙용)**을 “파일 경로 + 스켈레톤 코드(최소 구현 뼈대)”까지 포함해서 **그대로 붙여넣으면 작업이 시작되게** 재작성한 버전입니다.
+
+---
+
+````md
+# Phase A–C v1.0 (Replit Assistant 복붙용) — 메이커 로컬-퍼스트 MVP
+목표:
+(A) Electron 쉘로 더블클릭 실행 기반 확보
+→ (B) SQLite로 완전 독립
+→ (C) “무한 running 제거 + 즉시 Fast Report” 신뢰성 확보
+
+리포지토리 구조(확정):
+- client/ (Vite + React SPA)
+- server/ (Express + cron jobs + storage)
+- shared/ (schema/types)
+- 단일 package.json
+
+---
+## 0) 핵심 원칙(절대 준수)
+1) “Running…” 무한 대기 금지
+   - 60초 넘어가면 즉시 Fast Report(LLM 없이) 저장/종료/안내.
+2) 로컬 MVP는 “단일 사용자 자동 로그인”이 기본 (auth 최소화)
+3) 리포트는 항상 뭔가를 준다
+   - 데이터 없으면 ‘상태 리포트’(왜 없는지/언제 기대할지)로 대체.
+
+작업 방식:
+- 반드시 “작업 순서(실행 순서 고정)”대로 1) A → 2) B → 3) C 진행
+- 각 Step 완료마다:
+  (1) 수정된 파일 리스트
+  (2) 핵심 변경 요약
+  (3) 재현 가능한 테스트 방법(npm 명령/endpoint) 보고
+
+---
+# Phase A (3~5일) — Electron 쉘 + 로컬 서버 부팅 (최소)
+
+## A-0. 신규/변경 파일 트리
+루트:
+- electron/
+  - main.ts
+  - preload.ts
+  - paths.ts (선택)
+- server/
+  - app.ts        (신규)
+  - start.ts      (신규)
+  - index.ts      (수정: CLI 엔트리)
+  - routes.ts     (수정: /api/health 추가)
+
+## A-1. 의존성 추가 + 스크립트 정리
+package.json에 추가:
+- electron
+- electron-builder
+- concurrently
+- wait-on
+- cross-env
+
+package.json scripts 예시(기존 dev 유지):
+- "dev:server": "tsx watch server/index.ts"
+- "dev:client": "vite"
+- "dev:electron": "electron ."
+- "dev:desktop": "concurrently -k \"npm:dev:server\" \"npm:dev:client\" \"wait-on http://localhost:5173 && npm:dev:electron\""
+- "build:client": "vite build"
+- "build:server": "node server/build.js" (또는 기존 esbuild 스크립트 유지)
+- "build:desktop": "npm run build:client && npm run build:server && electron-builder"
+- "pack:desktop": "electron-builder --dir"
+
+electron-builder 최소 설정도 package.json에 추가:
+{
+  "main": "electron/main.js",
+  "build": {
+    "appId": "com.makelr.desktop",
+    "productName": "Makelr",
+    "files": ["client/dist/**", "server/dist/**", "electron/**", "package.json"],
+    "mac": { "target": "dmg" },
+    "win": { "target": "nsis" }
+  }
+}
+
+(주의) main.ts는 빌드 과정에서 JS로 변환 필요:
+- 간단히 MVP는 electron 폴더도 tsx로 돌리거나,
+- prod는 electron/main.ts를 tsc/esbuild로 electron/main.js로 내보내는 스텝 추가.
+
+## A-2. server 부트스트랩 분리 (가장 중요)
+### 1) server/app.ts (신규)
+```ts
+import express from "express";
+import session from "express-session";
+import { registerRoutes } from "./routes";
+
+export function createApp() {
+  const app = express();
+
+  app.use(express.json({ limit: "2mb" }));
+  app.use(express.urlencoded({ extended: true }));
+
+  // MVP: 로컬 단일사용자 모드 전까지는 기존 세션 구성을 유지하거나 최소화
+  app.use(
+    session({
+      secret: process.env.SESSION_SECRET || "dev-secret",
+      resave: false,
+      saveUninitialized: false,
+    })
+  );
+
+  registerRoutes(app);
+  return app;
+}
+````
+
+### 2) server/start.ts (신규)
+
+```ts
+import type { Server } from "http";
+import { createApp } from "./app";
+
+export async function startServer(opts?: { port?: number }) {
+  const app = createApp();
+  const port = opts?.port ?? Number(process.env.PORT || 3000);
+
+  return await new Promise<{ port: number; close: () => Promise<void> }>((resolve) => {
+    const server: Server = app.listen(port, () => {
+      const addr = server.address();
+      const actualPort =
+        typeof addr === "object" && addr && "port" in addr ? Number(addr.port) : port;
+
+      resolve({
+        port: actualPort,
+        close: async () => new Promise<void>((r) => server.close(() => r())),
+      });
+    });
+  });
+}
+```
+
+### 3) server/index.ts (수정: CLI 실행 전용)
+
+```ts
+import { startServer } from "./start";
+
+startServer({ port: Number(process.env.PORT || 3000) })
+  .then(({ port }) => console.log(`[server] listening on :${port}`))
+  .catch((e) => {
+    console.error("[server] failed to start", e);
+    process.exit(1);
+  });
+```
+
+## A-3. /api/health 추가
+
+server/routes.ts에 최소 엔드포인트:
+
+```ts
+export function registerRoutes(app: any) {
+  app.get("/api/health", (_req: any, res: any) => {
+    res.json({ ok: true, mode: "server", time: new Date().toISOString() });
+  });
+
+  // ...기존 /api/* 라우트들 그대로
+}
+```
+
+## A-4. Electron 메인 (electron/main.ts)
+
+요구사항:
+
+* 로컬 Express 서버를 port=0(랜덤)로 띄우고 실제 포트를 renderer에 전달
+* dev: Vite URL 로드
+* prod: client/dist/index.html 로드
+* 종료 시 서버도 종료
+
+```ts
+import { app, BrowserWindow, ipcMain } from "electron";
+import path from "path";
+import { startServer } from "../server/start";
+
+let mainWindow: BrowserWindow | null = null;
+let serverCloser: null | (() => Promise<void>) = null;
+let serverPort: number | null = null;
+
+const isDev = !app.isPackaged;
+
+async function createWindow() {
+  mainWindow = new BrowserWindow({
+    width: 1200,
+    height: 800,
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+
+  // 1) 서버 먼저 시작 (port=0)
+  const started = await startServer({ port: 0 });
+  serverPort = started.port;
+  serverCloser = started.close;
+
+  // 2) renderer 로드
+  if (isDev) {
+    await mainWindow.loadURL("http://localhost:5173");
+  } else {
+    await mainWindow.loadFile(path.join(__dirname, "../client/dist/index.html"));
+  }
+
+  mainWindow.on("closed", () => (mainWindow = null));
+}
+
+// renderer가 서버 포트를 물어볼 수 있게 제공
+ipcMain.handle("maker:getServerBaseUrl", async () => {
+  if (!serverPort) return null;
+  return `http://localhost:${serverPort}`;
+});
+
+app.whenReady().then(createWindow);
+
+app.on("window-all-closed", async () => {
+  if (serverCloser) await serverCloser();
+  if (process.platform !== "darwin") app.quit();
+});
+
+app.on("before-quit", async () => {
+  if (serverCloser) await serverCloser();
+});
+```
+
+## A-5. Electron preload (electron/preload.ts)
+
+```ts
+import { contextBridge, ipcRenderer } from "electron";
+
+contextBridge.exposeInMainWorld("maker", {
+  getServerBaseUrl: () => ipcRenderer.invoke("maker:getServerBaseUrl"),
+});
+```
+
+## A-6. 프론트에서 baseUrl 주입(최소)
+
+* 현재 client가 /api/*를 상대경로로 호출 중이면,
+  Electron에서는 "Vite dev 서버"가 뜨기 때문에 상대경로가 Vite로 붙습니다.
+  따라서 Electron 모드에서는 API_BASE_URL을 주입해서 fetch base를 바꾸는 방식 필요.
+
+MVP 방식(추천):
+
+* client/src/lib/api.ts 같은 공용 fetch wrapper가 있다면,
+  window.maker?.getServerBaseUrl()을 1회 받아서 baseUrl로 설정.
+
+예시(스켈레톤):
+
+```ts
+declare global {
+  interface Window {
+    maker?: { getServerBaseUrl: () => Promise<string | null> };
+  }
+}
+
+let cachedBaseUrl: string | null = null;
+
+export async function getApiBaseUrl() {
+  if (cachedBaseUrl) return cachedBaseUrl;
+  const fromElectron = await window.maker?.getServerBaseUrl?.();
+  cachedBaseUrl = fromElectron || ""; // 브라우저/리플릿은 상대경로 사용
+  return cachedBaseUrl;
+}
+
+export async function apiFetch(path: string, init?: RequestInit) {
+  const base = await getApiBaseUrl();
+  const url = base ? `${base}${path}` : path;
+  return fetch(url, init);
+}
+```
+
+### Phase A 테스트
+
+1. 서버만:
+
+* npm run dev:server
+* GET [http://localhost:3000/api/health](http://localhost:3000/api/health)
+
+2. 데스크톱(dev):
+
+* npm run dev:desktop
+* Electron 창 뜨고, 앱이 정상 로드
+* 콘솔 네트워크에서 /api/health 성공 확인
+
+---
+
+# Phase B (1~2주) — SQLite 전환 (Postgres 없이 동작)
+
+목표: IStorage 유지, db.ts를 “플랫폼별 팩토리”로 교체
+
+## B-0. 신규/변경 파일 트리
+
+* server/
+
+  * db.ts (수정: 팩토리)
+  * storage/
+
+    * index.ts (신규: env별 선택)
+    * sqliteStorage.ts (신규)
+    * postgresStorage.ts (기존 DatabaseStorage를 파일로 분리하거나 그대로 유지)
+* shared/
+
+  * schema.sqlite.ts (신규: sqlite-core)
+
+## B-1. env 규칙
+
+* MAKER_DB=sqlite → SQLite 사용
+* 기본은 기존처럼 pg 유지 (클라우드/리플릿)
+
+## B-2. SQLite 의존성
+
+* better-sqlite3
+* drizzle-orm/better-sqlite3
+* drizzle-orm (이미 있으면 유지)
+* drizzle-kit (이미 있으면 유지)
+
+## B-3. shared/schema.sqlite.ts (스켈레톤)
+
+주의:
+
+* uuid -> text
+* jsonb -> text(JSON)
+* timestamps -> integer(ms) 또는 text
+
+```ts
+import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+
+export const users = sqliteTable("users", {
+  id: text("id").primaryKey(),
+  email: text("email"),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+});
+
+export const sources = sqliteTable("sources", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  name: text("name").notNull(),
+  url: text("url").notNull(),
+  rulesJson: text("rules_json"), // JSON string
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+});
+
+// items/analysis/drafts/reports/threads/messages/bots/bot_settings 등도 동일하게 미러링
+// MVP는 "현재 앱이 실제로 쓰는 테이블"부터 우선 옮기기
+```
+
+## B-4. server/db.ts 팩토리(스켈레톤)
+
+```ts
+import { drizzle as drizzlePg } from "drizzle-orm/node-postgres";
+import { drizzle as drizzleSqlite } from "drizzle-orm/better-sqlite3";
+import { Pool } from "pg";
+import Database from "better-sqlite3";
+
+export function createDb() {
+  const driver = process.env.MAKER_DB === "sqlite" ? "sqlite" : "pg";
+
+  if (driver === "sqlite") {
+    const filePath = process.env.MAKER_SQLITE_PATH || "./.maker/maker.sqlite";
+    const sqlite = new Database(filePath);
+    const db = drizzleSqlite(sqlite);
+    return { driver, db };
+  }
+
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  const db = drizzlePg(pool);
+  return { driver, db };
+}
+```
+
+## B-5. Storage 선택(server/storage/index.ts)
+
+```ts
+import { createDb } from "../db";
+import { DatabaseStorage } from "../storage"; // 기존
+import { SqliteStorage } from "./sqliteStorage";
+
+export function createStorage() {
+  const { driver, db } = createDb();
+  if (driver === "sqlite") return new SqliteStorage(db as any);
+  return new DatabaseStorage(db as any);
+}
+```
+
+## B-6. SqliteStorage(스켈레톤)
+
+핵심: IStorage 인터페이스는 그대로, 구현만 달라짐.
+
+```ts
+import type { IStorage } from "../storage";
+export class SqliteStorage implements IStorage {
+  constructor(private db: any) {}
+
+  async getItemsByStatus(status: any, limit: number) {
+    // drizzle select 구현
+    return [];
+  }
+
+  // ...IStorage의 나머지 메서드들도 최소부터 채워나가기
+}
+```
+
+## B-7. 시드/초기화(MVP 허용 방식)
+
+MVP는 “앱 시작 시 테이블 없으면 create + seed” 허용.
+
+* presets 기본값
+* 로컬 단일 user
+* default thread
+
+(구현 방식은 프로젝트 현재 seed 방식에 맞춰 최소 변경)
+
+### Phase B 테스트
+
+* MAKER_DB=sqlite 설정 후 서버 구동
+* Sources 1개 등록 → collect → items 저장 확인
+* report 생성(LLM 없이) 저장/표시 확인
+
+---
+
+# Phase C (1주) — ‘무한 running’ 제거 + 즉시 Fast Report 표준화
+
+목표: 사용자는 항상 2~3초 안에 결과(최소 브리핑)를 본다.
+
+## C-0. 핵심: report 파이프라인을 fast-first로 변경
+
+정의:
+
+* Fast Report(즉시, LLM 없음): 수집 결과 기반 템플릿 브리핑
+* Full Report(업그레이드, LLM): 백그라운드에서 심화 분석 후 같은 reportId를 update
+
+## C-1. Fast Report 생성 스켈레톤(runReportNow / schedule 공통)
+
+server/jobs/report.ts 또는 report 생성 함수에 아래 순서 강제:
+
+(1) collect 수행(또는 최근 수집 사용)
+(2) 즉시 Fast Report 저장 (2~3초 내)
+(3) Full Report 업그레이드는 background로 실행(LLM 있으면)
+
+Fast Report 내용(최소):
+
+* 수집 item 수
+* 소스별 카운트
+* 최신 N개(10) 제목+링크
+* 간단 키워드 Top N(옵션: title에서 토큰 빈도)
+
+## C-2. 타임아웃 표준
+
+* report: 60s
+* analyze/draft: 30s
+  타임아웃이면:
+* Fast Report 유지 + stage="fast"로 남기고
+* upgradedAt은 null, errorReason 기록
+
+(중요) 타임아웃 시 “계속 running…”으로 남기지 말고 반드시 종료 메시지/상태 저장.
+
+## C-3. 0 items 방지: 상태 리포트
+
+수집 결과가 0이면:
+
+* Fast Report 대신 Status Report 생성(LLM 없음)
+
+  * 왜 없는지(신규 없음/소스 오류 가능)
+  * 다음 액션(sources 확인)
+  * 다음 스케줄 시각 안내
+
+## C-4. Console 명령의 무한 running 제거(필수 UX)
+
+Console에서 “매일 아침 9시에 브리핑”:
+
+* confirm 전: 즉시 “이 설정으로 저장할까요?” 메시지
+* confirm 후:
+
+  * schedule 저장은 즉시 끝(1초 내)
+  * (선택) 첫 1회 pipeline_run 실행:
+
+    * collect 완료 메시지
+    * fast report 생성 메시지
+    * (optional) full upgrade 시작 메시지
+* front polling:
+
+  * pipeline_run 중 2초 간격
+  * 종료 메시지 감지 후 10초로 복귀
+
+## C-5. report stage 필드(권장)
+
+reports 테이블(또는 report model)에 stage 필드:
+
+* "fast" | "status" | "full"
+
+- upgradedAt
+- errorReason(optional)
+
+MVP는 “동일 reportId update” 방식 추천:
+
+* stage:"fast" 생성 → 완료 시 stage:"full"로 update
+
+### Phase C 테스트(필수)
+
+1. Sources 1개 + run report now:
+
+* 2~3초 내 fast report 생성/표시
+
+2. LLM 키 없음:
+
+* fast report는 정상
+* full upgrade는 “설정 필요” 상태로 종료(무한 대기 금지)
+
+3. 소스 0개:
+
+* status report 생성(화면 비지 않음)
+
+4. Console로 “매일 9시”:
+
+* 저장 즉시 완료
+* 첫 실행 켠 경우 fast report까지는 즉시
+
+---
+
+# 완료 기준 (MVP DoD)
+
+1. Postgres 없어도 앱 실행 + 수집 + Fast/Status Report 저장/표시 가능
+2. Console 명령으로:
+
+   * “매일 9시 리포트” 설정 가능
+   * 즉시 Fast/Status Report가 생성되어 Reports에 보인다
+3. 어떤 경우에도 running이 무한 지속되지 않는다
+4. LLM 키 없으면:
+
+   * fast/status 정상
+   * full upgrade는 안내 후 종료
+
+````
+
+---
+
+## Replit Assistant에게 “같이” 붙일 한 줄 (진행 고정용)
+아래도 같이 붙이면, “중간에 딴짓” 확 줄어듭니다.
+
+```txt
+주의: Phase A에서 server/app.ts + server/start.ts 분리와 Electron에서 port=0 부팅이 완료되기 전에는 절대 Phase B/C로 넘어가지 마. 각 Step마다 반드시 npm 명령으로 재현 가능한 테스트 절차를 적고, “running 무한 대기”가 발생할 가능성이 있으면 그 Step에서 먼저 차단해.
+````
+
+---
+
+원하면 다음도 바로 만들어드릴게요(선택 사항인데, 이거 해두면 속도가 확 올라갑니다):
+
+1. **현재 코드 기준으로 “IStorage 필수 메서드 최소셋” 추려서** SqliteStorage가 먼저 돌아가게 하는 우선순위 목록
+2. Fast Report 템플릿(한국어, 기호 최소, 앵커 톤) v1.0
+3. Electron 환경에서 client API baseUrl 주입을 “프로젝트 실제 fetch 코드”에 맞춰 정확히 꽂는 패치 지시서
+
+원하시는 건 1,2,3 중 뭐부터 갈까요? (저는 1부터가 제일 “오늘 바로 실행”됩니다.)
