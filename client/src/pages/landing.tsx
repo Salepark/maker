@@ -173,7 +173,7 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Bot className="h-6 w-6 text-primary" />
-            <span className="font-semibold text-lg">Make<span className="text-primary">l</span>r</span>
+            <span className="font-semibold text-lg">Maker</span>
           </div>
           <div className="flex items-center gap-2">
             <ShareButton />
