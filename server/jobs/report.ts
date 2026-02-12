@@ -168,7 +168,7 @@ export async function generateReportsForDueProfiles(): Promise<ReportJobResult[]
 }
 
 export async function generateReportForProfile(profileId: number, userId?: string): Promise<ReportJobResult | null> {
-  console.log(`[ReportJob] Manual generation for profile ${profileId}`);
+  console.log(`[ReportJob] Manual generation for profile ${profileId} (fast-first)`);
 
   const profile = await storage.getProfileById(profileId);
 
@@ -189,122 +189,33 @@ export async function generateReportForProfile(profileId: number, userId?: strin
     throw new Error(`No sources linked to this bot. Add sources first using 'add source' command or from the Sources page.`);
   }
 
-  const now = new Date();
-  const lookbackHours = 24;
-  const maxItems = 12;
-  const periodStart = new Date(now.getTime() - lookbackHours * 60 * 60 * 1000);
-  const periodEnd = now;
+  const allSources = await storage.getSources();
+  const sourceNames = allSources
+    .filter((s: any) => sourceIds.includes(s.id))
+    .map((s: any) => s.name);
 
-  let items = await storage.getItemsForReport(
-    null,
-    sourceIds,
-    lookbackHours,
-    maxItems
-  );
-
-  // Apply minImportanceScore filter from configJson
-  const config = (profile.configJson || {}) as ReportConfig;
-  const minScore = config.filters?.minImportanceScore ?? 0;
-  if (minScore > 0) {
-    items = items.filter(item => (item.importanceScore || 0) >= minScore);
-  }
-
-  const today = new Date().toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    weekday: "long",
-    timeZone: profile.timezone || "Asia/Seoul",
-  });
-
-  let content: string;
-  let reportStage = "full";
-  
-  if (items.length === 0) {
-    const newItems = await storage.getItemsByStatusAndSourceIds("new", sourceIds, maxItems);
-    if (newItems.length > 0) {
-      console.log(`[ReportJob] No analyzed items but ${newItems.length} new items found, analyzing inline...`);
-      try {
-        const analyzedCount = await analyzeNewItemsBySourceIds(sourceIds, maxItems, 1);
-        console.log(`[ReportJob] Inline analysis complete: ${analyzedCount} items analyzed`);
-        if (analyzedCount > 0) {
-          items = await storage.getItemsForReport(null, sourceIds, lookbackHours, maxItems);
-          if (minScore > 0) {
-            items = items.filter(item => (item.importanceScore || 0) >= minScore);
-          }
-        }
-      } catch (analyzeError) {
-        console.error(`[ReportJob] Inline analysis failed:`, analyzeError);
-      }
-    }
-  }
-
-  if (items.length === 0) {
-    const recentItems = await storage.getRecentItemsBySourceIds(sourceIds, lookbackHours, 20);
-    content = buildStatusReport(profile.name, today, recentItems, sourceIds.length);
-    reportStage = "status";
-  } else {
-    const briefItems = items.map((item) => ({
-      id: item.id,
-      title: item.title || "Untitled",
-      url: item.url,
-      source: item.sourceName,
-      topic: item.topic,
-      key_takeaway: "",
-      why_it_matters: "",
-      impact_scope: {
-        equities: item.importanceScore,
-        rates_fx: Math.floor(item.importanceScore * 0.7),
-        commodities: Math.floor(item.importanceScore * 0.5),
-        crypto: Math.floor(item.importanceScore * 0.8),
-      },
-      risk_flags: [],
-      confidence: item.importanceScore,
-      category: "general",
-    }));
-
-    const prompt = buildDailyBriefPrompt(briefItems, today, profile.topic, config);
-    const llmResult = await callLLMWithTimeout(
-      () => callLLMForProfile(prompt, profile.userId, profile.topic),
-      60000
-    );
-    if (llmResult) {
-      content = llmResult;
-    } else {
-      console.warn(`[ReportJob] LLM timed out for manual report, creating status report`);
-      const recentItems = await storage.getRecentItemsBySourceIds(sourceIds, lookbackHours, 20);
-      content = buildStatusReport(profile.name, today, recentItems, sourceIds.length);
-      reportStage = "status";
-    }
-  }
-
-  const report = await storage.createOutputRecord({
-    userId: profile.userId,
+  const fastResult = await generateFastReport({
     profileId: profile.id,
+    userId: profile.userId,
     presetId: profile.presetId,
     topic: profile.topic,
-    outputType: "report",
-    title: reportStage === "full" ? `${profile.name} - ${today}` : `${profile.name} — 상태 리포트`,
-    contentText: content,
-    reportStage,
-    periodStart,
-    periodEnd,
+    profileName: profile.name,
+    sourceIds,
+    collectResult: { totalCollected: 0, sourcesProcessed: 0 },
+    sourceNames,
+    timezone: profile.timezone || "Asia/Seoul",
   });
 
-  if (items.length > 0) {
-    await storage.linkOutputItems(report.id, items.map((i) => i.id));
+  if (fastResult.reportId && fastResult.itemsCount > 0) {
+    const botLLM = await storage.resolveLLMForProfile(profile.userId, profile.topic);
+    if (hasSystemLLMKey() || botLLM) {
+      scheduleBackgroundUpgrade(fastResult.reportId, profile.id, profile.userId, sourceIds);
+    }
   }
-  
-  await storage.updateProfileLastRunAt(profile.id, now);
 
-  console.log(`[ReportJob] Created ${reportStage} report ${report.id} for profile ${profile.id}`);
+  console.log(`[ReportJob] Created fast report ${fastResult.reportId} for profile ${profile.id} (${fastResult.itemsCount} items, upgrade scheduled in background)`);
 
-  return {
-    profileId: profile.id,
-    reportId: report.id,
-    itemsCount: items.length,
-    topic: profile.topic,
-  };
+  return fastResult;
 }
 
 function buildStatusReport(

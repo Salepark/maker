@@ -3,6 +3,7 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { startScheduler } from "./jobs/scheduler";
+import { driver } from "./db";
 
 const app = express();
 const httpServer = createServer(app);
@@ -61,6 +62,11 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  if (driver === "sqlite") {
+    const { initSqliteTables } = await import("./init-sqlite");
+    initSqliteTables();
+  }
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {

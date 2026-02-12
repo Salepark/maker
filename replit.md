@@ -80,10 +80,33 @@ The application supports English and Korean via a homegrown i18n system (no reac
 - All pages import `useLanguage` and call `t("key")` instead of hardcoding strings.
 - Fallback: if a key is missing in the active language, it falls back to English, then returns the raw key.
 
+### Multi-DB Architecture (Local-first)
+The system supports two database drivers selectable via `MAKER_DB` env var:
+- **PostgreSQL** (default, `MAKER_DB` unset or `pg`): Cloud/server deployment, uses `DATABASE_URL`.
+- **SQLite** (`MAKER_DB=sqlite`): Local desktop deployment, uses WAL journaling + foreign keys. Path: `MAKER_SQLITE_PATH` or `./data/maker.sqlite`.
+- Key files: `server/db.ts` (driver factory), `shared/schema.sqlite.ts` (SQLite schema mirroring 16 tables), `server/storage-sqlite.ts` (SqliteStorage class, 60+ IStorage methods), `server/init-sqlite.ts` (table creation), `server/seed.ts` (DB-agnostic seeding).
+- Type differences: integer timestamps vs pg timestamp, text(mode:"json") vs jsonb, integer boolean vs native boolean, integer autoincrement vs serial.
+
+### Electron Desktop Packaging (Phase A)
+Files in `electron/` directory prepare the app for desktop distribution:
+- `electron/main.ts`: Main process — spawns Express server with `MAKER_DB=sqlite`, waits for health check, opens BrowserWindow.
+- `electron/preload.ts`: Secure contextBridge exposing `window.makelr` (platform, versions).
+- `electron/electron-builder.yml`: Build config for Mac/Win/Linux targets.
+- `/api/health` endpoint (unauthenticated): Returns `{ status, timestamp, driver }` for Electron health polling.
+
+### Report Pipeline Reliability (Phase C)
+`generateReportForProfile` (manual "run now" path) now uses fast-first approach identical to the scheduled path:
+1. Instantly generates a fast report (no LLM blocking)
+2. Schedules background LLM upgrade asynchronously
+3. UI auto-refreshes to show upgraded report when ready
+This eliminates the previous 60s blocking behavior on manual report generation.
+
 ## External Dependencies
 
 ### Environment Variables
-- `DATABASE_URL`
+- `DATABASE_URL` (PostgreSQL mode)
+- `MAKER_DB` (optional: `sqlite` for local mode)
+- `MAKER_SQLITE_PATH` (optional: custom SQLite file path)
 - `LLM_API_KEY`
 - `SESSION_SECRET`
 - `CLAUDE_MODEL`
@@ -91,12 +114,14 @@ The application supports English and Korean via a homegrown i18n system (no reac
 
 ### Third-Party Services
 - **Anthropic Claude API**: For AI content analysis and draft generation.
-- **PostgreSQL**: Primary database.
+- **PostgreSQL**: Primary database (cloud mode).
+- **SQLite**: Local database (desktop mode).
 - **RSS Feeds**: External content sources.
-- **Replit Auth**: Authentication provider.
+- **Replit Auth**: Authentication provider (cloud mode).
 
 ### Key NPM Packages
 - `drizzle-orm`, `drizzle-kit`
+- `better-sqlite3` (SQLite driver)
 - `rss-parser`
 - `node-cron`
 - `express-session`, `connect-pg-simple`

@@ -1,0 +1,34 @@
+appId: com.makelr.desktop
+productName: Makelr
+directories:
+  output: dist-electron
+files:
+  - "dist/**/*"
+  - "server/**/*.js"
+  - "shared/**/*.js"
+  - "electron/main.js"
+  - "electron/preload.js"
+  - "node_modules/**/*"
+extraResources:
+  - from: "data/"
+    to: "data/"
+    filter:
+      - "**/*"
+mac:
+  category: public.app-category.productivity
+  target:
+    - dmg
+    - zip
+win:
+  target:
+    - nsis
+    - portable
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Utility
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true

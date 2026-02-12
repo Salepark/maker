@@ -1,7 +1,12 @@
-import { db } from "./db";
-import { presets, sources } from "@shared/schema";
+import { db, driver } from "./db";
 import { eq } from "drizzle-orm";
 import type { PresetDefaultConfig } from "@shared/schema";
+import * as pgSchema from "@shared/schema";
+import * as sqliteSchema from "../shared/schema.sqlite";
+
+const schema = driver === "sqlite" ? sqliteSchema : pgSchema;
+const presets = schema.presets as any;
+const sources = schema.sources as any;
 
 export async function seedPresets() {
   const existingPresets = await db.select().from(presets);
@@ -772,7 +777,7 @@ export async function seedDefaultSources() {
     try {
       await db.insert(sources).values(source);
     } catch (err: any) {
-      if (err.code === "23505") {
+      if (err.code === "23505" || (err.message && err.message.includes("UNIQUE constraint"))) {
         console.log(`[seed] Source "${source.name}" already exists, skipping`);
       } else {
         throw err;

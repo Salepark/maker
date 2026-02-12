@@ -21,7 +21,10 @@ export async function registerRoutes(
   // Run seeds on startup
   await runAllSeeds();
   
-  // Setup auth BEFORE registering other routes
+  app.get("/api/health", (_req, res) => {
+    res.json({ status: "ok", timestamp: new Date().toISOString(), driver: process.env.MAKER_DB || "pg" });
+  });
+
   await setupAuth(app);
   registerAuthRoutes(app);
   

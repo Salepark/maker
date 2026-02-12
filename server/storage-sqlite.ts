@@ -1,179 +1,22 @@
 import { db } from "./db";
-import { 
+import {
   sources, items, analysis, drafts, posts, reports, chatMessages, chatThreads, settings,
   presets, profiles, profileSources, outputs, outputItems,
   bots, botSettings, sourceBotLinks, llmProviders,
-  type Source, type Item, type Analysis, type Draft, type Post, type Report, 
-  type InsertSource, type InsertItem, type InsertAnalysis, type InsertDraft, type InsertReport, 
-  type ChatMessage, type InsertChatMessage, type ChatThread, type InsertChatThread, type Setting,
-  type Preset, type InsertPreset, type Profile, type InsertProfile, 
-  type Output, type InsertOutput, type OutputItem,
-  type Bot, type InsertBot, type BotSettings, type InsertBotSettings, type SourceBotLink,
-  type LlmProvider, type InsertLlmProvider
+} from "../shared/schema.sqlite";
+import type {
+  Source, Item, Analysis, Draft, Post, Report,
+  InsertSource, InsertItem, InsertAnalysis, InsertDraft, InsertReport,
+  ChatMessage, InsertChatMessage, ChatThread, InsertChatThread, Setting,
+  Preset, InsertPreset, Profile, InsertProfile,
+  Output, InsertOutput, OutputItem,
+  Bot, InsertBot, BotSettings, InsertBotSettings, SourceBotLink,
+  LlmProvider, InsertLlmProvider
 } from "@shared/schema";
+import type { IStorage } from "./storage";
 import { eq, desc, sql, and, count, gte, lt, lte, or, isNull, inArray } from "drizzle-orm";
 
-export interface IStorage {
-  getStats(): Promise<{
-    total: number;
-    new: number;
-    analyzed: number;
-    drafted: number;
-    approved: number;
-    posted: number;
-    skipped: number;
-    lastCollectAt: string | null;
-    lastAnalyzeAt: string | null;
-  }>;
-
-  getSources(): Promise<(Source & { itemCount: number })[]>;
-  getSource(id: number): Promise<Source | undefined>;
-  createSource(data: InsertSource): Promise<Source>;
-  updateSource(id: number, data: Partial<InsertSource>): Promise<Source | undefined>;
-  deleteSource(id: number): Promise<void>;
-
-  getItems(status?: string): Promise<(Item & { sourceName: string; relevanceScore?: number; replyWorthinessScore?: number })[]>;
-  getRecentItems(limit?: number): Promise<(Item & { sourceName: string })[]>;
-  getObserveItems(limit?: number): Promise<any[]>;
-  getItem(id: number): Promise<(Item & { sourceName: string; analysis?: Analysis; drafts: Draft[] }) | undefined>;
-  getItemsByStatus(status: string, limit?: number): Promise<(Item & { sourceName: string; sourceTopic: string; rulesJson?: unknown })[]>;
-  getItemsByStatusAndSourceIds(status: string, sourceIds: number[], limit?: number): Promise<(Item & { sourceName: string; sourceTopic: string; rulesJson?: unknown })[]>;
-  createItem(data: InsertItem): Promise<Item>;
-  updateItemStatus(id: number, status: string): Promise<void>;
-
-  createAnalysis(data: InsertAnalysis): Promise<Analysis>;
-  getAnalysisByItemId(itemId: number): Promise<Analysis | undefined>;
-
-  getDrafts(decision?: string): Promise<(Draft & { itemTitle: string; itemUrl: string; sourceName: string })[]>;
-  getDraftsByItemId(itemId: number): Promise<Draft[]>;
-  createDraft(data: InsertDraft): Promise<Draft>;
-  updateDraftDecision(id: number, decision: string, finalText?: string): Promise<void>;
-
-  getReports(limit?: number): Promise<Report[]>;
-  getReport(id: number): Promise<Report | undefined>;
-  createReport(data: InsertReport): Promise<Report>;
-  getAnalyzedItemsForBrief(lookbackHours: number, limit: number, topic?: string): Promise<any[]>;
-
-  createThread(userId: string, title?: string): Promise<ChatThread>;
-  getThread(threadId: number, userId: string): Promise<ChatThread | null>;
-  getUserThreads(userId: string): Promise<ChatThread[]>;
-  setThreadActiveBot(threadId: number, userId: string, botId: number | null): Promise<void>;
-  getOrCreateDefaultThread(userId: string): Promise<ChatThread>;
-  listThreadMessages(threadId: number, userId: string, limit?: number): Promise<ChatMessage[]>;
-  addThreadMessage(data: InsertChatMessage): Promise<ChatMessage>;
-  updateChatMessageStatus(id: number, userId: string, status: string): Promise<void>;
-  savePendingCommand(messageId: number, userId: string, commandJson: any): Promise<void>;
-  clearPendingCommand(messageId: number, userId: string): Promise<void>;
-
-  getChatMessages(userId: string, limit?: number): Promise<ChatMessage[]>;
-  createChatMessage(data: InsertChatMessage): Promise<ChatMessage>;
-
-  getSetting(key: string): Promise<string | undefined>;
-  setSetting(key: string, value: string): Promise<void>;
-
-  // Presets
-  listPresets(): Promise<Preset[]>;
-  getPresetById(id: number): Promise<Preset | undefined>;
-
-  // Profiles
-  listProfiles(userId: string): Promise<(Profile & { presetName: string })[]>;
-  getProfile(id: number, userId: string): Promise<(Profile & { presetName: string }) | undefined>;
-  getProfileById(id: number): Promise<Profile | undefined>;
-  getProfileByUserAndTopic(userId: string, topic: string): Promise<Profile | undefined>;
-  createProfile(data: InsertProfile): Promise<Profile>;
-  updateProfile(id: number, userId: string, patch: Partial<InsertProfile>): Promise<Profile | undefined>;
-  deleteProfile(id: number, userId: string): Promise<void>;
-  cloneProfile(id: number, userId: string): Promise<Profile | undefined>;
-
-  // Sources (updated for userId support)
-  listSources(userId: string, topic?: string): Promise<Source[]>;
-  getUserSource(id: number, userId: string): Promise<Source | undefined>;
-  createUserSource(userId: string, data: Omit<InsertSource, 'userId'>): Promise<Source>;
-  updateUserSource(userId: string, sourceId: number, patch: Partial<InsertSource>): Promise<Source | undefined>;
-  deleteUserSource(userId: string, sourceId: number): Promise<void>;
-
-  // Profile-Sources
-  getProfileSources(profileId: number, userId: string): Promise<Source[]>;
-  getProfileSourcesWithWeight(profileId: number, userId: string): Promise<(Source & { weight: number; isEnabled: boolean })[]>;
-  setProfileSources(profileId: number, userId: string, sourceData: Array<{ sourceId: number; weight?: number; isEnabled?: boolean }>): Promise<void>;
-  updateProfileSourceWeight(profileId: number, userId: string, sourceId: number, weight: number): Promise<void>;
-
-  // Report Job helpers
-  getActiveReportProfiles(): Promise<(Profile & { presetOutputType: string })[]>;
-  getProfileSourceIds(profileId: number): Promise<number[]>;
-  getItemsForReport(topic: string | null, sourceIds: number[], lookbackHours: number, limit: number): Promise<(Item & { importanceScore: number; sourceName: string })[]>;
-  listAnalyzedItemsForReport(params: {
-    topic?: string | null;
-    sourceIds: number[];
-    periodStart: Date;
-    periodEnd: Date;
-    limit?: number;
-  }): Promise<Array<{
-    id: number;
-    title: string | null;
-    url: string;
-    sourceName: string;
-    publishedAt: Date | null;
-    relevanceScore: number | null;
-    replyWorthinessScore: number | null;
-    summaryShort: string;
-  }>>;
-  
-  // Outputs (new unified table) management
-  createOutputRecord(data: InsertOutput): Promise<Output>;
-  outputExists(profileId: number, periodStart: Date, periodEnd: Date): Promise<boolean>;
-  linkOutputItems(outputId: number, itemIds: number[]): Promise<void>;
-  listOutputs(params: { userId: string; profileId?: number; from?: Date; to?: Date }): Promise<Output[]>;
-  getOutputById(params: { userId: string; outputId: number }): Promise<Output | null>;
-  updateOutputContent(outputId: number, patch: { contentText: string; title: string; reportStage: string }): Promise<Output | null>;
-  updateProfileLastRunAt(profileId: number, runAt: Date): Promise<void>;
-  getRecentItemsBySourceIds(sourceIds: number[], lookbackHours: number, limit: number): Promise<{ id: number; title: string | null; url: string; status: string; sourceName: string; sourceTopic: string; publishedAt: Date | null }[]>;
-
-  // ============================================
-  // BOTS - Step 8-1 Bot Management
-  // ============================================
-  listBots(userId: string): Promise<(Bot & { settings: BotSettings | null })[]>;
-  getBot(id: number, userId: string): Promise<(Bot & { settings: BotSettings | null }) | undefined>;
-  getBotByKey(userId: string, key: string): Promise<Bot | undefined>;
-  createBot(data: InsertBot): Promise<Bot>;
-  updateBot(id: number, userId: string, patch: Partial<InsertBot>): Promise<Bot | undefined>;
-  deleteBot(id: number, userId: string): Promise<void>;
-
-  // Bot Settings
-  getBotSettings(botId: number): Promise<BotSettings | undefined>;
-  createBotSettings(data: InsertBotSettings): Promise<BotSettings>;
-  updateBotSettings(botId: number, patch: Partial<Omit<InsertBotSettings, 'botId'>>): Promise<BotSettings | undefined>;
-  upsertBotSettings(userId: string, botId: number, input: Partial<Omit<InsertBotSettings, 'botId'>>): Promise<BotSettings>;
-
-  // Source-Bot Links
-  getBotSources(botId: number): Promise<(Source & { weight: number; isEnabled: boolean })[]>;
-  setBotSources(botId: number, userId: string, sourceData: Array<{ sourceId: number; weight?: number; isEnabled?: boolean }>): Promise<void>;
-
-  // Default bot creation on first login
-  ensureDefaultBots(userId: string): Promise<Bot[]>;
-
-  // ============================================
-  // LLM PROVIDERS - Phase 3 BYO LLM
-  // ============================================
-  createLlmProvider(data: InsertLlmProvider): Promise<LlmProvider>;
-  listLlmProviders(userId: string): Promise<LlmProvider[]>;
-  getLlmProvider(id: number, userId: string): Promise<LlmProvider | undefined>;
-  updateLlmProvider(id: number, userId: string, patch: Partial<Omit<InsertLlmProvider, 'userId'>>): Promise<LlmProvider | undefined>;
-  deleteLlmProvider(id: number, userId: string): Promise<void>;
-  resolveLLMForBot(botId: number): Promise<{ providerType: string; apiKey: string; baseUrl: string | null; model: string | null } | null>;
-  resolveLLMForProfile(userId: string, topic: string): Promise<{ providerType: string; apiKey: string; baseUrl: string | null; model: string | null } | null>;
-  getBotByUserAndKey(userId: string, key: string): Promise<Bot | undefined>;
-  findSourceByUrl(url: string): Promise<Source | undefined>;
-  createBotFromPreset(params: {
-    userId: string;
-    key: string;
-    name: string;
-    settings: Partial<Omit<InsertBotSettings, 'botId'>>;
-    sourceData: Array<{ name: string; url: string; type?: string; topic: string }>;
-  }): Promise<Bot>;
-}
-
-export class DatabaseStorage implements IStorage {
+export class SqliteStorage implements IStorage {
   async getStats() {
     const result = await db
       .select({
@@ -218,7 +61,7 @@ export class DatabaseStorage implements IStorage {
       .from(items)
       .orderBy(desc(items.insertedAt))
       .limit(1);
-    
+
     if (lastCollect.length > 0 && lastCollect[0].insertedAt) {
       stats.lastCollectAt = lastCollect[0].insertedAt.toISOString();
     }
@@ -228,7 +71,7 @@ export class DatabaseStorage implements IStorage {
       .from(analysis)
       .orderBy(desc(analysis.createdAt))
       .limit(1);
-    
+
     if (lastAnalyze.length > 0 && lastAnalyze[0].createdAt) {
       stats.lastAnalyzeAt = lastAnalyze[0].createdAt.toISOString();
     }
@@ -250,22 +93,22 @@ export class DatabaseStorage implements IStorage {
     return result.map((r) => ({
       ...r.source,
       itemCount: Number(r.itemCount),
-    }));
+    })) as any;
   }
 
   async getSource(id: number): Promise<Source | undefined> {
     const [source] = await db.select().from(sources).where(eq(sources.id, id));
-    return source;
+    return source as any;
   }
 
   async createSource(data: InsertSource): Promise<Source> {
-    const [source] = await db.insert(sources).values(data).returning();
-    return source;
+    const [source] = await db.insert(sources).values(data as any).returning();
+    return source as any;
   }
 
   async updateSource(id: number, data: Partial<InsertSource>): Promise<Source | undefined> {
-    const [source] = await db.update(sources).set(data).where(eq(sources.id, id)).returning();
-    return source;
+    const [source] = await db.update(sources).set(data as any).where(eq(sources.id, id)).returning();
+    return source as any;
   }
 
   async deleteSource(id: number): Promise<void> {
@@ -295,7 +138,7 @@ export class DatabaseStorage implements IStorage {
       sourceName: r.sourceName || "Unknown",
       relevanceScore: r.relevanceScore ?? undefined,
       replyWorthinessScore: r.replyWorthinessScore ?? undefined,
-    }));
+    })) as any;
   }
 
   async getRecentItems(limit: number = 10): Promise<(Item & { sourceName: string })[]> {
@@ -312,7 +155,7 @@ export class DatabaseStorage implements IStorage {
     return result.map((r) => ({
       ...r.item,
       sourceName: r.sourceName || "Unknown",
-    }));
+    })) as any;
   }
 
   async getObserveItems(limit: number = 50): Promise<any[]> {
@@ -372,7 +215,7 @@ export class DatabaseStorage implements IStorage {
       sourceName: itemResult.sourceName || "Unknown",
       analysis: analysisResult,
       drafts: draftsResult,
-    };
+    } as any;
   }
 
   async getItemsByStatus(status: string, limit: number = 10): Promise<(Item & { sourceName: string; sourceTopic: string; rulesJson?: unknown })[]> {
@@ -394,7 +237,7 @@ export class DatabaseStorage implements IStorage {
       sourceName: r.sourceName || "Unknown",
       sourceTopic: r.sourceTopic || "general",
       rulesJson: r.rulesJson,
-    }));
+    })) as any;
   }
 
   async getItemsByStatusAndSourceIds(status: string, sourceIds: number[], limit: number = 50): Promise<(Item & { sourceName: string; sourceTopic: string; rulesJson?: unknown })[]> {
@@ -420,12 +263,12 @@ export class DatabaseStorage implements IStorage {
       sourceName: r.sourceName || "Unknown",
       sourceTopic: r.sourceTopic || "general",
       rulesJson: r.rulesJson,
-    }));
+    })) as any;
   }
 
   async createItem(data: InsertItem): Promise<Item> {
-    const [item] = await db.insert(items).values(data).returning();
-    return item;
+    const [item] = await db.insert(items).values(data as any).returning();
+    return item as any;
   }
 
   async updateItemStatus(id: number, status: string): Promise<void> {
@@ -433,13 +276,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createAnalysis(data: InsertAnalysis): Promise<Analysis> {
-    const [result] = await db.insert(analysis).values(data).returning();
-    return result;
+    const [result] = await db.insert(analysis).values(data as any).returning();
+    return result as any;
   }
 
   async getAnalysisByItemId(itemId: number): Promise<Analysis | undefined> {
     const [result] = await db.select().from(analysis).where(eq(analysis.itemId, itemId));
-    return result;
+    return result as any;
   }
 
   async getDrafts(decision?: string): Promise<(Draft & { itemTitle: string; itemUrl: string; sourceName: string })[]> {
@@ -465,54 +308,51 @@ export class DatabaseStorage implements IStorage {
       itemTitle: r.itemTitle || "Untitled",
       itemUrl: r.itemUrl,
       sourceName: r.sourceName || "Unknown",
-    }));
+    })) as any;
   }
 
   async getDraftsByItemId(itemId: number): Promise<Draft[]> {
-    return db.select().from(drafts).where(eq(drafts.itemId, itemId)).orderBy(drafts.variant);
+    return db.select().from(drafts).where(eq(drafts.itemId, itemId)).orderBy(drafts.variant) as any;
   }
 
   async createDraft(data: InsertDraft): Promise<Draft> {
-    const [draft] = await db.insert(drafts).values(data).returning();
-    return draft;
+    const [draft] = await db.insert(drafts).values(data as any).returning();
+    return draft as any;
   }
 
   async updateDraftDecision(id: number, decision: string, finalText?: string): Promise<void> {
-    // Update the draft's decision
     await db.update(drafts).set({ adminDecision: decision, finalText }).where(eq(drafts.id, id));
-    
-    // Get the draft to find the associated item
+
     const [draft] = await db.select({ itemId: drafts.itemId }).from(drafts).where(eq(drafts.id, id));
-    
+
     if (draft && decision === "approved") {
-      // Update the item status to approved
       await db.update(items).set({ status: "approved" }).where(eq(items.id, draft.itemId));
     }
   }
 
   async getReports(limit: number = 20): Promise<Report[]> {
-    return db.select().from(reports).orderBy(desc(reports.createdAt)).limit(limit);
+    return db.select().from(reports).orderBy(desc(reports.createdAt)).limit(limit) as any;
   }
 
   async getReport(id: number): Promise<Report | undefined> {
     const [report] = await db.select().from(reports).where(eq(reports.id, id));
-    return report;
+    return report as any;
   }
 
   async createReport(data: InsertReport): Promise<Report> {
-    const [report] = await db.insert(reports).values(data).returning();
-    return report;
+    const [report] = await db.insert(reports).values(data as any).returning();
+    return report as any;
   }
 
   async getAnalyzedItemsForBrief(lookbackHours: number, limit: number, topic?: string): Promise<any[]> {
     const cutoff = new Date(Date.now() - lookbackHours * 60 * 60 * 1000);
-    
+
     const conditions = [gte(items.insertedAt, cutoff)];
-    
+
     if (topic) {
       conditions.push(eq(sources.topic, topic));
     }
-    
+
     const result = await db
       .select({
         item: items,
@@ -553,19 +393,19 @@ export class DatabaseStorage implements IStorage {
       userId,
       title: title || null,
     }).returning();
-    return thread;
+    return thread as any;
   }
 
   async getThread(threadId: number, userId: string): Promise<ChatThread | null> {
     const [thread] = await db.select().from(chatThreads)
       .where(and(eq(chatThreads.id, threadId), eq(chatThreads.userId, userId)));
-    return thread || null;
+    return (thread as any) || null;
   }
 
   async getUserThreads(userId: string): Promise<ChatThread[]> {
     return db.select().from(chatThreads)
       .where(eq(chatThreads.userId, userId))
-      .orderBy(desc(chatThreads.createdAt));
+      .orderBy(desc(chatThreads.createdAt)) as any;
   }
 
   async setThreadActiveBot(threadId: number, userId: string, botId: number | null): Promise<void> {
@@ -585,12 +425,12 @@ export class DatabaseStorage implements IStorage {
     if (!thread) return [];
     return db.select().from(chatMessages)
       .where(and(eq(chatMessages.threadId, threadId), eq(chatMessages.userId, userId)))
-      .orderBy(desc(chatMessages.createdAt)).limit(limit);
+      .orderBy(desc(chatMessages.createdAt)).limit(limit) as any;
   }
 
   async addThreadMessage(data: InsertChatMessage): Promise<ChatMessage> {
-    const [msg] = await db.insert(chatMessages).values(data).returning();
-    return msg;
+    const [msg] = await db.insert(chatMessages).values(data as any).returning();
+    return msg as any;
   }
 
   async updateChatMessageStatus(id: number, userId: string, status: string): Promise<void> {
@@ -614,12 +454,12 @@ export class DatabaseStorage implements IStorage {
   async getChatMessages(userId: string, limit: number = 50): Promise<ChatMessage[]> {
     return db.select().from(chatMessages)
       .where(eq(chatMessages.userId, userId))
-      .orderBy(desc(chatMessages.createdAt)).limit(limit);
+      .orderBy(desc(chatMessages.createdAt)).limit(limit) as any;
   }
 
   async createChatMessage(data: InsertChatMessage): Promise<ChatMessage> {
-    const [msg] = await db.insert(chatMessages).values(data).returning();
-    return msg;
+    const [msg] = await db.insert(chatMessages).values(data as any).returning();
+    return msg as any;
   }
 
   async getSetting(key: string): Promise<string | undefined> {
@@ -634,21 +474,15 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
-  // ============================================
-  // PRESETS
-  // ============================================
   async listPresets(): Promise<Preset[]> {
-    return db.select().from(presets).orderBy(presets.name);
+    return db.select().from(presets).orderBy(presets.name) as any;
   }
 
   async getPresetById(id: number): Promise<Preset | undefined> {
     const [preset] = await db.select().from(presets).where(eq(presets.id, id));
-    return preset;
+    return preset as any;
   }
 
-  // ============================================
-  // PROFILES
-  // ============================================
   async listProfiles(userId: string): Promise<(Profile & { presetName: string })[]> {
     const result = await db
       .select({
@@ -663,7 +497,7 @@ export class DatabaseStorage implements IStorage {
     return result.map((r) => ({
       ...r.profile,
       presetName: r.presetName || "Unknown",
-    }));
+    })) as any;
   }
 
   async getProfile(id: number, userId: string): Promise<(Profile & { presetName: string }) | undefined> {
@@ -681,7 +515,7 @@ export class DatabaseStorage implements IStorage {
     return {
       ...result.profile,
       presetName: result.presetName || "Unknown",
-    };
+    } as any;
   }
 
   async getProfileById(id: number): Promise<Profile | undefined> {
@@ -689,7 +523,7 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(profiles)
       .where(eq(profiles.id, id));
-    return result;
+    return result as any;
   }
 
   async getProfileByUserAndTopic(userId: string, topic: string): Promise<Profile | undefined> {
@@ -699,21 +533,21 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(profiles.userId, userId), eq(profiles.topic, topic)))
       .orderBy(desc(profiles.createdAt))
       .limit(1);
-    return result;
+    return result as any;
   }
 
   async createProfile(data: InsertProfile): Promise<Profile> {
-    const [profile] = await db.insert(profiles).values(data).returning();
-    return profile;
+    const [profile] = await db.insert(profiles).values(data as any).returning();
+    return profile as any;
   }
 
   async updateProfile(id: number, userId: string, patch: Partial<InsertProfile>): Promise<Profile | undefined> {
     const [profile] = await db
       .update(profiles)
-      .set(patch)
+      .set(patch as any)
       .where(and(eq(profiles.id, id), eq(profiles.userId, userId)))
       .returning();
-    return profile;
+    return profile as any;
   }
 
   async deleteProfile(id: number, userId: string): Promise<void> {
@@ -735,13 +569,12 @@ export class DatabaseStorage implements IStorage {
       configJson: existing.configJson as Record<string, unknown>,
       isActive: existing.isActive,
     });
-    
-    // Also clone profile sources with weights
+
     const existingSources = await this.getProfileSourcesWithWeight(id, userId);
     if (existingSources.length > 0) {
       await this.setProfileSources(
-        newProfile.id, 
-        userId, 
+        newProfile.id,
+        userId,
         existingSources.map(s => ({ sourceId: s.id, weight: s.weight, isEnabled: s.isEnabled }))
       );
     }
@@ -749,15 +582,11 @@ export class DatabaseStorage implements IStorage {
     return newProfile;
   }
 
-  // ============================================
-  // SOURCES (with userId support)
-  // ============================================
   async listSources(userId: string, topic?: string): Promise<Source[]> {
-    // Return: system default sources (userId is null) + user's sources
     const conditions = [
       or(isNull(sources.userId), eq(sources.userId, userId))
     ];
-    
+
     if (topic) {
       conditions.push(eq(sources.topic, topic));
     }
@@ -766,7 +595,7 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(sources)
       .where(and(...conditions))
-      .orderBy(desc(sources.isDefault), sources.name);
+      .orderBy(desc(sources.isDefault), sources.name) as any;
   }
 
   async getUserSource(id: number, userId: string): Promise<Source | undefined> {
@@ -774,30 +603,27 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(sources)
       .where(and(eq(sources.id, id), eq(sources.userId, userId)));
-    return source;
+    return source as any;
   }
 
   async createUserSource(userId: string, data: Omit<InsertSource, 'userId'>): Promise<Source> {
-    const [source] = await db.insert(sources).values({ ...data, userId }).returning();
-    return source;
+    const [source] = await db.insert(sources).values({ ...data, userId } as any).returning();
+    return source as any;
   }
 
   async updateUserSource(userId: string, sourceId: number, patch: Partial<InsertSource>): Promise<Source | undefined> {
     const [source] = await db
       .update(sources)
-      .set(patch)
+      .set(patch as any)
       .where(and(eq(sources.id, sourceId), eq(sources.userId, userId)))
       .returning();
-    return source;
+    return source as any;
   }
 
   async deleteUserSource(userId: string, sourceId: number): Promise<void> {
     await db.delete(sources).where(and(eq(sources.id, sourceId), eq(sources.userId, userId)));
   }
 
-  // ============================================
-  // PROFILE-SOURCES
-  // ============================================
   async getProfileSources(profileId: number, userId: string): Promise<Source[]> {
     const profile = await this.getProfile(profileId, userId);
     if (!profile) return [];
@@ -808,7 +634,7 @@ export class DatabaseStorage implements IStorage {
       .innerJoin(sources, eq(profileSources.sourceId, sources.id))
       .where(eq(profileSources.profileId, profileId));
 
-    return result.map(r => r.source);
+    return result.map(r => r.source) as any;
   }
 
   async getProfileSourcesWithWeight(profileId: number, userId: string): Promise<(Source & { weight: number; isEnabled: boolean })[]> {
@@ -816,8 +642,8 @@ export class DatabaseStorage implements IStorage {
     if (!profile) return [];
 
     const result = await db
-      .select({ 
-        source: sources, 
+      .select({
+        source: sources,
         weight: profileSources.weight,
         isEnabled: profileSources.isEnabled
       })
@@ -826,12 +652,12 @@ export class DatabaseStorage implements IStorage {
       .where(eq(profileSources.profileId, profileId))
       .orderBy(desc(profileSources.weight));
 
-    return result.map(r => ({ ...r.source, weight: r.weight, isEnabled: r.isEnabled }));
+    return result.map(r => ({ ...r.source, weight: r.weight, isEnabled: r.isEnabled })) as any;
   }
 
   async setProfileSources(
-    profileId: number, 
-    userId: string, 
+    profileId: number,
+    userId: string,
     sourceData: Array<{ sourceId: number; weight?: number; isEnabled?: boolean }>
   ): Promise<void> {
     const profile = await this.getProfile(profileId, userId);
@@ -841,7 +667,7 @@ export class DatabaseStorage implements IStorage {
 
     if (sourceData.length > 0) {
       const sourceIds = sourceData.map(s => s.sourceId);
-      
+
       const validSources = await db
         .select({ id: sources.id })
         .from(sources)
@@ -860,8 +686,8 @@ export class DatabaseStorage implements IStorage {
 
       if (validData.length > 0) {
         await db.insert(profileSources).values(
-          validData.map(s => ({ 
-            profileId, 
+          validData.map(s => ({
+            profileId,
             sourceId: s.sourceId,
             weight: s.weight ?? 3,
             isEnabled: s.isEnabled ?? true
@@ -870,11 +696,11 @@ export class DatabaseStorage implements IStorage {
       }
     }
   }
-  
+
   async updateProfileSourceWeight(profileId: number, userId: string, sourceId: number, weight: number): Promise<void> {
     const profile = await this.getProfile(profileId, userId);
     if (!profile) return;
-    
+
     await db.update(profileSources)
       .set({ weight: Math.min(5, Math.max(1, weight)) })
       .where(and(
@@ -883,9 +709,6 @@ export class DatabaseStorage implements IStorage {
       ));
   }
 
-  // ============================================
-  // REPORT JOB HELPERS
-  // ============================================
   async getActiveReportProfiles(): Promise<(Profile & { presetOutputType: string })[]> {
     const result = await db
       .select({
@@ -902,7 +725,7 @@ export class DatabaseStorage implements IStorage {
     return result.map((r) => ({
       ...r.profile,
       presetOutputType: r.presetOutputType,
-    }));
+    })) as any;
   }
 
   async getProfileSourceIds(profileId: number): Promise<number[]> {
@@ -950,11 +773,11 @@ export class DatabaseStorage implements IStorage {
       ...r.item,
       importanceScore: r.importanceScore,
       sourceName: r.sourceName,
-    }));
+    })) as any;
   }
 
   async listAnalyzedItemsForReport(params: {
-    topic: string;
+    topic?: string | null;
     sourceIds: number[];
     periodStart: Date;
     periodEnd: Date;
@@ -999,13 +822,9 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(analysis.relevanceScore))
       .limit(limit);
 
-    return rows;
+    return rows as any;
   }
 
-  // ============================================
-  // OUTPUTS (NEW UNIFIED TABLE) MANAGEMENT
-  // ============================================
-  
   async outputExists(profileId: number, periodStart: Date, periodEnd: Date): Promise<boolean> {
     const windowStart = new Date(periodEnd.getTime() - 23 * 60 * 60 * 1000);
     const rows = await db
@@ -1021,8 +840,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createOutputRecord(data: InsertOutput): Promise<Output> {
-    const [output] = await db.insert(outputs).values(data).returning();
-    return output;
+    const [output] = await db.insert(outputs).values(data as any).returning();
+    return output as any;
   }
 
   async linkOutputItems(outputId: number, itemIds: number[]): Promise<void> {
@@ -1057,7 +876,7 @@ export class DatabaseStorage implements IStorage {
       .from(outputs)
       .where(and(...conditions))
       .orderBy(desc(outputs.createdAt))
-      .limit(50);
+      .limit(50) as any;
   }
 
   async getOutputById(params: { userId: string; outputId: number }): Promise<Output | null> {
@@ -1071,7 +890,7 @@ export class DatabaseStorage implements IStorage {
       ))
       .limit(1);
 
-    return rows[0] ?? null;
+    return (rows[0] as any) ?? null;
   }
 
   async updateOutputContent(outputId: number, patch: { contentText: string; title: string; reportStage: string }): Promise<Output | null> {
@@ -1080,7 +899,7 @@ export class DatabaseStorage implements IStorage {
       .set({ ...patch, updatedAt: new Date() })
       .where(eq(outputs.id, outputId))
       .returning();
-    return updated ?? null;
+    return (updated as any) ?? null;
   }
 
   async getRecentItemsBySourceIds(sourceIds: number[], lookbackHours: number, limit: number): Promise<{ id: number; title: string | null; url: string; status: string; sourceName: string; sourceTopic: string; publishedAt: Date | null }[]> {
@@ -1104,7 +923,7 @@ export class DatabaseStorage implements IStorage {
       ))
       .orderBy(desc(items.publishedAt))
       .limit(limit);
-    return result;
+    return result as any;
   }
 
   async updateProfileLastRunAt(profileId: number, runAt: Date): Promise<void> {
@@ -1113,10 +932,6 @@ export class DatabaseStorage implements IStorage {
       .set({ lastRunAt: runAt })
       .where(eq(profiles.id, profileId));
   }
-
-  // ============================================
-  // BOTS - Step 8-1 Bot Management
-  // ============================================
 
   async listBots(userId: string): Promise<(Bot & { settings: BotSettings | null })[]> {
     const botsData = await db
@@ -1127,12 +942,12 @@ export class DatabaseStorage implements IStorage {
 
     const result: (Bot & { settings: BotSettings | null })[] = [];
     for (const bot of botsData) {
-      const [settings] = await db
+      const [s] = await db
         .select()
         .from(botSettings)
         .where(eq(botSettings.botId, bot.id))
         .limit(1);
-      result.push({ ...bot, settings: settings ?? null });
+      result.push({ ...bot, settings: s ?? null } as any);
     }
     return result;
   }
@@ -1146,13 +961,13 @@ export class DatabaseStorage implements IStorage {
 
     if (!bot) return undefined;
 
-    const [settings] = await db
+    const [s] = await db
       .select()
       .from(botSettings)
       .where(eq(botSettings.botId, bot.id))
       .limit(1);
 
-    return { ...bot, settings: settings ?? null };
+    return { ...bot, settings: s ?? null } as any;
   }
 
   async getBotByKey(userId: string, key: string): Promise<Bot | undefined> {
@@ -1161,49 +976,48 @@ export class DatabaseStorage implements IStorage {
       .from(bots)
       .where(and(eq(bots.userId, userId), eq(bots.key, key)))
       .limit(1);
-    return bot;
+    return bot as any;
   }
 
   async createBot(data: InsertBot): Promise<Bot> {
-    const [bot] = await db.insert(bots).values(data).returning();
-    return bot;
+    const [bot] = await db.insert(bots).values(data as any).returning();
+    return bot as any;
   }
 
   async updateBot(id: number, userId: string, patch: Partial<InsertBot>): Promise<Bot | undefined> {
     const [updated] = await db
       .update(bots)
-      .set(patch)
+      .set(patch as any)
       .where(and(eq(bots.id, id), eq(bots.userId, userId)))
       .returning();
-    return updated;
+    return updated as any;
   }
 
   async deleteBot(id: number, userId: string): Promise<void> {
     await db.delete(bots).where(and(eq(bots.id, id), eq(bots.userId, userId)));
   }
 
-  // Bot Settings
   async getBotSettings(botId: number): Promise<BotSettings | undefined> {
-    const [settings] = await db
+    const [s] = await db
       .select()
       .from(botSettings)
       .where(eq(botSettings.botId, botId))
       .limit(1);
-    return settings;
+    return s as any;
   }
 
   async createBotSettings(data: InsertBotSettings): Promise<BotSettings> {
-    const [settings] = await db.insert(botSettings).values(data).returning();
-    return settings;
+    const [s] = await db.insert(botSettings).values(data as any).returning();
+    return s as any;
   }
 
   async updateBotSettings(botId: number, patch: Partial<Omit<InsertBotSettings, 'botId'>>): Promise<BotSettings | undefined> {
     const [updated] = await db
       .update(botSettings)
-      .set({ ...patch, updatedAt: new Date() })
+      .set({ ...patch, updatedAt: new Date() } as any)
       .where(eq(botSettings.botId, botId))
       .returning();
-    return updated;
+    return updated as any;
   }
 
   async upsertBotSettings(userId: string, botId: number, input: Partial<Omit<InsertBotSettings, 'botId'>>): Promise<BotSettings> {
@@ -1219,7 +1033,6 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  // Source-Bot Links
   async getBotSources(botId: number): Promise<(Source & { weight: number; isEnabled: boolean })[]> {
     const links = await db
       .select({
@@ -1235,15 +1048,13 @@ export class DatabaseStorage implements IStorage {
       ...source,
       weight,
       isEnabled,
-    }));
+    })) as any;
   }
 
   async setBotSources(botId: number, userId: string, sourceData: Array<{ sourceId: number; weight?: number; isEnabled?: boolean }>): Promise<void> {
-    // Verify bot belongs to user
     const [bot] = await db.select().from(bots).where(and(eq(bots.id, botId), eq(bots.userId, userId))).limit(1);
     if (!bot) throw new Error("Bot not found or access denied");
 
-    // Validate source ownership: only user's own sources or default sources
     if (sourceData.length > 0) {
       const sourceIds = sourceData.map(s => s.sourceId);
       const validSources = await db.select({ id: sources.id })
@@ -1259,10 +1070,8 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
-    // Delete existing links
     await db.delete(sourceBotLinks).where(eq(sourceBotLinks.botId, botId));
 
-    // Insert new links
     if (sourceData.length > 0) {
       await db.insert(sourceBotLinks).values(
         sourceData.map(({ sourceId, weight = 3, isEnabled = true }) => ({
@@ -1275,11 +1084,10 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  // Default bot creation on first login
   async ensureDefaultBots(userId: string): Promise<Bot[]> {
     const existingBots = await db.select().from(bots).where(eq(bots.userId, userId));
     if (existingBots.length > 0) {
-      return existingBots;
+      return existingBots as any;
     }
 
     const defaultBots = [
@@ -1306,7 +1114,7 @@ export class DatabaseStorage implements IStorage {
         verbosity: "normal",
         sectionsJson: { tldr: true, drivers: true, risk: true, checklist: true, sources: true },
         filtersJson: { minImportanceScore: 0, maxRiskLevel: 100 },
-      });
+      } as any);
 
       const defaultSources = await db
         .select()
@@ -1341,38 +1149,34 @@ export class DatabaseStorage implements IStorage {
           markdownLevel: "minimal",
         },
         isActive: true,
-      });
+      } as any);
 
-      createdBots.push(bot);
+      createdBots.push(bot as any);
     }
 
     return createdBots;
   }
 
-  // ============================================
-  // LLM PROVIDERS - Phase 3 BYO LLM
-  // ============================================
-
   async createLlmProvider(data: InsertLlmProvider): Promise<LlmProvider> {
-    const [provider] = await db.insert(llmProviders).values(data).returning();
-    return provider;
+    const [provider] = await db.insert(llmProviders).values(data as any).returning();
+    return provider as any;
   }
 
   async listLlmProviders(userId: string): Promise<LlmProvider[]> {
-    return db.select().from(llmProviders).where(eq(llmProviders.userId, userId)).orderBy(desc(llmProviders.createdAt));
+    return db.select().from(llmProviders).where(eq(llmProviders.userId, userId)).orderBy(desc(llmProviders.createdAt)) as any;
   }
 
   async getLlmProvider(id: number, userId: string): Promise<LlmProvider | undefined> {
     const [provider] = await db.select().from(llmProviders).where(and(eq(llmProviders.id, id), eq(llmProviders.userId, userId)));
-    return provider;
+    return provider as any;
   }
 
   async updateLlmProvider(id: number, userId: string, patch: Partial<Omit<InsertLlmProvider, 'userId'>>): Promise<LlmProvider | undefined> {
     const [updated] = await db.update(llmProviders)
-      .set(patch)
+      .set(patch as any)
       .where(and(eq(llmProviders.id, id), eq(llmProviders.userId, userId)))
       .returning();
-    return updated;
+    return updated as any;
   }
 
   async deleteLlmProvider(id: number, userId: string): Promise<void> {
@@ -1397,7 +1201,7 @@ export class DatabaseStorage implements IStorage {
 
   async findSourceByUrl(url: string): Promise<Source | undefined> {
     const [source] = await db.select().from(sources).where(eq(sources.url, url));
-    return source;
+    return source as any;
   }
 
   async createBotFromPreset(params: {
@@ -1407,7 +1211,7 @@ export class DatabaseStorage implements IStorage {
     settings: Partial<Omit<InsertBotSettings, 'botId'>>;
     sourceData: Array<{ name: string; url: string; type?: string; topic: string }>;
   }): Promise<Bot> {
-    return await db.transaction(async (tx) => {
+    return await db.transaction(async (tx: any) => {
       const [bot] = await tx.insert(bots).values({
         userId: params.userId,
         key: params.key,
@@ -1418,7 +1222,7 @@ export class DatabaseStorage implements IStorage {
       await tx.insert(botSettings).values({
         botId: bot.id,
         ...params.settings,
-      } as InsertBotSettings);
+      } as any);
 
       if (params.sourceData.length > 0) {
         const sourceLinks: Array<{ botId: number; sourceId: number; weight: number; isEnabled: boolean }> = [];
@@ -1446,14 +1250,14 @@ export class DatabaseStorage implements IStorage {
         }
       }
 
-      return bot;
+      return bot as Bot;
     });
   }
 
   async getBotByUserAndKey(userId: string, key: string): Promise<Bot | undefined> {
     const [bot] = await db.select().from(bots)
       .where(and(eq(bots.userId, userId), eq(bots.key, key)));
-    return bot;
+    return bot as any;
   }
 
   async resolveLLMForProfile(userId: string, topic: string): Promise<{ providerType: string; apiKey: string; baseUrl: string | null; model: string | null } | null> {
@@ -1462,15 +1266,3 @@ export class DatabaseStorage implements IStorage {
     return this.resolveLLMForBot(bot.id);
   }
 }
-
-import { driver } from "./db";
-import { SqliteStorage } from "./storage-sqlite";
-
-function createStorage(): IStorage {
-  if (driver === "sqlite") {
-    return new SqliteStorage();
-  }
-  return new DatabaseStorage();
-}
-
-export const storage = createStorage();
