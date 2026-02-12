@@ -1,0 +1,94 @@
+# 메이커 로컬-퍼스트 MVP — B→C→A v1.0 (Replit Assistant 복붙용)
+목표: (B) SQLite 독립 실행 → (C) 리포트 신뢰성(무한 running 제거/fast report 즉시) → (A) Electron 포장(코드만 준비)
+
+절대 원칙:
+- 어떤 경우에도 Console/Reports에서 “running…”이 60초 이상 지속되면 실패다.
+- 리포트는 항상 뭔가를 보여줘야 한다(0건이면 상태 리포트).
+- Electron 실행/빌드 테스트는 리플릿에서 하지 말고 “코드 준비”까지만 한다.
+
+---
+## Phase B (먼저) — SQLite 독립 실행 (1~2주)
+
+### B-1. DB 드라이버 팩토리
+- server/db.ts를 팩토리로 변경:
+  - MAKER_DB=sqlite이면 better-sqlite3 + drizzle sqlite 사용
+  - 아니면 기존 PostgreSQL 유지
+- SQLite 파일 경로: MAKER_SQLITE_PATH (기본 ./data/maker.sqlite)
+- 테스트: 서버 부팅 시 sqlite 파일 생성 확인
+
+### B-2. 스키마 미러링
+- shared/schema.ts는 그대로(pg)
+- shared/schema.sqlite.ts를 sqlite-core로 “동일 테이블/필드” 미러
+- shared/types(또는 shared/models)에는 DB 독립 타입/DTO만 둔다
+- 테스트: 타입체크/빌드 통과
+
+### B-3. SqliteStorage MVP (핵심 경로 25개 우선)
+- IStorage 전체 60개를 한 번에 하지 말고,
+  실제로 아래 기능 흐름에서 호출되는 메서드부터 구현:
+  1) Bots/Settings (기본 조회/저장)
+  2) Sources CRUD + bot-source 연결
+  3) Collect → items 저장/조회
+  4) Reports 생성/조회/업데이트(stage 포함)
+  5) Threads/Messages (Console 최소 동작)
+- 나머지 메서드는:
+  - throw new Error("Not implemented in sqlite MVP: <method>")
+  - 그리고 라우트에서 잡아서 사용자 메시지로 변환(서버 크래시 금지)
+- 테스트: MAKER_DB=sqlite로
+  - 소스 등록
+  - 수집 실행
+  - Reports 목록 조회가 동작
+
+### B-4. SQLite 초기화/시드
+- 앱 시작 시 테이블 없으면 생성 + 최소 시드:
+  - 기본 user(단일 사용자)
+  - 기본 thread
+  - 기본 presets
+- 테스트: 최초 실행 시 대시보드/갤러리 화면이 빈값 없이 뜨는지
+
+### B-5. 기존 PG 모드 무파괴 확인
+- MAKER_DB가 없으면 기존처럼 동작해야 함
+- 테스트: 기존 e2e 흐름 1개 통과
+
+---
+## Phase C (중간) — 리포트 신뢰성(3~5일)
+
+### C-1. Fast Report “2~3초 내 저장” 강제
+- report 생성(run now / schedule / pipeline_run 포함)은 반드시:
+  1) collect(또는 최근 수집 사용)
+  2) 즉시 fast report 저장(LLM 금지)
+  3) full upgrade는 백그라운드로
+- 테스트: run report → 3초 내 Reports에 뜸
+
+### C-2. 0 items이면 Status Report
+- 수집 결과 0이면 fast 대신 status report 생성
+- 내용: 왜 없을 수 있는지 + 체크할 것 + 다음 실행 예상
+- 테스트: 소스/아이템 0 상태에서 run report → 안내 리포트 표시
+
+### C-3. 무한 running 제거(서버/콘솔)
+- Console “매일 9시 브리핑”은:
+  - schedule 저장은 즉시 완료(1초 내)
+  - (선택) 첫 실행도 fast report까지는 즉시 완료
+- 어떠한 실행도 60초 넘기면 반드시 종료/안내
+- 테스트: 콘솔 명령 실행 후 10초 내 사용자에게 ‘완료/fast report 생성’ 메시지까지 도달
+
+### C-4. LLM 타임아웃과 가드
+- analyze/draft: 30s, report(full): 60s
+- 타임아웃이면:
+  - fast report 유지
+  - stage는 그대로 fast, errorReason 기록
+- 테스트: LLM 키 없을 때도 절대 무한 대기 없음
+
+---
+## Phase A (마지막) — Electron 포장 “코드 준비만”
+리플릿에서는 실행하지 말고 코드만 준비:
+- createServer() 형태로 { app, httpServer } 만들기 (현재 구조와 충돌 없게)
+- /api/health 추가(여긴 리플릿에서도 테스트)
+- queryClient/baseUrl 주입 패치(여긴 리플릿에서도 테스트)
+- electron/main.ts, preload.ts 작성(실행은 로컬 PC)
+
+---
+## 보고 형식(매 Step 필수)
+- 변경 파일 리스트
+- 핵심 변경 요약
+- 재현 가능한 테스트 명령/endpoint
+- “무한 running 가능성”이 남아있으면 그 Step은 완료 처리하지 말 것
