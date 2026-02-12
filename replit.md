@@ -53,6 +53,17 @@ The application is set up for desktop distribution using Electron, allowing the 
 ### Job Run Logging & Diagnostics
 The system includes infrastructure for tracking job executions in a `job_runs` table, providing detailed diagnostics and execution history for each bot. This includes API endpoints for checking bot health, last runs, and comprehensive diagnostics.
 
+### Permission System v1.0
+A comprehensive permission and policy system controlling bot capabilities:
+- **Schema**: `permissions` table (userId, scope global/bot, scopeId, permissionKey, valueJson) and `audit_logs` table for security event tracking. Both PG and SQLite schemas.
+- **Policy Engine** (`server/policy/`): `types.ts` defines 10 permission keys across 5 groups (web_sources, ai_data, files, calendar, scheduling). `engine.ts` provides `getEffectivePermissions` (merge default → global → bot override), `checkPermission`, `checkEgress` (3-level LLM data control: NO_EGRESS < METADATA_ONLY < FULL_CONTENT_ALLOWED), and `logPermissionAction`.
+- **ApprovalMode**: AUTO_ALLOWED, APPROVAL_REQUIRED, AUTO_DENIED.
+- **Defaults**: WEB_RSS/FETCH/LLM_USE/SCHEDULE_WRITE = AUTO_ALLOWED, FS_*/CAL_* = AUTO_DENIED, LLM egress = METADATA_ONLY.
+- **API Routes**: GET/PUT/DELETE `/api/permissions`, GET `/api/permissions/effective`, POST `/api/permissions/check`, GET `/api/audit-logs`.
+- **Integration**: Policy checks enforced on RSS collect and LLM analyze routes, with audit logging on denials.
+- **UI**: Dedicated `/permissions` page with global defaults management (group cards, switches, approval mode selects, egress level control) and audit log tab. Bot-level permission override card in bot detail page.
+- **i18n**: Full EN/KR translations for all permission and audit log UI strings.
+
 ## External Dependencies
 
 ### Environment Variables

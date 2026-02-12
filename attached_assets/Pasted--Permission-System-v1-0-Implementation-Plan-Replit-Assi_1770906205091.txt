@@ -1,0 +1,187 @@
+# Permission System v1.0 — Implementation Plan (Replit Assistant 복붙용)
+프로젝트: 메이커(=Makelr) 로컬/웹 공통 권한 시스템 v1.0
+목표: 기존 RSS/LLM/Console 파이프라인에 “권한 정책 엔진(Policy Engine)”을 삽입해
+- 최소 권한 원칙(기본 OFF)
+- 승인 기반 실행(Approval Mode)
+- 데이터 외부 반출(LLM Egress) 제어
+- 감사 로그(Audit Log)
+을 일관되게 적용한다.
+
+---
+## 0) 범위(이번 v1.0에서 하는 것 / 하지 않는 것)
+### v1.0에 포함 ✅
+- 전역(Global) + 봇(Bot) 단위 권한(override merge)
+- Permission CRUD API + Settings UI(그룹 카드/토글)
+- Policy Engine(권한 체크 유틸) + 기존 실행 경로(RSS/LLM/파이프라인)에 체크 삽입
+- Audit Log 테이블 + 기록(권한 변경, 승인/거절, 거부/차단)
+- LLM_EGRESS_LEVEL: 3단계만 제공
+  - NO_EGRESS
+  - METADATA_ONLY
+  - FULL_CONTENT_ALLOWED
+
+### v1.1로 미룸 ⏭
+- 스레드 단위 임시 권한 토큰(time-limited)
+- REDACTED_CONTENT_ONLY(마스킹/NER 필요)
+- “수정 후 실행(Edit then Run)” 승인 UX
+
+### 강제 정책(안전) 🔒
+- FS_DELETE는 TRASH_ONLY만 허용 (PERMANENT_DELETE는 스키마/코드/UX에서 제거)
+
+---
+## 1) 데이터 모델(스키마) — permissions + audit_log
+### 1-1) permissions 테이블 설계
+- scope: "global" | "bot"
+- scopeId: global이면 null, bot이면 botId
+- permissionKey: 문자열 키 (예: "LLM_USE", "LLM_EGRESS", "WEB_RSS", "WEB_FETCH", "FS_READ", "FS_WRITE", "CAL_READ", "CAL_WRITE")
+- valueJson: JSON (권한값/승인모드/리소스 범위 포함)
+- updatedAt
+
+권한 JSON 형태(표준):
+{
+  "enabled": boolean,
+  "approvalMode": "AUTO_ALLOWED" | "APPROVAL_REQUIRED" | "AUTO_DENIED",
+  "resourceScope": { ... } // 선택: 허용 경로/도메인/캘린더ID 등
+}
+
+### 1-2) audit_log 테이블(권장)
+- id
+- userId
+- botId (nullable)
+- threadId (nullable)
+- eventType: "PERMISSION_UPDATED" | "APPROVAL_GRANTED" | "APPROVAL_DENIED" | "PERMISSION_BLOCKED" | "EGRESS_BLOCKED"
+- permissionKey (nullable)
+- payloadJson (json)  // before/after, reason, command, resource
+- createdAt
+
+### 1-3) Drizzle 스키마 파일 수정
+- shared/schema.ts (pg) 및 shared/schema.sqlite.ts (sqlite) 모두에 동일하게 추가
+- 마이그레이션/초기화/seed에 반영
+
+---
+## 2) Policy Engine (서버 유틸) — 핵심
+### 2-1) 파일 추가
+- server/policy/types.ts
+- server/policy/engine.ts
+
+### 2-2) 핵심 함수 정의
+- getEffectivePermissions(userId, botId?): 전역+봇 권한을 merge해서 최종 정책 생성
+  - global을 기본으로, bot scope가 있으면 같은 permissionKey를 override
+- checkPermission(ctx, permissionKey, resource?): { allowed, requiresApproval, reason, effectivePolicy }
+- checkEgress(ctx, egressLevelNeeded, contentKind): { allowed, reason }
+  - egressLevelNeeded: "NO_EGRESS" | "METADATA_ONLY" | "FULL_CONTENT_ALLOWED"
+
+ctx 최소 구성:
+{
+  userId,
+  botId?,
+  threadId?,
+  commandId?,
+  action: "collect" | "analyze" | "report" | "schedule" | "add_source" | "remove_source" | "fs_read" | ...
+}
+
+### 2-3) 기본 정책(Seed)
+- 모든 민감 권한 기본 OFF / AUTO_DENIED
+- WEB_RSS는 ON + AUTO_ALLOWED (기본 수집 가능)
+- LLM_USE는 ON but EGRESS=METADATA_ONLY + APPROVAL_REQUIRED (기본 안전)
+- CAL_READ는 OFF
+- FS_READ/WRITE는 OFF
+
+---
+## 3) Storage 레이어 확장
+### 3-1) IStorage 메서드 추가
+- listPermissions(scope, scopeId, userId)
+- upsertPermission(scope, scopeId, userId, permissionKey, valueJson)
+- deletePermission(...)
+- listAuditLogs(filter)
+- createAuditLog(entry)
+
+### 3-2) PostgresStorage + SqliteStorage 구현
+- 기존 패턴 그대로 추가 구현
+- SQLite도 동일하게 동작해야 함
+
+---
+## 4) API Routes 추가
+### 4-1) Permissions API
+- GET /api/permissions/global
+- PUT /api/permissions/global/:permissionKey
+- GET /api/bots/:botId/permissions
+- PUT /api/bots/:botId/permissions/:permissionKey
+- DELETE (optional) — override 제거(=전역으로 fallback)
+
+### 4-2) Audit API (관리/디버그)
+- GET /api/audit?botId=&threadId=&limit=
+
+모든 변경 요청은 audit_log에 기록:
+- before/after diff 포함
+
+---
+## 5) 기존 실행 경로에 권한 체크 삽입(가장 중요)
+### 5-1) RSS 수집(collect)
+- WEB_RSS enabled 체크
+- source 추가/삭제 시 WEB_RSS + add/remove 승인 필요 여부 반영
+- 승인 필요면 “pending command”로 전환(기존 콘솔 승인 시스템 재사용)
+
+### 5-2) LLM 호출(analyze/report/draft)
+- LLM_USE enabled 체크
+- LLM_EGRESS_LEVEL에 따라 payload 구성 변경:
+  - NO_EGRESS: AI 호출 금지 → 상태 리포트/대체 로직
+  - METADATA_ONLY: title/url/sourceName/snippet(짧게)만 전달
+  - FULL_CONTENT_ALLOWED: full contentText 전달 가능
+- EGRESS 차단/거부는 audit_log에 EGRESS_BLOCKED로 기록
+
+### 5-3) schedule 변경(매일 9시 브리핑 등)
+- SCHEDULE_WRITE permissionKey (새로 정의)로 제어
+- approvalMode가 REQUIRED면 승인 흐름 적용
+
+### 5-4) Console command router
+- 기존 commandRouter.ts에 “permission check wrapper”를 추가:
+  - 각 action 실행 전에 checkPermission 호출
+  - requiresApproval면 pending으로 전환(이미 구현된 confirm UX 사용)
+  - denied면 사용자에게 이유를 친절하게 반환 + audit_log 기록
+
+---
+## 6) UI — Settings 페이지에 권한 카드 추가
+### 6-1) UX 목표
+- “기능 스위치 + 승인 방식 + 범위”를 한 화면에서 조절
+- 전역(Global) 기본값 + 봇별 Override 탭(또는 토글)
+- 기본은 단순 모드: On/Off + 승인(자동/승인필요/차단)
+- 고급은 펼치기: resourceScope (허용 폴더, 도메인, 캘린더)
+
+### 6-2) 페이지 구성 제안
+Settings > Permissions
+- Group 1: Web & Sources (WEB_RSS, WEB_FETCH, SOURCE_WRITE)
+- Group 2: AI & Data (LLM_USE, LLM_EGRESS_LEVEL)
+- Group 3: Files (FS_READ, FS_WRITE, FS_DELETE[TRASH_ONLY])
+- Group 4: Calendar (CAL_READ, CAL_WRITE)
+- Group 5: Scheduling (SCHEDULE_WRITE)
+
+봇 상세(Bot Detail)에 “이 봇 권한(Override)” 카드 추가:
+- 전역값 표시 + override 켜면 bot-level 저장
+
+---
+## 7) 테스트(필수)
+- 권한 OFF 상태에서: collect/report 수행 → 거부 + 안내 + audit 기록
+- METADATA_ONLY에서: LLM payload에 contentText가 포함되지 않는지 확인
+- FULL_CONTENT_ALLOWED에서: contentText 포함 확인
+- approval required 시: pending → confirm 후 실행 확인
+- SQLite/PG 둘 다 통과
+
+---
+## 8) 실행 순서(이 순서 고정)
+1) 스키마 추가: permissions + audit_log (pg/sqlite)
+2) Storage 메서드 추가/구현
+3) Policy Engine 구현 + merge 로직
+4) API routes 구현
+5) 실행 경로(RSS/LLM/Console)에 policy check 삽입
+6) Settings UI 구현(전역 + 봇 override)
+7) 테스트 + 문서 업데이트(replit.md에 권한 정책 섹션 추가)
+
+---
+## Done Definition
+- 전역/봇 권한 저장/조회/변경 가능
+- 콘솔 명령/스케줄/리포트가 권한 정책에 따라
+  - 즉시 실행 / 승인 요청 / 차단
+  을 정확히 수행
+- LLM egress 레벨이 실제 payload에 반영됨
+- audit_log에 중요한 이벤트가 남음
+- SQLite/PG 둘 다 동작

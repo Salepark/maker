@@ -3,6 +3,7 @@ import {
   sources, items, analysis, drafts, posts, reports, chatMessages, chatThreads, settings,
   presets, profiles, profileSources, outputs, outputItems,
   bots, botSettings, sourceBotLinks, llmProviders, jobRuns,
+  permissions, auditLogs,
   type Source, type Item, type Analysis, type Draft, type Post, type Report, 
   type InsertSource, type InsertItem, type InsertAnalysis, type InsertDraft, type InsertReport, 
   type ChatMessage, type InsertChatMessage, type ChatThread, type InsertChatThread, type Setting,
@@ -10,7 +11,8 @@ import {
   type Output, type InsertOutput, type OutputItem,
   type Bot, type InsertBot, type BotSettings, type InsertBotSettings, type SourceBotLink,
   type LlmProvider, type InsertLlmProvider,
-  type JobRun, type InsertJobRun
+  type JobRun, type InsertJobRun,
+  type Permission, type InsertPermission,
 } from "@shared/schema";
 import { eq, desc, sql, and, count, gte, lt, lte, or, isNull, inArray } from "drizzle-orm";
 
@@ -181,6 +183,16 @@ export interface IStorage {
   finishJobRun(id: number, patch: Partial<InsertJobRun>): Promise<JobRun | null>;
   listJobRunsForBot(userId: string, botId: number, limit?: number): Promise<JobRun[]>;
   getLastJobRunForBot(userId: string, botId: number): Promise<JobRun | null>;
+
+  // Permissions
+  listPermissions(userId: string, scope: string, scopeId: number | null): Promise<Permission[]>;
+  upsertPermission(userId: string, scope: string, scopeId: number | null, permissionKey: string, valueJson: any): Promise<Permission>;
+  deletePermission(userId: string, scope: string, scopeId: number | null, permissionKey: string): Promise<void>;
+  listAllUserPermissions(userId: string): Promise<Permission[]>;
+
+  // Audit Log
+  createAuditLog(entry: { userId: string; botId?: number | null; threadId?: string | null; eventType: string; permissionKey?: string | null; payloadJson?: any }): Promise<void>;
+  listAuditLogs(userId: string, filters?: { botId?: number; eventType?: string; permissionKey?: string; limit?: number }): Promise<any[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1529,6 +1541,77 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(jobRuns.startedAt))
       .limit(1);
     return run || null;
+  }
+
+  async listPermissions(userId: string, scope: string, scopeId: number | null): Promise<Permission[]> {
+    const conditions = [eq(permissions.userId, userId), eq(permissions.scope, scope)];
+    if (scopeId != null) {
+      conditions.push(eq(permissions.scopeId, scopeId));
+    } else {
+      conditions.push(isNull(permissions.scopeId));
+    }
+    return db.select().from(permissions).where(and(...conditions));
+  }
+
+  async upsertPermission(userId: string, scope: string, scopeId: number | null, permissionKey: string, valueJson: any): Promise<Permission> {
+    const existing = await db.select().from(permissions)
+      .where(and(
+        eq(permissions.userId, userId),
+        eq(permissions.scope, scope),
+        scopeId != null ? eq(permissions.scopeId, scopeId) : isNull(permissions.scopeId),
+        eq(permissions.permissionKey, permissionKey),
+      ))
+      .limit(1);
+
+    if (existing.length > 0) {
+      const [updated] = await db.update(permissions)
+        .set({ valueJson, updatedAt: new Date() } as any)
+        .where(eq(permissions.id, existing[0].id))
+        .returning();
+      return updated;
+    }
+
+    const [created] = await db.insert(permissions)
+      .values({ userId, scope, scopeId, permissionKey, valueJson, updatedAt: new Date() } as any)
+      .returning();
+    return created;
+  }
+
+  async deletePermission(userId: string, scope: string, scopeId: number | null, permissionKey: string): Promise<void> {
+    await db.delete(permissions).where(and(
+      eq(permissions.userId, userId),
+      eq(permissions.scope, scope),
+      scopeId != null ? eq(permissions.scopeId, scopeId) : isNull(permissions.scopeId),
+      eq(permissions.permissionKey, permissionKey),
+    ));
+  }
+
+  async listAllUserPermissions(userId: string): Promise<Permission[]> {
+    return db.select().from(permissions)
+      .where(eq(permissions.userId, userId))
+      .orderBy(permissions.scope, permissions.permissionKey);
+  }
+
+  async createAuditLog(entry: { userId: string; botId?: number | null; threadId?: string | null; eventType: string; permissionKey?: string | null; payloadJson?: any }): Promise<void> {
+    await db.insert(auditLogs).values({
+      userId: entry.userId,
+      botId: entry.botId ?? null,
+      threadId: entry.threadId ?? null,
+      eventType: entry.eventType,
+      permissionKey: entry.permissionKey ?? null,
+      payloadJson: entry.payloadJson ?? null,
+    } as any);
+  }
+
+  async listAuditLogs(userId: string, filters?: { botId?: number; eventType?: string; permissionKey?: string; limit?: number }): Promise<any[]> {
+    const conditions = [eq(auditLogs.userId, userId)];
+    if (filters?.botId) conditions.push(eq(auditLogs.botId, filters.botId));
+    if (filters?.eventType) conditions.push(eq(auditLogs.eventType, filters.eventType));
+    if (filters?.permissionKey) conditions.push(eq(auditLogs.permissionKey, filters.permissionKey));
+    return db.select().from(auditLogs)
+      .where(and(...conditions))
+      .orderBy(desc(auditLogs.createdAt))
+      .limit(filters?.limit ?? 50);
   }
 }
 

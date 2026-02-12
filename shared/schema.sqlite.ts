@@ -282,3 +282,30 @@ export const jobRuns = sqliteTable("job_runs", {
   index("idx_job_runs_user_bot").on(table.userId, table.botId, table.startedAt),
   index("idx_job_runs_status").on(table.status, table.startedAt),
 ]);
+
+export const permissions = sqliteTable("permissions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id").notNull().references(() => users.id),
+  scope: text("scope").notNull(),
+  scopeId: integer("scope_id"),
+  permissionKey: text("permission_key").notNull(),
+  valueJson: text("value_json", { mode: "json" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => Date.now()),
+}, (table) => [
+  uniqueIndex("permissions_scope_key_unique").on(table.userId, table.scope, table.scopeId, table.permissionKey),
+  index("idx_permissions_user_scope").on(table.userId, table.scope, table.scopeId),
+]);
+
+export const auditLogs = sqliteTable("audit_logs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id").notNull().references(() => users.id),
+  botId: integer("bot_id").references(() => bots.id),
+  threadId: text("thread_id"),
+  eventType: text("event_type").notNull(),
+  permissionKey: text("permission_key"),
+  payloadJson: text("payload_json", { mode: "json" }),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => Date.now()),
+}, (table) => [
+  index("idx_audit_logs_user").on(table.userId, table.createdAt),
+  index("idx_audit_logs_event").on(table.eventType, table.createdAt),
+]);

@@ -539,3 +539,43 @@ export const insertJobRunSchema = createInsertSchema(jobRuns).omit({
 
 export type JobRun = typeof jobRuns.$inferSelect;
 export type InsertJobRun = z.infer<typeof insertJobRunSchema>;
+
+// ============================================
+// PERMISSIONS - Policy engine permission store
+// ============================================
+export const permissions = pgTable("permissions", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  scope: text("scope").notNull(),
+  scopeId: integer("scope_id"),
+  permissionKey: text("permission_key").notNull(),
+  valueJson: jsonb("value_json").notNull(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("permissions_scope_key_unique").on(table.userId, table.scope, table.scopeId, table.permissionKey),
+  index("idx_permissions_user_scope").on(table.userId, table.scope, table.scopeId),
+]);
+
+export const insertPermissionSchema = createInsertSchema(permissions).omit({
+  id: true,
+});
+
+export type Permission = typeof permissions.$inferSelect;
+export type InsertPermission = z.infer<typeof insertPermissionSchema>;
+
+// ============================================
+// AUDIT LOG - Permission/action audit trail
+// ============================================
+export const auditLogs = pgTable("audit_logs", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  botId: integer("bot_id").references(() => bots.id),
+  threadId: text("thread_id"),
+  eventType: text("event_type").notNull(),
+  permissionKey: text("permission_key"),
+  payloadJson: jsonb("payload_json"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  index("idx_audit_logs_user").on(table.userId, table.createdAt),
+  index("idx_audit_logs_event").on(table.eventType, table.createdAt),
+]);

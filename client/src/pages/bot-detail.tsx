@@ -13,7 +13,7 @@ import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/lib/language-provider";
-import { ArrowLeft, Save, Loader2, Brain, Clock, FileText, Filter, Rss, AlertTriangle, Layers, Plus, X, CheckCircle2, XCircle, Timer, SkipForward, Play, Activity, Info } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Brain, Clock, FileText, Filter, Rss, AlertTriangle, Layers, Plus, X, CheckCircle2, XCircle, Timer, SkipForward, Play, Activity, Info, Shield, ShieldCheck, RotateCcw } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 interface JobRunData {
@@ -678,6 +678,8 @@ export default function BotDetail() {
           </Card>
         )}
 
+        <BotPermissionsCard botId={botId} t={t} language={language} />
+
         <Card data-testid="card-execution-history">
           <CardHeader className="flex flex-row items-center justify-between gap-2">
             <CardTitle className="flex items-center gap-2">
@@ -718,6 +720,141 @@ export default function BotDetail() {
         </Card>
       </div>
     </div>
+  );
+}
+
+type ApprovalMode = "AUTO_ALLOWED" | "APPROVAL_REQUIRED" | "AUTO_DENIED";
+type EgressLevel = "NO_EGRESS" | "METADATA_ONLY" | "FULL_CONTENT_ALLOWED";
+
+interface EffPerm {
+  enabled: boolean;
+  approvalMode: ApprovalMode;
+  egressLevel?: EgressLevel;
+  source: "default" | "global" | "bot";
+}
+
+const PERM_KEYS_DISPLAY = [
+  { key: "WEB_RSS", en: "RSS Feeds", ko: "RSS 피드" },
+  { key: "WEB_FETCH", en: "Web Fetch", ko: "웹 가져오기" },
+  { key: "LLM_USE", en: "AI Usage", ko: "AI 사용" },
+  { key: "LLM_EGRESS_LEVEL", en: "Data to AI", ko: "AI 데이터" },
+  { key: "FS_READ", en: "Read Files", ko: "파일 읽기" },
+  { key: "FS_WRITE", en: "Write Files", ko: "파일 쓰기" },
+  { key: "FS_DELETE", en: "Delete Files", ko: "파일 삭제" },
+  { key: "SCHEDULE_WRITE", en: "Schedules", ko: "스케줄" },
+];
+
+function BotPermissionsCard({ botId, t, language }: { botId: number | null; t: (key: string) => string; language: string }) {
+  const { toast } = useToast();
+
+  const { data: effective } = useQuery<Record<string, EffPerm>>({
+    queryKey: ["/api/permissions/effective", botId],
+    queryFn: () => fetch(`/api/permissions/effective?botId=${botId}`, { credentials: "include" }).then((r) => r.json()),
+    enabled: !!botId,
+  });
+
+  const overrideMutation = useMutation({
+    mutationFn: async ({ permissionKey, value }: { permissionKey: string; value: any }) => {
+      return apiRequest("PUT", "/api/permissions", {
+        scope: "bot",
+        scopeId: botId,
+        permissionKey,
+        value,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/permissions/effective", botId] });
+      toast({ title: t("perm.saved") });
+    },
+  });
+
+  const resetMutation = useMutation({
+    mutationFn: async (permissionKey: string) => {
+      return apiRequest("DELETE", "/api/permissions", {
+        scope: "bot",
+        scopeId: botId,
+        permissionKey,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/permissions/effective", botId] });
+      toast({ title: t("perm.deleted") });
+    },
+  });
+
+  if (!effective) return null;
+
+  const botOverrides = PERM_KEYS_DISPLAY.filter((pk) => effective[pk.key]?.source === "bot");
+  const isUpdating = overrideMutation.isPending || resetMutation.isPending;
+
+  return (
+    <Card data-testid="card-bot-permissions">
+      <CardHeader className="flex flex-row items-center justify-between gap-2">
+        <CardTitle className="flex items-center gap-2">
+          <Shield className="h-5 w-5" />
+          {t("perm.botOverrides")}
+        </CardTitle>
+        <Badge variant="outline" data-testid="badge-override-count">
+          {botOverrides.length > 0 ? `${botOverrides.length} ${language === "ko" ? "개 재정의" : "overrides"}` : t("perm.usingGlobal")}
+        </Badge>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-2">
+          {PERM_KEYS_DISPLAY.map((pk) => {
+            const perm = effective[pk.key];
+            if (!perm) return null;
+            const label = language === "ko" ? pk.ko : pk.en;
+            const isOverride = perm.source === "bot";
+            const isEgress = pk.key === "LLM_EGRESS_LEVEL";
+
+            return (
+              <div
+                key={pk.key}
+                className="flex items-center justify-between gap-2 p-2 rounded-md border"
+                data-testid={`bot-perm-${pk.key}`}
+              >
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <span className="text-sm">{label}</span>
+                  {isOverride && (
+                    <Badge variant="default" className="text-[10px]">{t("perm.source.bot")}</Badge>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {isOverride && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => resetMutation.mutate(pk.key)}
+                      disabled={isUpdating}
+                      data-testid={`button-reset-bot-${pk.key}`}
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                    </Button>
+                  )}
+                  {isEgress ? (
+                    <Badge variant={perm.egressLevel === "NO_EGRESS" ? "destructive" : perm.egressLevel === "FULL_CONTENT_ALLOWED" ? "default" : "secondary"}>
+                      {t(`perm.egress.${perm.egressLevel}` as any) || perm.egressLevel}
+                    </Badge>
+                  ) : (
+                    <Switch
+                      checked={perm.enabled}
+                      onCheckedChange={(checked) =>
+                        overrideMutation.mutate({
+                          permissionKey: pk.key,
+                          value: { enabled: checked, approvalMode: checked ? "AUTO_ALLOWED" : "AUTO_DENIED" },
+                        })
+                      }
+                      disabled={isUpdating}
+                      data-testid={`switch-bot-${pk.key}`}
+                    />
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

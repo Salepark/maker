@@ -151,6 +151,13 @@ export async function registerRoutes(
 
   app.post("/api/sources/:id/collect", isAuthenticated, async (req, res) => {
     try {
+      const userId = getUserId(req);
+      const { checkPermission, logPermissionAction } = await import("./policy/engine");
+      const perm = await checkPermission({ userId }, "WEB_RSS");
+      if (!perm.allowed) {
+        await logPermissionAction({ userId }, "PERMISSION_DENIED", "WEB_RSS", { action: "collect_source" });
+        return res.status(403).json({ error: perm.reason });
+      }
       const id = parseInt(req.params.id);
       const source = await storage.getSource(id);
       if (!source) {
@@ -232,6 +239,18 @@ export async function registerRoutes(
 
   app.post("/api/scheduler/run/analyze", isAuthenticated, async (req, res) => {
     try {
+      const userId = getUserId(req);
+      const { checkPermission, checkEgress, logPermissionAction } = await import("./policy/engine");
+      const perm = await checkPermission({ userId }, "LLM_USE");
+      if (!perm.allowed) {
+        await logPermissionAction({ userId }, "PERMISSION_DENIED", "LLM_USE", { action: "analyze" });
+        return res.status(403).json({ error: perm.reason });
+      }
+      const egress = await checkEgress({ userId }, "FULL_CONTENT_ALLOWED");
+      if (!egress.allowed) {
+        await logPermissionAction({ userId }, "PERMISSION_DENIED", "LLM_EGRESS_LEVEL", { action: "analyze", requiredLevel: "FULL_CONTENT_ALLOWED", effectiveLevel: egress.effectiveLevel });
+        return res.status(403).json({ error: egress.reason });
+      }
       const count = await runAnalyzeNow();
       res.json({ analyzed: count });
     } catch (error: any) {
@@ -1415,6 +1434,102 @@ export async function registerRoutes(
       res.json({ ok: true });
     } catch (error) {
       handleApiError(res, error, "Failed to delete source");
+    }
+  });
+
+  app.get("/api/permissions", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const scope = (req.query.scope as string) || "global";
+      const scopeId = req.query.scopeId ? parseInt(req.query.scopeId as string, 10) : null;
+      const perms = await storage.listPermissions(userId, scope, scopeId);
+      res.json(perms);
+    } catch (error) {
+      handleApiError(res, error, "Failed to list permissions");
+    }
+  });
+
+  app.get("/api/permissions/effective", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const botId = req.query.botId ? parseInt(req.query.botId as string, 10) : null;
+      const { getEffectivePermissions } = await import("./policy/engine");
+      const effective = await getEffectivePermissions(userId, botId);
+      res.json(effective);
+    } catch (error) {
+      handleApiError(res, error, "Failed to get effective permissions");
+    }
+  });
+
+  app.put("/api/permissions", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const { scope, scopeId, permissionKey, value } = req.body;
+      if (!scope || !permissionKey || !value) {
+        return res.status(400).json({ error: "Missing required fields: scope, permissionKey, value" });
+      }
+      const perm = await storage.upsertPermission(userId, scope, scopeId ?? null, permissionKey, value);
+      const { logPermissionAction } = await import("./policy/engine");
+      await logPermissionAction(
+        { userId, botId: scopeId ?? null },
+        "PERMISSION_CHANGED",
+        permissionKey,
+        { scope, scopeId, newValue: value },
+      );
+      res.json(perm);
+    } catch (error) {
+      handleApiError(res, error, "Failed to update permission");
+    }
+  });
+
+  app.delete("/api/permissions", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const { scope, scopeId, permissionKey } = req.body;
+      if (!scope || !permissionKey) {
+        return res.status(400).json({ error: "Missing required fields: scope, permissionKey" });
+      }
+      await storage.deletePermission(userId, scope, scopeId ?? null, permissionKey);
+      const { logPermissionAction } = await import("./policy/engine");
+      await logPermissionAction(
+        { userId, botId: scopeId ?? null },
+        "PERMISSION_DELETED",
+        permissionKey,
+        { scope, scopeId },
+      );
+      res.json({ ok: true });
+    } catch (error) {
+      handleApiError(res, error, "Failed to delete permission");
+    }
+  });
+
+  app.post("/api/permissions/check", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const { permissionKey, botId } = req.body;
+      if (!permissionKey) {
+        return res.status(400).json({ error: "Missing permissionKey" });
+      }
+      const { checkPermission } = await import("./policy/engine");
+      const result = await checkPermission({ userId, botId: botId ?? null }, permissionKey);
+      res.json(result);
+    } catch (error) {
+      handleApiError(res, error, "Failed to check permission");
+    }
+  });
+
+  app.get("/api/audit-logs", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const filters: any = {};
+      if (req.query.botId) filters.botId = parseInt(req.query.botId as string, 10);
+      if (req.query.eventType) filters.eventType = req.query.eventType as string;
+      if (req.query.permissionKey) filters.permissionKey = req.query.permissionKey as string;
+      if (req.query.limit) filters.limit = parseInt(req.query.limit as string, 10);
+      const logs = await storage.listAuditLogs(userId, filters);
+      res.json(logs);
+    } catch (error) {
+      handleApiError(res, error, "Failed to list audit logs");
     }
   });
 

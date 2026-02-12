@@ -30,6 +30,7 @@ import ProfileDetail from "@/pages/profile-detail";
 import BotDetail from "@/pages/bot-detail";
 import Landing from "@/pages/landing";
 import Guide from "@/pages/guide";
+import Permissions from "@/pages/permissions";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -47,6 +48,7 @@ function Router() {
       <Route path="/reports" component={Reports} />
       <Route path="/sources" component={Sources} />
       <Route path="/settings" component={Settings} />
+      <Route path="/permissions" component={Permissions} />
       <Route path="/chat" component={Chat} />
       <Route path="/guide" component={Guide} />
       <Route component={NotFound} />
