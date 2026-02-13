@@ -55,7 +55,7 @@ The application is set up for desktop distribution using Electron, allowing the 
 
 #### Local Dev Commands
 - `MAKER_DB=sqlite npm run dev` — Run server in SQLite mode (browser at http://localhost:5000)
-- `MAKER_DB=sqlite MAKER_DESKTOP=true NODE_ENV=development npx electron electron/main.ts` — Launch Electron desktop app
+- `npm run dev:desktop` — Launch Electron desktop app (cross-env + tsx/register, works on all OS)
 
 #### Desktop Build & Package
 - `npm run build:desktop` — Bundle client+server+electron via `script/build-desktop.ts`
@@ -63,6 +63,12 @@ The application is set up for desktop distribution using Electron, allowing the 
 - Config: `electron/electron-builder.yml` with `asarUnpack` for `better-sqlite3` native module
 - Output: `dist-electron/` directory
 - Full local setup guide: `LOCAL_SETUP.md`
+
+#### Desktop npm Scripts (in package.json)
+- `dev:desktop`: `cross-env MAKER_DB=sqlite MAKER_DESKTOP=true NODE_ENV=development electron -r tsx/register electron/main.ts`
+- `build:desktop`: `tsx script/build-desktop.ts`
+- `pack:desktop`: `electron-builder --config electron/electron-builder.yml`
+- Uses `cross-env` for Windows/Mac/Linux compatibility, `-r tsx/register` for TypeScript support in Electron
 
 ### Job Run Logging & Diagnostics
 The system includes infrastructure for tracking job executions in a `job_runs` table, providing detailed diagnostics and execution history for each bot. This includes API endpoints for checking bot health, last runs, and comprehensive diagnostics. The Daily Reliability card on the Dashboard shows 7-day success rate, average generation time, last run, and last failure reason via `GET /api/diagnostics/daily-loop`.

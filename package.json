@@ -8,7 +8,10 @@
     "build": "tsx script/build.ts",
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "dev:desktop": "cross-env MAKER_DB=sqlite MAKER_DESKTOP=true NODE_ENV=development electron -r tsx/register electron/main.ts",
+    "build:desktop": "tsx script/build-desktop.ts",
+    "pack:desktop": "electron-builder --config electron/electron-builder.yml"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -49,6 +52,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "connect-pg-simple": "^10.0.0",
+    "cross-env": "^10.1.0",
     "date-fns": "^3.6.0",
     "drizzle-orm": "^0.39.3",
     "drizzle-zod": "^0.7.1",

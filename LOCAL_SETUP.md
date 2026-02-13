@@ -2,6 +2,8 @@
 
 이 문서는 GitHub에서 Maker 코드를 받아 **본인 PC에서 데스크톱 앱으로 실행**하는 전체 과정을 설명합니다.
 
+`clone` -> `npm install` -> `npm run dev:desktop` — 이 3단계로 끝납니다.
+
 ---
 
 ## 사전 준비
@@ -27,7 +29,7 @@ xcode-select --install
 
 ---
 
-## STEP 1 - 코드 다운로드
+## STEP 1 - 코드 다운로드 & 설치
 
 ```bash
 git clone https://github.com/Salepark/maker.git
@@ -42,51 +44,18 @@ npm rebuild better-sqlite3
 
 ---
 
-## STEP 2 - package.json 스크립트 추가
-
-`package.json`의 `"scripts"` 항목에 아래 3줄을 추가합니다:
-
-```json
-{
-  "scripts": {
-    "dev": "NODE_ENV=development tsx server/index.ts",
-    "build": "tsx script/build.ts",
-    "start": "NODE_ENV=production node dist/index.cjs",
-    "check": "tsc",
-    "db:push": "drizzle-kit push",
-    "dev:desktop": "MAKER_DB=sqlite MAKER_DESKTOP=true NODE_ENV=development npx electron electron/main.ts",
-    "build:desktop": "tsx script/build-desktop.ts",
-    "pack:desktop": "npx electron-builder --config electron/electron-builder.yml"
-  }
-}
-```
-
-추가되는 스크립트 설명:
-- `dev:desktop` - 개발 모드로 Electron 앱 실행 (SQLite 사용)
-- `build:desktop` - 프로덕션용 클라이언트+서버 번들링
-- `pack:desktop` - .app / .exe / .AppImage 패키징
-
-**Windows 사용자:** `dev:desktop` 스크립트가 직접 동작하지 않을 수 있습니다. 아래 "Windows에서 Dev 모드 실행" 섹션을 참고하세요.
-
----
-
-## STEP 3 - Dev 모드 실행 (첫 번째 테스트)
-
-### Mac / Linux
+## STEP 2 - Dev 모드 실행
 
 ```bash
 npm run dev:desktop
 ```
 
-### Windows (PowerShell)
+이 명령 하나로 Mac / Windows / Linux 전부 동작합니다.
+(`cross-env`로 환경변수를 OS에 관계없이 통일 처리합니다)
 
-환경변수를 먼저 설정한 후 실행합니다:
-
-```powershell
-$env:MAKER_DB="sqlite"
-$env:MAKER_DESKTOP="true"
-$env:NODE_ENV="development"
-npx electron electron/main.ts
+내부적으로 실행되는 명령:
+```
+cross-env MAKER_DB=sqlite MAKER_DESKTOP=true NODE_ENV=development electron -r tsx/register electron/main.ts
 ```
 
 ### 성공하면 이렇게 됩니다
@@ -108,7 +77,7 @@ npx electron electron/main.ts
 
 ---
 
-## STEP 4 - 기본 기능 테스트
+## STEP 3 - 기본 기능 테스트
 
 ### 소스 추가 & Fast Report 테스트
 
@@ -140,7 +109,7 @@ ls ~/.config/Maker/maker.db
 
 ---
 
-## STEP 5 - 프로덕션 빌드 (선택사항)
+## STEP 4 - 프로덕션 빌드 (선택사항)
 
 실행 파일(.app, .exe)을 만들려면:
 
@@ -188,24 +157,29 @@ Mac에서 계속 오류 시:
 npm rebuild better-sqlite3 --build-from-source
 ```
 
-### 3. Windows에서 `MAKER_DB=sqlite` 인식 안됨
+### 3. `npm run dev:desktop`이 동작하지 않을 때 (수동 실행)
 
-Windows CMD/PowerShell은 `KEY=value command` 형식을 지원하지 않습니다.
+스크립트 없이 직접 실행하려면:
 
-**해결 (PowerShell):**
+**Mac / Linux:**
+```bash
+MAKER_DB=sqlite MAKER_DESKTOP=true NODE_ENV=development npx electron -r tsx/register electron/main.ts
+```
+
+**Windows (PowerShell):**
 ```powershell
 $env:MAKER_DB="sqlite"
 $env:MAKER_DESKTOP="true"
 $env:NODE_ENV="development"
-npx electron electron/main.ts
+npx electron -r tsx/register electron/main.ts
 ```
 
-**해결 (CMD):**
+**Windows (CMD):**
 ```cmd
 set MAKER_DB=sqlite
 set MAKER_DESKTOP=true
 set NODE_ENV=development
-npx electron electron/main.ts
+npx electron -r tsx/register electron/main.ts
 ```
 
 ### 4. Port 5000 already in use
@@ -261,25 +235,36 @@ taskkill /F /IM node.exe
 
 ---
 
+## npm 스크립트 정리
+
+| 스크립트 | 용도 |
+|----------|------|
+| `npm run dev:desktop` | Dev 모드 Electron 실행 (SQLite, 자동 로그인) |
+| `npm run build:desktop` | 프로덕션용 클라이언트+서버 번들링 |
+| `npm run pack:desktop` | .app / .exe / .AppImage 패키징 |
+| `npm run dev` | 클라우드 모드 서버 실행 (PostgreSQL) |
+
+---
+
 ## 프로젝트 구조 (Desktop 관련)
 
 ```
 maker/
 ├── electron/
-│   ├── main.ts           # Electron 메인 프로세스 (서버 시작, 창 생성)
-│   ├── preload.ts        # 브라우저에 window.maker / window.electronAPI 노출
+│   ├── main.ts               # Electron 메인 프로세스 (서버 시작, 창 생성)
+│   ├── preload.ts            # 브라우저에 window.maker / window.electronAPI 노출
 │   └── electron-builder.yml  # 패키징 설정
 ├── script/
-│   ├── build.ts          # 클라우드용 빌드
-│   └── build-desktop.ts  # 데스크톱용 빌드 (서버+클라이언트+Electron)
+│   ├── build.ts              # 클라우드용 빌드
+│   └── build-desktop.ts      # 데스크톱용 빌드 (서버+클라이언트+Electron)
 ├── server/
-│   ├── db.ts             # DB 드라이버 분기 (PostgreSQL / SQLite)
-│   ├── init-sqlite.ts    # SQLite 테이블 초기화
-│   └── storage-sqlite.ts # SQLite 전용 스토리지 구현
+│   ├── db.ts                 # DB 드라이버 분기 (PostgreSQL / SQLite)
+│   ├── init-sqlite.ts        # SQLite 테이블 초기화
+│   └── storage-sqlite.ts     # SQLite 전용 스토리지 구현
 ├── shared/
-│   ├── schema.ts         # PostgreSQL 스키마 (Drizzle)
-│   └── schema.sqlite.ts  # SQLite 스키마 (Drizzle)
-└── LOCAL_SETUP.md        # 이 문서
+│   ├── schema.ts             # PostgreSQL 스키마 (Drizzle)
+│   └── schema.sqlite.ts      # SQLite 스키마 (Drizzle)
+└── LOCAL_SETUP.md            # 이 문서
 ```
 
 ---
