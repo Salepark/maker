@@ -260,6 +260,65 @@ export function initSqliteTables() {
       value TEXT NOT NULL,
       updated_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
     );
+
+    CREATE TABLE IF NOT EXISTS job_runs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT NOT NULL REFERENCES users(id),
+      bot_id INTEGER REFERENCES bots(id),
+      bot_key TEXT NOT NULL,
+      job_type TEXT NOT NULL,
+      trigger TEXT NOT NULL,
+      status TEXT NOT NULL,
+      started_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
+      finished_at INTEGER,
+      duration_ms INTEGER,
+      items_collected INTEGER,
+      items_analyzed INTEGER,
+      output_id INTEGER,
+      report_stage TEXT,
+      error_code TEXT,
+      error_message TEXT,
+      error_detail_json TEXT DEFAULT '{}',
+      meta_json TEXT DEFAULT '{}'
+    );
+    CREATE INDEX IF NOT EXISTS idx_job_runs_user_bot ON job_runs(user_id, bot_id, started_at);
+    CREATE INDEX IF NOT EXISTS idx_job_runs_status ON job_runs(status, started_at);
+
+    CREATE TABLE IF NOT EXISTS permissions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT NOT NULL REFERENCES users(id),
+      scope TEXT NOT NULL,
+      scope_id INTEGER,
+      permission_key TEXT NOT NULL,
+      value_json TEXT NOT NULL,
+      updated_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS permissions_scope_key_unique ON permissions(user_id, scope, scope_id, permission_key);
+    CREATE INDEX IF NOT EXISTS idx_permissions_user_scope ON permissions(user_id, scope, scope_id);
+
+    CREATE TABLE IF NOT EXISTS audit_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT NOT NULL REFERENCES users(id),
+      bot_id INTEGER REFERENCES bots(id),
+      thread_id TEXT,
+      event_type TEXT NOT NULL,
+      permission_key TEXT,
+      payload_json TEXT DEFAULT '{}',
+      created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+    );
+    CREATE INDEX IF NOT EXISTS idx_audit_logs_user ON audit_logs(user_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_audit_logs_event ON audit_logs(event_type, created_at);
+
+    CREATE TABLE IF NOT EXISTS report_metrics (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      report_id INTEGER NOT NULL,
+      profile_id INTEGER NOT NULL,
+      item_count INTEGER NOT NULL DEFAULT 0,
+      keyword_summary TEXT NOT NULL DEFAULT '{}',
+      source_distribution TEXT NOT NULL DEFAULT '{}',
+      created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+    );
+    CREATE INDEX IF NOT EXISTS idx_report_metrics_profile ON report_metrics(profile_id, created_at);
   `);
 
   console.log("[SQLite] All tables created successfully");

@@ -3,7 +3,7 @@ import {
   sources, items, analysis, drafts, posts, reports, chatMessages, chatThreads, settings,
   presets, profiles, profileSources, outputs, outputItems,
   bots, botSettings, sourceBotLinks, llmProviders, jobRuns,
-  permissions, auditLogs,
+  permissions, auditLogs, reportMetrics,
 } from "../shared/schema.sqlite";
 import type {
   Source, Item, Analysis, Draft, Post, Report,
@@ -1397,5 +1397,23 @@ export class SqliteStorage implements IStorage {
       .where(and(...conditions))
       .orderBy(desc(auditLogs.createdAt))
       .limit(filters?.limit ?? 50) as any;
+  }
+
+  async createReportMetric(data: { reportId: number; profileId: number; itemCount: number; keywordSummary: Record<string, number>; sourceDistribution: Record<string, number> }): Promise<any> {
+    const result = await db.insert(reportMetrics).values({
+      reportId: data.reportId,
+      profileId: data.profileId,
+      itemCount: data.itemCount,
+      keywordSummary: data.keywordSummary as any,
+      sourceDistribution: data.sourceDistribution as any,
+    }).returning();
+    return result[0];
+  }
+
+  async getReportMetricsForProfile(profileId: number, limit: number = 7): Promise<any[]> {
+    return db.select().from(reportMetrics)
+      .where(eq(reportMetrics.profileId, profileId))
+      .orderBy(desc(reportMetrics.createdAt))
+      .limit(limit);
   }
 }

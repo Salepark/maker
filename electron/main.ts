@@ -17,7 +17,7 @@ function getServerEntry(): string {
 }
 
 function getDataDir(): string {
-  return path.join(app.getPath("userData"), "data");
+  return app.getPath("userData");
 }
 
 function startServer(): Promise<void> {
@@ -28,7 +28,7 @@ function startServer(): Promise<void> {
     const env: Record<string, string> = {
       ...process.env as Record<string, string>,
       MAKER_DB: "sqlite",
-      MAKER_SQLITE_PATH: path.join(dataDir, "maker.sqlite"),
+      MAKER_SQLITE_PATH: path.join(dataDir, "maker.db"),
       PORT: String(SERVER_PORT),
       NODE_ENV: isDev ? "development" : "production",
     };

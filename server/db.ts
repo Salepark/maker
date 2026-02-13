@@ -17,7 +17,7 @@ function initDb() {
   const useSqlite = process.env.MAKER_DB === "sqlite";
 
   if (useSqlite) {
-    const filePath = process.env.MAKER_SQLITE_PATH || "./data/maker.sqlite";
+    const filePath = process.env.MAKER_SQLITE_PATH || "./data/maker.db";
 
     const dir = path.dirname(filePath);
     if (!fs.existsSync(dir)) {

@@ -48,7 +48,11 @@ The application supports English and Korean using a homegrown i18n system. Langu
 Supports both PostgreSQL (default for cloud deployment) and SQLite (for local desktop deployment) based on environment variables, with schema mirroring and driver abstraction.
 
 ### Electron Desktop Packaging
-The application is set up for desktop distribution using Electron, allowing the Express server to run locally with SQLite, and opening a BrowserWindow for the UI.
+The application is set up for desktop distribution using Electron, allowing the Express server to run locally with SQLite, and opening a BrowserWindow for the UI. SQLite data path: `app.getPath('userData')/maker.db` (Mac: `~/Library/Application Support/Maker/maker.db`, Win: `%AppData%/Maker/maker.db`). Auth in desktop mode uses auto-login with memorystore sessions (no OIDC). Desktop detection: `window.electronAPI` or `window.maker` exposed via preload.
+
+#### Local Dev Commands
+- `MAKER_DB=sqlite npm run dev` — Run server in SQLite mode (browser at http://localhost:5000)
+- `MAKER_DB=sqlite npx electron electron/main.ts` — Launch Electron desktop app
 
 ### Job Run Logging & Diagnostics
 The system includes infrastructure for tracking job executions in a `job_runs` table, providing detailed diagnostics and execution history for each bot. This includes API endpoints for checking bot health, last runs, and comprehensive diagnostics. The Daily Reliability card on the Dashboard shows 7-day success rate, average generation time, last run, and last failure reason via `GET /api/diagnostics/daily-loop`.

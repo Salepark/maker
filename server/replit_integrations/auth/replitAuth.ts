@@ -6,7 +6,15 @@ import session from "express-session";
 import type { Express, RequestHandler } from "express";
 import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
+import MemoryStore from "memorystore";
 import { authStorage } from "./storage";
+import { driver } from "../../db";
+
+const MemSession = MemoryStore(session);
+
+const isLocalMode = driver === "sqlite" && (
+  process.env.NODE_ENV === "development" || !!process.env.MAKER_DESKTOP
+);
 
 const getOidcConfig = memoize(
   async () => {
@@ -20,21 +28,31 @@ const getOidcConfig = memoize(
 
 export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
-  const pgStore = connectPg(session);
-  const sessionStore = new pgStore({
-    conString: process.env.DATABASE_URL,
-    createTableIfMissing: false,
-    ttl: sessionTtl,
-    tableName: "sessions",
-  });
+
+  let sessionStore: session.Store;
+
+  if (isLocalMode) {
+    sessionStore = new MemSession({
+      checkPeriod: 86400000,
+    });
+  } else {
+    const pgStore = connectPg(session);
+    sessionStore = new pgStore({
+      conString: process.env.DATABASE_URL,
+      createTableIfMissing: false,
+      ttl: sessionTtl,
+      tableName: "sessions",
+    });
+  }
+
   return session({
-    secret: process.env.SESSION_SECRET!,
+    secret: process.env.SESSION_SECRET || "maker-local-session-secret",
     store: sessionStore,
     resave: false,
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: true,
+      secure: !isLocalMode,
       sameSite: "lax",
       maxAge: sessionTtl,
     },
@@ -61,11 +79,70 @@ async function upsertUser(claims: any) {
   });
 }
 
+const LOCAL_USER_ID = "local_desktop_user";
+
+async function ensureLocalUser() {
+  try {
+    const existing = await authStorage.getUser(LOCAL_USER_ID);
+    if (!existing) {
+      await authStorage.upsertUser({
+        id: LOCAL_USER_ID,
+        email: "user@localhost",
+        firstName: "Local",
+        lastName: "User",
+        profileImageUrl: null,
+      });
+    }
+  } catch (e) {
+    console.error("[Auth] Failed to create local user:", e);
+  }
+}
+
 export async function setupAuth(app: Express) {
   app.set("trust proxy", 1);
   app.use(getSession());
   app.use(passport.initialize());
   app.use(passport.session());
+
+  passport.serializeUser((user: Express.User, cb) => cb(null, user));
+  passport.deserializeUser((user: Express.User, cb) => cb(null, user));
+
+  if (isLocalMode) {
+    await ensureLocalUser();
+
+    app.get("/api/login", (req, res) => {
+      const localUser: any = {
+        claims: {
+          sub: LOCAL_USER_ID,
+          email: "user@localhost",
+          first_name: "Local",
+          last_name: "User",
+        },
+        expires_at: Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60,
+      };
+
+      req.login(localUser, (err: any) => {
+        if (err) {
+          console.error("[Auth] Local login error:", err);
+          return res.status(500).json({ message: "Login failed" });
+        }
+        res.redirect("/");
+      });
+    });
+
+    app.get("/api/callback", (_req, res) => {
+      res.redirect("/");
+    });
+
+    app.get("/api/logout", (req, res) => {
+      req.logout(() => {
+        res.redirect("/");
+      });
+    });
+
+    console.log("[Auth] Desktop/SQLite mode: local auto-login enabled");
+    return;
+  }
 
   const config = await getOidcConfig();
 
@@ -79,10 +156,8 @@ export async function setupAuth(app: Express) {
     verified(null, user);
   };
 
-  // Keep track of registered strategies
   const registeredStrategies = new Set<string>();
 
-  // Helper function to ensure strategy exists for a domain
   const ensureStrategy = (domain: string) => {
     const strategyName = `replitauth:${domain}`;
     if (!registeredStrategies.has(strategyName)) {
@@ -99,9 +174,6 @@ export async function setupAuth(app: Express) {
       registeredStrategies.add(strategyName);
     }
   };
-
-  passport.serializeUser((user: Express.User, cb) => cb(null, user));
-  passport.deserializeUser((user: Express.User, cb) => cb(null, user));
 
   app.get("/api/login", (req, res, next) => {
     ensureStrategy(req.hostname);
@@ -143,13 +215,14 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     return next();
   }
 
+  if (user.claims?.sub === LOCAL_USER_ID || user.claims?.sub?.startsWith("demo_")) {
+    user.expires_at = now + 365 * 24 * 60 * 60;
+    req.session.save(() => {});
+    return next();
+  }
+
   const refreshToken = user.refresh_token;
   if (!refreshToken) {
-    if (user.claims?.sub?.startsWith("demo_")) {
-      user.expires_at = now + 7 * 24 * 60 * 60;
-      req.session.save(() => {});
-      return next();
-    }
     res.status(401).json({ message: "Unauthorized" });
     return;
   }

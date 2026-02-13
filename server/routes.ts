@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { db } from "./db";
+import { db, driver } from "./db";
 import { jobRuns } from "@shared/schema";
 import { and, eq, desc, gte, inArray } from "drizzle-orm";
 import { collectFromSource, collectAllSources } from "./services/rss";
@@ -91,7 +91,7 @@ export async function registerRoutes(
   await runAllSeeds();
   
   app.get("/api/health", (_req, res) => {
-    res.json({ status: "ok", timestamp: new Date().toISOString(), driver: process.env.MAKER_DB || "pg" });
+    res.json({ ok: true, status: "ok", timestamp: new Date().toISOString(), driver });
   });
 
   await setupAuth(app);

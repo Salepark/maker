@@ -309,3 +309,15 @@ export const auditLogs = sqliteTable("audit_logs", {
   index("idx_audit_logs_user").on(table.userId, table.createdAt),
   index("idx_audit_logs_event").on(table.eventType, table.createdAt),
 ]);
+
+export const reportMetrics = sqliteTable("report_metrics", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  reportId: integer("report_id").notNull(),
+  profileId: integer("profile_id").notNull(),
+  itemCount: integer("item_count").notNull().default(0),
+  keywordSummary: text("keyword_summary", { mode: "json" }).notNull().default("{}"),
+  sourceDistribution: text("source_distribution", { mode: "json" }).notNull().default("{}"),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => Date.now()),
+}, (table) => [
+  index("idx_report_metrics_profile").on(table.profileId, table.createdAt),
+]);
