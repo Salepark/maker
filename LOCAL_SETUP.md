@@ -1,6 +1,30 @@
-# Maker Desktop - 로컬 빌드 & 테스트 가이드
+# Maker Desktop - 설치 & 실행 가이드
 
-이 문서는 GitHub에서 Maker 코드를 받아 **본인 PC에서 데스크톱 앱으로 실행**하는 전체 과정을 설명합니다.
+---
+
+## 설치 파일 다운로드 (가장 간단한 방법)
+
+GitHub Releases에서 본인 OS에 맞는 파일을 받으세요:
+
+**[https://github.com/Salepark/maker/releases](https://github.com/Salepark/maker/releases)**
+
+| OS | 다운로드 파일 | 설치 방법 |
+|----|-------------|-----------|
+| Windows | `Maker.exe` (portable) 또는 `Maker-Setup.exe` (installer) | 더블클릭으로 실행 |
+| Mac | `Maker.dmg` | 더블클릭 > Maker를 Applications로 드래그 |
+| Linux | `Maker.AppImage` | `chmod +x Maker.AppImage` 후 실행 |
+
+설치 파일은 코드가 업데이트될 때마다 자동으로 새 버전이 올라갑니다.
+
+### Mac에서 "개발자를 확인할 수 없습니다" 경고가 나올 때
+
+Maker.app 우클릭 > "열기" 를 선택하면 됩니다 (처음 한 번만).
+
+---
+
+## 소스에서 직접 빌드 (개발자용)
+
+아래는 코드를 직접 받아서 개발 모드로 실행하는 방법입니다.
 
 `clone` -> `npm install` -> `npm run dev:desktop` — 이 3단계로 끝납니다.
 
