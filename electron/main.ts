@@ -1,6 +1,6 @@
 import { app, BrowserWindow, shell, ipcMain } from "electron";
 import path from "path";
-import { spawn, ChildProcess } from "child_process";
+import { spawn, fork, ChildProcess } from "child_process";
 
 let mainWindow: BrowserWindow | null = null;
 let serverProcess: ChildProcess | null = null;
@@ -9,11 +9,18 @@ const SERVER_PORT = 5000;
 const HEALTH_URL = `http://localhost:${SERVER_PORT}/api/health`;
 const isDev = !app.isPackaged;
 
+function getAppRoot(): string {
+  if (isDev) {
+    return path.join(__dirname, "..");
+  }
+  return app.getAppPath();
+}
+
 function getServerEntry(): string {
   if (isDev) {
     return path.join(__dirname, "..", "server", "index.ts");
   }
-  return path.join(__dirname, "..", "server", "index.cjs");
+  return path.join(app.getAppPath(), "dist", "server", "index.cjs");
 }
 
 function getDataDir(): string {
@@ -34,14 +41,21 @@ function startServer(): Promise<void> {
       NODE_ENV: isDev ? "development" : "production",
     };
 
-    const cmd = isDev ? "npx" : "node";
-    const args = isDev ? ["tsx", entry] : [entry];
+    console.log(`[electron] Server entry: ${entry}`);
+    console.log(`[electron] SQLite path: ${env.MAKER_SQLITE_PATH}`);
 
-    serverProcess = spawn(cmd, args, {
-      env,
-      stdio: ["pipe", "pipe", "pipe"],
-      cwd: path.join(__dirname, ".."),
-    });
+    if (isDev) {
+      serverProcess = spawn("npx", ["tsx", entry], {
+        env,
+        stdio: ["pipe", "pipe", "pipe"],
+        cwd: path.join(__dirname, ".."),
+      });
+    } else {
+      serverProcess = fork(entry, [], {
+        env,
+        stdio: ["pipe", "pipe", "pipe", "ipc"],
+      });
+    }
 
     serverProcess.stdout?.on("data", (data: Buffer) => {
       const msg = data.toString();
@@ -81,6 +95,10 @@ async function waitForHealth(maxRetries = 30, intervalMs = 500): Promise<boolean
 }
 
 function createWindow(): void {
+  const preloadPath = isDev
+    ? path.join(__dirname, "preload.js")
+    : path.join(app.getAppPath(), "dist", "electron", "preload.cjs");
+
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 860,
@@ -88,7 +106,7 @@ function createWindow(): void {
     minHeight: 600,
     title: "Maker",
     webPreferences: {
-      preload: path.join(__dirname, isDev ? "preload.js" : "preload.cjs"),
+      preload: preloadPath,
       contextIsolation: true,
       nodeIntegration: false,
     },
@@ -117,6 +135,8 @@ ipcMain.on("open-external", (_event, url: string) => {
 app.whenReady().then(async () => {
   console.log("[electron] Starting Maker desktop app...");
   console.log(`[electron] Data dir: ${getDataDir()}`);
+  console.log(`[electron] App path: ${app.getAppPath()}`);
+  console.log(`[electron] isDev: ${isDev}`);
 
   try {
     await startServer();
