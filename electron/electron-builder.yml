@@ -4,7 +4,6 @@ directories:
   output: dist-electron
   buildResources: electron/resources
 files:
-  - "dist/client/**/*"
   - "dist/server/**/*"
   - "dist/electron/**/*"
   - "node_modules/better-sqlite3/**/*"
