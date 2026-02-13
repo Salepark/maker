@@ -97,11 +97,12 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || "5000", 10);
+  const isDesktop = process.env.MAKER_DESKTOP === "true";
   httpServer.listen(
     {
       port,
-      host: "0.0.0.0",
-      reusePort: true,
+      host: isDesktop ? "127.0.0.1" : "0.0.0.0",
+      ...(isDesktop ? {} : { reusePort: true }),
     },
     () => {
       log(`serving on port ${port}`);
