@@ -850,4 +850,18 @@ export const ko: Record<string, string> = {
   "pi.last30days": "최근 30일",
   "pi.last90days": "최근 90일",
   "pi.showingResults": "{{count}}개 이벤트 표시 중",
+
+  "dashboard.dailyReliability": "일일 신뢰도",
+  "dashboard.lastRun": "마지막 실행",
+  "dashboard.noRuns": "아직 실행 없음",
+  "dashboard.successRate7d": "7일 성공률",
+  "dashboard.avgTime": "평균 시간",
+  "dashboard.lastIssue": "마지막 문제",
+  "dashboard.noIssues": "없음",
+
+  "reports.stallNotice": "예상보다 오래 걸리고 있습니다",
+  "reports.stallDesc": "리포트가 아직 생성 중입니다. 잠시만 기다려주세요...",
+  "reports.fastDelivered": "빠른 브리핑이 전달되었습니다",
+  "reports.fullInBackground": "전체 분석은 백그라운드에서 계속됩니다.",
+  "reports.timeoutMessage": "빠른 브리핑이 전달되었습니다. 전체 분석은 백그라운드에서 계속됩니다.",
 };

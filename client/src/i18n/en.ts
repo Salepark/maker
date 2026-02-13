@@ -850,4 +850,18 @@ export const en: Record<string, string> = {
   "pi.last30days": "Last 30 Days",
   "pi.last90days": "Last 90 Days",
   "pi.showingResults": "Showing {{count}} events",
+
+  "dashboard.dailyReliability": "Daily Reliability",
+  "dashboard.lastRun": "Last Run",
+  "dashboard.noRuns": "No runs yet",
+  "dashboard.successRate7d": "7d Success",
+  "dashboard.avgTime": "Avg Time",
+  "dashboard.lastIssue": "Last Issue",
+  "dashboard.noIssues": "none",
+
+  "reports.stallNotice": "Taking longer than expected",
+  "reports.stallDesc": "Your report is still being generated. Please wait...",
+  "reports.fastDelivered": "Fast briefing delivered",
+  "reports.fullInBackground": "Full analysis will continue in background.",
+  "reports.timeoutMessage": "Fast briefing delivered. Full analysis will continue in background.",
 };

@@ -4,6 +4,43 @@ import { buildDailyBriefPrompt, ReportConfig } from "../llm/prompts";
 import { analyzeNewItemsBySourceIds } from "./analyze_items";
 import { startRun, endRunOk, endRunError, endRunSkipped } from "./runLogger";
 
+const STOPWORDS = new Set([
+  "the", "a", "an", "is", "are", "was", "were", "in", "on", "at", "to", "for",
+  "of", "and", "or", "but", "with", "from", "by", "as", "not", "no", "this",
+  "that", "it", "its", "has", "have", "had", "be", "been", "will", "would",
+  "can", "could", "do", "does", "did", "about", "more", "new", "all", "also",
+  "than", "just", "up", "out", "how", "what", "when", "where", "who", "why",
+  "into", "over", "after", "before", "between", "under", "through",
+  "이", "그", "저", "것", "및", "등", "중", "위", "대", "더", "수", "후",
+  "있다", "없다", "하다", "되다", "있는", "없는", "하는", "되는",
+]);
+
+function extractKeywords(titles: string[], topN: number = 5): Record<string, number> {
+  const freq: Record<string, number> = {};
+  for (const title of titles) {
+    if (!title) continue;
+    const tokens = title.match(/[A-Za-z0-9]{2,}|[가-힣]{2,}/g) || [];
+    for (const token of tokens) {
+      const lower = token.toLowerCase();
+      if (STOPWORDS.has(lower) || lower.length < 2) continue;
+      freq[token] = (freq[token] || 0) + 1;
+    }
+  }
+  return Object.fromEntries(
+    Object.entries(freq)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, topN)
+  );
+}
+
+function computeSourceDistribution(items: { sourceName: string }[]): Record<string, number> {
+  const dist: Record<string, number> = {};
+  for (const item of items) {
+    dist[item.sourceName] = (dist[item.sourceName] || 0) + 1;
+  }
+  return dist;
+}
+
 interface ReportJobResult {
   profileId: number;
   reportId: number;
@@ -308,20 +345,70 @@ function buildStatusReport(
 
 function scheduleBackgroundUpgrade(reportId: number, profileId: number, userId: string, sourceIds: number[]) {
   const maxItems = 12;
+  const BACKGROUND_TIMEOUT_MS = 55000;
   setTimeout(async () => {
+    const bgStart = Date.now();
+    let bgRunId = -1;
+    let timedOut = false;
+    let runFinalized = false;
+
     try {
+      bgRunId = await startRun({
+        userId,
+        botId: null,
+        botKey: `profile-${profileId}`,
+        jobType: "report_upgrade",
+        trigger: "background",
+        meta: { reportId, profileId },
+      });
+
       console.log(`[ReportJob] Background upgrade starting for report ${reportId} (profile ${profileId})...`);
 
-      const newItems = await storage.getItemsByStatusAndSourceIds("new", sourceIds, maxItems);
-      if (newItems.length > 0) {
-        console.log(`[ReportJob] Background: analyzing ${newItems.length} new items inline...`);
-        await analyzeNewItemsBySourceIds(sourceIds, maxItems, 1);
-      }
+      const upgradePromise = (async () => {
+        const newItems = await storage.getItemsByStatusAndSourceIds("new", sourceIds, maxItems);
+        if (newItems.length > 0) {
+          console.log(`[ReportJob] Background: analyzing ${newItems.length} new items inline...`);
+          await analyzeNewItemsBySourceIds(sourceIds, maxItems, 1);
+        }
+        if (timedOut) return null;
+        return upgradeToFullReport(reportId, profileId, userId);
+      })();
 
-      await upgradeToFullReport(reportId, profileId, userId);
-      console.log(`[ReportJob] Background upgrade complete for report ${reportId}`);
-    } catch (error) {
+      const timeoutPromise = new Promise<null>((resolve) =>
+        setTimeout(() => {
+          timedOut = true;
+          resolve(null);
+        }, BACKGROUND_TIMEOUT_MS)
+      );
+
+      const result = await Promise.race([upgradePromise, timeoutPromise]);
+
+      if (timedOut || result === null) {
+        console.warn(`[ReportJob] Background upgrade timed out after ${BACKGROUND_TIMEOUT_MS}ms for report ${reportId}`);
+        runFinalized = true;
+        await endRunError(bgRunId, {
+          errorCode: "BACKGROUND_TIMEOUT",
+          errorMessage: `Background upgrade timed out after ${BACKGROUND_TIMEOUT_MS}ms`,
+          reportStage: "fast",
+        });
+        upgradePromise.catch(() => {});
+      } else {
+        console.log(`[ReportJob] Background upgrade complete for report ${reportId} in ${Date.now() - bgStart}ms`);
+        runFinalized = true;
+        await endRunOk(bgRunId, {
+          outputId: reportId,
+          reportStage: "full",
+          itemsCollected: result?.itemsCount ?? 0,
+        });
+      }
+    } catch (error: any) {
+      if (runFinalized) return;
       console.error(`[ReportJob] Background upgrade failed for report ${reportId}:`, error);
+      await endRunError(bgRunId, {
+        errorCode: "BACKGROUND_UPGRADE_FAILED",
+        errorMessage: error?.message || "Background upgrade failed",
+        reportStage: "fast",
+      });
     }
   }, 2000);
 }
@@ -365,24 +452,31 @@ export async function generateFastReport(params: FastReportParams): Promise<Repo
     timeZone: timezone,
   });
 
+  const fastStart = performance.now();
+
   const recentItems = await storage.getRecentItemsBySourceIds(sourceIds, lookbackHours, 30);
 
+  const titles = recentItems.map(i => i.title || "");
+  const keywordSummary = extractKeywords(titles, 5);
+  const sourceDistribution = computeSourceDistribution(recentItems);
+
   const lines: string[] = [];
-  lines.push(`# ${profileName} — 초기 브리핑`);
+  lines.push(`# ${profileName}`);
   lines.push(`> ${today} ${timeStr} 기준`);
   lines.push("");
 
-  if (collectResult.totalCollected > 0) {
+  if (recentItems.length > 0) {
+    const totalSources = Object.keys(sourceDistribution).length;
+    lines.push(`**${totalSources}개 소스**에서 총 **${recentItems.length}건**의 자료를 수집했습니다.`);
+  } else if (collectResult.totalCollected > 0) {
     lines.push(`${collectResult.sourcesProcessed}개 소스에서 **${collectResult.totalCollected}건**의 새 자료를 수집했습니다.`);
-  } else if (recentItems.length > 0) {
-    lines.push(`기존 수집 자료 ${recentItems.length}건을 기반으로 브리핑합니다.`);
   } else {
-    lines.push("현재 수집된 자료가 없습니다.");
+    lines.push("현재 수집된 자료가 없습니다. 소스 연결을 확인해주세요.");
   }
   lines.push("");
 
   if (recentItems.length > 0) {
-    lines.push("## 주요 자료 미리보기");
+    lines.push("## 주요 항목");
     lines.push("");
     const displayItems = recentItems.slice(0, 10);
     for (const item of displayItems) {
@@ -393,15 +487,21 @@ export async function generateFastReport(params: FastReportParams): Promise<Repo
     }
     lines.push("");
 
-    const sourceSummary = new Map<string, number>();
-    for (const item of recentItems) {
-      sourceSummary.set(item.sourceName, (sourceSummary.get(item.sourceName) || 0) + 1);
+    const kwEntries = Object.entries(keywordSummary);
+    if (kwEntries.length > 0) {
+      lines.push("## 키워드 요약");
+      lines.push("");
+      for (const [kw, cnt] of kwEntries) {
+        lines.push(`- **${kw}**: ${cnt}회`);
+      }
+      lines.push("");
     }
-    lines.push("## 소스별 수집 현황");
+
+    lines.push("## 소스별 분포");
     lines.push("");
-    sourceSummary.forEach((count, name) => {
-      lines.push(`- ${name}: ${count}건`);
-    });
+    for (const [name, cnt] of Object.entries(sourceDistribution)) {
+      lines.push(`- ${name}: ${cnt}건`);
+    }
     lines.push("");
   }
 
@@ -425,7 +525,20 @@ export async function generateFastReport(params: FastReportParams): Promise<Repo
 
   await storage.updateProfileLastRunAt(profileId, now);
 
-  console.log(`[ReportJob] Created FAST report ${report.id} for profile ${profileId}`);
+  try {
+    await storage.createReportMetric({
+      reportId: report.id,
+      profileId,
+      itemCount: recentItems.length,
+      keywordSummary,
+      sourceDistribution,
+    });
+  } catch (e) {
+    console.error(`[ReportJob] Failed to save report metrics:`, e);
+  }
+
+  const fastDuration = Math.round(performance.now() - fastStart);
+  console.log(`[ReportJob] Created FAST report ${report.id} for profile ${profileId} in ${fastDuration}ms`);
 
   return {
     profileId,
@@ -520,6 +633,15 @@ export async function upgradeToFullReport(outputId: number, profileId: number, u
     if (llmResult) {
       content = llmResult;
       reportStage = "full";
+
+      try {
+        const trendBlock = await buildTrendBlock(profileId);
+        if (trendBlock) {
+          content += "\n\n" + trendBlock;
+        }
+      } catch (e) {
+        console.error(`[ReportJob] Failed to build trend block:`, e);
+      }
     } else {
       console.warn(`[ReportJob] LLM timed out during upgrade, keeping status report`);
       const recentItems = await storage.getRecentItemsBySourceIds(sourceIds, lookbackHours, 20);
@@ -554,4 +676,86 @@ export async function upgradeToFullReport(outputId: number, profileId: number, u
     itemsCount: items.length,
     topic: profile.topic,
   };
+}
+
+async function buildTrendBlock(profileId: number): Promise<string | null> {
+  const metrics = await storage.getReportMetricsForProfile(profileId, 7);
+  if (metrics.length < 2) return null;
+
+  const latest = metrics[0];
+  const previous = metrics.slice(1);
+
+  const latestKw = (latest.keywordSummary || {}) as Record<string, number>;
+  const prevKwAgg: Record<string, number[]> = {};
+  for (const m of previous) {
+    const kw = (m.keywordSummary || {}) as Record<string, number>;
+    for (const [k, v] of Object.entries(kw)) {
+      if (!prevKwAgg[k]) prevKwAgg[k] = [];
+      prevKwAgg[k].push(v);
+    }
+  }
+
+  const lines: string[] = [];
+  lines.push("---");
+  lines.push("## 7일 변화 요약");
+  lines.push("");
+
+  let hasChanges = false;
+
+  for (const [kw, count] of Object.entries(latestKw)) {
+    const prev = prevKwAgg[kw];
+    if (prev && prev.length >= 1) {
+      const avg = prev.reduce((a, b) => a + b, 0) / prev.length;
+      if (avg > 0) {
+        const changePercent = Math.round(((count - avg) / avg) * 100);
+        if (Math.abs(changePercent) >= 10) {
+          lines.push(`- **${kw}** ${changePercent >= 0 ? "+" : ""}${changePercent}%`);
+          hasChanges = true;
+        }
+      }
+    }
+  }
+
+  const allKws: Record<string, number> = {};
+  for (const m of metrics) {
+    const kw = (m.keywordSummary || {}) as Record<string, number>;
+    for (const k of Object.keys(kw)) {
+      allKws[k] = (allKws[k] || 0) + 1;
+    }
+  }
+  const recurringKws = Object.entries(allKws)
+    .filter(([, count]) => count >= Math.min(4, metrics.length))
+    .map(([kw]) => kw);
+
+  if (recurringKws.length > 0) {
+    lines.push("");
+    lines.push(`반복 등장 키워드: ${recurringKws.join(", ")}`);
+    hasChanges = true;
+  }
+
+  const latestSrc = (latest.sourceDistribution || {}) as Record<string, number>;
+  const prevSrcAgg: Record<string, number[]> = {};
+  for (const m of previous) {
+    const src = (m.sourceDistribution || {}) as Record<string, number>;
+    for (const [k, v] of Object.entries(src)) {
+      if (!prevSrcAgg[k]) prevSrcAgg[k] = [];
+      prevSrcAgg[k].push(v);
+    }
+  }
+
+  for (const [src, count] of Object.entries(latestSrc)) {
+    const prev = prevSrcAgg[src];
+    if (prev && prev.length >= 1) {
+      const avg = prev.reduce((a, b) => a + b, 0) / prev.length;
+      if (count > avg * 1.3) {
+        lines.push(`- ${src} 비중 증가`);
+        hasChanges = true;
+      }
+    }
+  }
+
+  if (!hasChanges) return null;
+
+  lines.push("");
+  return lines.join("\n");
 }

@@ -3,7 +3,7 @@ import {
   sources, items, analysis, drafts, posts, reports, chatMessages, chatThreads, settings,
   presets, profiles, profileSources, outputs, outputItems,
   bots, botSettings, sourceBotLinks, llmProviders, jobRuns,
-  permissions, auditLogs,
+  permissions, auditLogs, reportMetrics,
   type Source, type Item, type Analysis, type Draft, type Post, type Report, 
   type InsertSource, type InsertItem, type InsertAnalysis, type InsertDraft, type InsertReport, 
   type ChatMessage, type InsertChatMessage, type ChatThread, type InsertChatThread, type Setting,
@@ -183,6 +183,10 @@ export interface IStorage {
   finishJobRun(id: number, patch: Partial<InsertJobRun>): Promise<JobRun | null>;
   listJobRunsForBot(userId: string, botId: number, limit?: number): Promise<JobRun[]>;
   getLastJobRunForBot(userId: string, botId: number): Promise<JobRun | null>;
+
+  // Report Metrics
+  createReportMetric(data: { reportId: number; profileId: number; itemCount: number; keywordSummary: Record<string, number>; sourceDistribution: Record<string, number> }): Promise<any>;
+  getReportMetricsForProfile(profileId: number, limit?: number): Promise<any[]>;
 
   // Permissions
   listPermissions(userId: string, scope: string, scopeId: number | null): Promise<Permission[]>;
@@ -1541,6 +1545,18 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(jobRuns.startedAt))
       .limit(1);
     return run || null;
+  }
+
+  async createReportMetric(data: { reportId: number; profileId: number; itemCount: number; keywordSummary: Record<string, number>; sourceDistribution: Record<string, number> }): Promise<any> {
+    const [metric] = await db.insert(reportMetrics).values(data as any).returning();
+    return metric;
+  }
+
+  async getReportMetricsForProfile(profileId: number, limit: number = 7): Promise<any[]> {
+    return db.select().from(reportMetrics)
+      .where(eq(reportMetrics.profileId, profileId))
+      .orderBy(desc(reportMetrics.createdAt))
+      .limit(limit);
   }
 
   async listPermissions(userId: string, scope: string, scopeId: number | null): Promise<Permission[]> {

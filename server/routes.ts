@@ -1,6 +1,9 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { db } from "./db";
+import { jobRuns } from "@shared/schema";
+import { and, eq, desc, gte, inArray } from "drizzle-orm";
 import { collectFromSource, collectAllSources } from "./services/rss";
 import { startScheduler, stopScheduler, getSchedulerStatus, runCollectNow, runAnalyzeNow, runDraftNow, runDailyBriefNow, runReportNow } from "./jobs/scheduler";
 import { parseCommand } from "./chat/command-parser";
@@ -481,8 +484,23 @@ export async function registerRoutes(
         return res.status(404).json({ ok: false, error: "Profile not found" });
       }
 
-      const result = await runReportNow(profileId, userId);
-      res.json({ ok: true, result });
+      const SERVER_TIMEOUT_MS = 25000;
+      const resultPromise = runReportNow(profileId, userId);
+      const timeoutPromise = new Promise<null>((resolve) =>
+        setTimeout(() => resolve(null), SERVER_TIMEOUT_MS)
+      );
+
+      const result = await Promise.race([resultPromise, timeoutPromise]);
+
+      if (result === null) {
+        res.json({
+          ok: true,
+          result: { timedOut: true },
+          message: "Fast briefing delivered. Full analysis will continue in background.",
+        });
+      } else {
+        res.json({ ok: true, result });
+      }
     } catch (error: any) {
       console.error("Error generating report:", error);
       let msg = error?.message ?? "Unknown error";
@@ -1417,6 +1435,133 @@ export async function registerRoutes(
       res.json(results);
     } catch (error) {
       handleApiError(res, error, "Failed to run diagnostics");
+    }
+  });
+
+  // ============================================
+  // DAILY LOOP RELIABILITY & TRENDS API
+  // ============================================
+  app.get("/api/diagnostics/daily-loop", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const runs = await db.select().from(jobRuns)
+        .where(and(
+          eq(jobRuns.userId, userId),
+          gte(jobRuns.startedAt, sevenDaysAgo),
+          inArray(jobRuns.jobType, ["report", "report_upgrade", "daily_brief"]),
+        ))
+        .orderBy(desc(jobRuns.startedAt));
+
+      const fastRuns = runs.filter(r => r.reportStage === "fast" || r.jobType === "report" || r.jobType === "daily_brief");
+      const total = fastRuns.length;
+      const successes = fastRuns.filter(r => r.status === "ok" || r.status === "success").length;
+      const successRate7d = total > 0 ? Math.round((successes / total) * 100) : 100;
+
+      const durations = fastRuns.filter(r => r.durationMs != null && r.durationMs > 0).map(r => r.durationMs!);
+      const avgGenerationTimeMs = durations.length > 0 ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length) : 0;
+
+      const lastRun = runs[0];
+      const failedRuns = runs.filter(r => r.status === "error" || r.status === "failed" || r.status === "timeout");
+      const lastFailure = failedRuns[0];
+
+      res.json({
+        lastRunAt: lastRun?.startedAt || null,
+        successRate7d,
+        avgGenerationTimeMs,
+        lastFailureReason: lastFailure?.errorMessage || null,
+        totalRuns7d: total,
+      });
+    } catch (error) {
+      handleApiError(res, error, "Failed to get daily loop diagnostics");
+    }
+  });
+
+  app.get("/api/reports/:profileId/trends", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      const profileId = parseInt(req.params.profileId);
+      if (isNaN(profileId)) return res.status(400).json({ error: "Invalid profileId" });
+
+      const metrics = await storage.getReportMetricsForProfile(profileId, 7);
+
+      if (metrics.length < 2) {
+        return res.json({
+          trendingUp: [],
+          recurring: [],
+          sourceShift: {},
+          metrics,
+          insufficient: true,
+        });
+      }
+
+      const latest = metrics[0];
+      const previous = metrics.slice(1);
+
+      const latestKw = (latest.keywordSummary || {}) as Record<string, number>;
+      const prevKwAgg: Record<string, number[]> = {};
+      for (const m of previous) {
+        const kw = (m.keywordSummary || {}) as Record<string, number>;
+        for (const [k, v] of Object.entries(kw)) {
+          if (!prevKwAgg[k]) prevKwAgg[k] = [];
+          prevKwAgg[k].push(v);
+        }
+      }
+
+      const trendingUp: string[] = [];
+      const recurring: string[] = [];
+
+      for (const [kw, count] of Object.entries(latestKw)) {
+        const prev = prevKwAgg[kw];
+        if (prev && prev.length >= 1) {
+          const avg = prev.reduce((a, b) => a + b, 0) / prev.length;
+          if (count > avg * 1.2) trendingUp.push(kw);
+        }
+      }
+
+      const allKws: Record<string, number> = {};
+      for (const m of metrics) {
+        const kw = (m.keywordSummary || {}) as Record<string, number>;
+        for (const k of Object.keys(kw)) {
+          allKws[k] = (allKws[k] || 0) + 1;
+        }
+      }
+      for (const [kw, appearances] of Object.entries(allKws)) {
+        if (appearances >= Math.min(4, metrics.length)) {
+          recurring.push(kw);
+        }
+      }
+
+      const latestSrc = (latest.sourceDistribution || {}) as Record<string, number>;
+      const prevSrcAgg: Record<string, number[]> = {};
+      for (const m of previous) {
+        const src = (m.sourceDistribution || {}) as Record<string, number>;
+        for (const [k, v] of Object.entries(src)) {
+          if (!prevSrcAgg[k]) prevSrcAgg[k] = [];
+          prevSrcAgg[k].push(v);
+        }
+      }
+      const sourceShift: Record<string, boolean> = {};
+      for (const [src, count] of Object.entries(latestSrc)) {
+        const prev = prevSrcAgg[src];
+        if (prev && prev.length >= 1) {
+          const avg = prev.reduce((a, b) => a + b, 0) / prev.length;
+          sourceShift[`${src}Increase`] = count > avg * 1.15;
+        }
+      }
+
+      res.json({
+        trendingUp: trendingUp.slice(0, 5),
+        recurring: recurring.slice(0, 5),
+        sourceShift,
+        metrics,
+        insufficient: false,
+      });
+    } catch (error) {
+      handleApiError(res, error, "Failed to get report trends");
     }
   });
 

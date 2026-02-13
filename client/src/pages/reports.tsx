@@ -185,25 +185,59 @@ export default function Reports() {
 
   const generateMutation = useMutation({
     mutationFn: async (params: { profileId?: number; botId?: number }) => {
-      const res = await fetch("/api/reports/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(params),
-        credentials: "include",
-      });
-      const data = await res.json();
-      if (!res.ok || !data.ok) {
-        throw new Error(data.error || "Report generation failed");
+      const CLIENT_ABSOLUTE_TIMEOUT_MS = 30000;
+      const CLIENT_STALL_TOAST_MS = 12000;
+
+      const controller = new AbortController();
+      const absoluteTimer = setTimeout(() => controller.abort(), CLIENT_ABSOLUTE_TIMEOUT_MS);
+      const stallTimer = setTimeout(() => {
+        toast({
+          title: t("reports.stallNotice"),
+          description: t("reports.stallDesc"),
+        });
+      }, CLIENT_STALL_TOAST_MS);
+
+      try {
+        const res = await fetch("/api/reports/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(params),
+          credentials: "include",
+          signal: controller.signal,
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          throw new Error(data.error || "Report generation failed");
+        }
+        return data;
+      } catch (err: any) {
+        if (err.name === "AbortError") {
+          return {
+            ok: true,
+            result: { timedOut: true },
+            message: t("reports.timeoutMessage"),
+          };
+        }
+        throw err;
+      } finally {
+        clearTimeout(absoluteTimer);
+        clearTimeout(stallTimer);
       }
-      return data;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/reports"] });
       queryClient.invalidateQueries({ queryKey: ["/api/profiles"] });
-      toast({
-        title: t("reports.generated"),
-        description: data.result ? t("reports.generatedDesc", { count: data.result.itemsCount }) : t("reports.generationComplete"),
-      });
+      if (data.result?.timedOut) {
+        toast({
+          title: t("reports.fastDelivered"),
+          description: t("reports.fullInBackground"),
+        });
+      } else {
+        toast({
+          title: t("reports.generated"),
+          description: data.result ? t("reports.generatedDesc", { count: data.result.itemsCount }) : t("reports.generationComplete"),
+        });
+      }
     },
     onError: (error: any) => {
       toast({

@@ -51,7 +51,13 @@ Supports both PostgreSQL (default for cloud deployment) and SQLite (for local de
 The application is set up for desktop distribution using Electron, allowing the Express server to run locally with SQLite, and opening a BrowserWindow for the UI.
 
 ### Job Run Logging & Diagnostics
-The system includes infrastructure for tracking job executions in a `job_runs` table, providing detailed diagnostics and execution history for each bot. This includes API endpoints for checking bot health, last runs, and comprehensive diagnostics.
+The system includes infrastructure for tracking job executions in a `job_runs` table, providing detailed diagnostics and execution history for each bot. This includes API endpoints for checking bot health, last runs, and comprehensive diagnostics. The Daily Reliability card on the Dashboard shows 7-day success rate, average generation time, last run, and last failure reason via `GET /api/diagnostics/daily-loop`.
+
+### Report Pipeline Reliability (Phase X)
+- **Timeout Hardening**: Server-side 25s timeout on report generation API, client-side 12s stall toast, 30s absolute client cutoff via AbortController. Background upgrades have 55s timeout with full job_run logging.
+- **Fast Report Template**: Standardized format with title, collection summary, top 10 items, keyword summary (top 5 extracted via bilingual tokenizer), and source distribution.
+- **Memory Layer v0.1**: `report_metrics` table stores per-report `itemCount`, `keywordSummary` (JSON), and `sourceDistribution` (JSON). Trends API (`GET /api/reports/:profileId/trends`) computes trending keywords, recurring keywords (4+ day appearances), and source shifts.
+- **Trend Block**: Full reports automatically append a "7일 변화 요약" section showing keyword change percentages, recurring keywords, and source distribution shifts.
 
 ### Permission System v1.0
 A comprehensive permission and policy system controlling bot capabilities:

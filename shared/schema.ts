@@ -579,3 +579,26 @@ export const auditLogs = pgTable("audit_logs", {
   index("idx_audit_logs_user").on(table.userId, table.createdAt),
   index("idx_audit_logs_event").on(table.eventType, table.createdAt),
 ]);
+
+// ============================================
+// REPORT METRICS - Memory layer for trend tracking
+// ============================================
+export const reportMetrics = pgTable("report_metrics", {
+  id: serial("id").primaryKey(),
+  reportId: integer("report_id").notNull(),
+  profileId: integer("profile_id").notNull(),
+  itemCount: integer("item_count").notNull().default(0),
+  keywordSummary: jsonb("keyword_summary").notNull().default({}),
+  sourceDistribution: jsonb("source_distribution").notNull().default({}),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  index("idx_report_metrics_profile").on(table.profileId, table.createdAt),
+]);
+
+export const insertReportMetricSchema = createInsertSchema(reportMetrics).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type ReportMetric = typeof reportMetrics.$inferSelect;
+export type InsertReportMetric = z.infer<typeof insertReportMetricSchema>;

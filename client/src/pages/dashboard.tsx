@@ -171,6 +171,17 @@ export default function Dashboard() {
     enabled: botsList.length > 0,
   });
 
+  const { data: dailyLoop } = useQuery<{
+    lastRunAt: string | null;
+    successRate7d: number;
+    avgGenerationTimeMs: number;
+    lastFailureReason: string | null;
+    totalRuns7d: number;
+  }>({
+    queryKey: ["/api/diagnostics/daily-loop"],
+    refetchInterval: 60000,
+  });
+
   const hasProviders = (providersResponse?.providers?.length ?? 0) > 0;
   const isNewUser = botsList.length === 0;
 
@@ -215,6 +226,47 @@ export default function Dashboard() {
                     {t("dashboard.systemWarning.link")}
                   </Link>
                   {t("dashboard.systemWarning.linkSuffix")}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {dailyLoop && (
+        <Card data-testid="card-daily-reliability">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Activity className="h-4 w-4 text-primary" />
+              <span className="font-semibold text-sm">{t("dashboard.dailyReliability")}</span>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div data-testid="text-last-run">
+                <p className="text-xs text-muted-foreground">{t("dashboard.lastRun")}</p>
+                <p className="text-sm font-medium">
+                  {dailyLoop.lastRunAt
+                    ? formatDistanceToNow(new Date(dailyLoop.lastRunAt), { addSuffix: true })
+                    : t("dashboard.noRuns")}
+                </p>
+              </div>
+              <div data-testid="text-success-rate">
+                <p className="text-xs text-muted-foreground">{t("dashboard.successRate7d")}</p>
+                <p className={`text-sm font-medium ${dailyLoop.successRate7d >= 90 ? "text-green-600 dark:text-green-400" : dailyLoop.successRate7d >= 70 ? "text-yellow-600 dark:text-yellow-400" : "text-red-600 dark:text-red-400"}`}>
+                  {dailyLoop.successRate7d}%
+                </p>
+              </div>
+              <div data-testid="text-avg-time">
+                <p className="text-xs text-muted-foreground">{t("dashboard.avgTime")}</p>
+                <p className="text-sm font-medium">
+                  {dailyLoop.avgGenerationTimeMs > 0
+                    ? `${(dailyLoop.avgGenerationTimeMs / 1000).toFixed(1)}s`
+                    : "-"}
+                </p>
+              </div>
+              <div data-testid="text-last-issue">
+                <p className="text-xs text-muted-foreground">{t("dashboard.lastIssue")}</p>
+                <p className="text-sm font-medium truncate">
+                  {dailyLoop.lastFailureReason || t("dashboard.noIssues")}
                 </p>
               </div>
             </div>
