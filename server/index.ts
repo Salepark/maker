@@ -98,16 +98,21 @@ app.use((req, res, next) => {
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || "5000", 10);
   const isDesktop = process.env.MAKER_DESKTOP === "true";
-  httpServer.listen(
-    {
-      port,
-      host: isDesktop ? "127.0.0.1" : "0.0.0.0",
-      ...(isDesktop ? {} : { reusePort: true }),
-    },
-    () => {
-      log(`serving on port ${port}`);
-      startScheduler();
-      log("Scheduler auto-started");
-    },
-  );
+  const host = isDesktop ? "127.0.0.1" : "0.0.0.0";
+
+  function onListening() {
+    log(`serving on port ${port}`);
+    startScheduler();
+    log("Scheduler auto-started");
+  }
+
+  if (isDesktop) {
+    httpServer.listen({ port, host }, onListening);
+  } else {
+    try {
+      httpServer.listen({ port, host, reusePort: true }, onListening);
+    } catch {
+      httpServer.listen({ port, host }, onListening);
+    }
+  }
 })();
