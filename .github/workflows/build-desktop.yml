@@ -39,7 +39,7 @@ jobs:
           const pkg = JSON.parse(fs.readFileSync('package.json', 'utf-8'));
           pkg.name = 'maker';
           pkg.description = 'Maker Bot Manager - Personal automation workflow tool';
-          pkg.author = 'Salepark';
+          pkg.author = 'Salepark <maker@salepark.io>';
           if (!pkg.devDependencies) pkg.devDependencies = {};
           const moveToDevDeps = ['electron', 'electron-builder', 'cross-env'];
           moveToDevDeps.forEach(dep => {
