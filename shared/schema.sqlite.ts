@@ -27,7 +27,7 @@ export const presets = sqliteTable("presets", {
   defaultConfigJson: text("default_config_json", { mode: "json" }).notNull().default("{}"),
   icon: text("icon"),
   category: text("category"),
-  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => Date.now()),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
 });
 
 export const profiles = sqliteTable("profiles", {
@@ -42,7 +42,7 @@ export const profiles = sqliteTable("profiles", {
   configJson: text("config_json", { mode: "json" }).notNull().default("{}"),
   isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
   lastRunAt: integer("last_run_at", { mode: "timestamp_ms" }),
-  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => Date.now()),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
 });
 
 export const sources = sqliteTable("sources", {
@@ -57,7 +57,7 @@ export const sources = sqliteTable("sources", {
   rulesJson: text("rules_json", { mode: "json" }).notNull().default("{}"),
   enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
   isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false),
-  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => Date.now()),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
 });
 
 export const bots = sqliteTable("bots", {
@@ -66,7 +66,7 @@ export const bots = sqliteTable("bots", {
   key: text("key").notNull(),
   name: text("name").notNull(),
   isEnabled: integer("is_enabled", { mode: "boolean" }).notNull().default(true),
-  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => Date.now()),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
 }, (table) => [
   uniqueIndex("bots_user_key_unique").on(table.userId, table.key)
 ]);
@@ -79,7 +79,7 @@ export const llmProviders = sqliteTable("llm_providers", {
   apiKeyEncrypted: text("api_key_encrypted").notNull(),
   baseUrl: text("base_url"),
   defaultModel: text("default_model"),
-  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => Date.now()),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
 });
 
 export const botSettings = sqliteTable("bot_settings", {
@@ -95,8 +95,8 @@ export const botSettings = sqliteTable("bot_settings", {
   filtersJson: text("filters_json", { mode: "json" }).notNull().default('{"minImportanceScore":0,"maxRiskLevel":100}'),
   llmProviderId: integer("llm_provider_id").references(() => llmProviders.id),
   modelOverride: text("model_override"),
-  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => Date.now()),
-  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => Date.now()),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
 });
 
 export const sourceBotLinks = sqliteTable("source_bot_links", {
@@ -104,7 +104,7 @@ export const sourceBotLinks = sqliteTable("source_bot_links", {
   botId: integer("bot_id").notNull().references(() => bots.id, { onDelete: "cascade" }),
   isEnabled: integer("is_enabled", { mode: "boolean" }).notNull().default(true),
   weight: integer("weight").notNull().default(3),
-  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => Date.now()),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
 }, (table) => [
   primaryKey({ columns: [table.sourceId, table.botId] })
 ]);
@@ -114,7 +114,7 @@ export const profileSources = sqliteTable("profile_sources", {
   sourceId: integer("source_id").notNull().references(() => sources.id, { onDelete: "cascade" }),
   weight: integer("weight").notNull().default(3),
   isEnabled: integer("is_enabled", { mode: "boolean" }).notNull().default(true),
-  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => Date.now()),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
 }, (table) => [
   primaryKey({ columns: [table.profileId, table.sourceId] })
 ]);
@@ -131,8 +131,8 @@ export const items = sqliteTable("items", {
   tagsJson: text("tags_json", { mode: "json" }).notNull().default("[]"),
   status: text("status").notNull().default("new"),
   publishedAt: integer("published_at", { mode: "timestamp_ms" }),
-  collectedAt: integer("collected_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => Date.now()),
-  insertedAt: integer("inserted_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => Date.now()),
+  collectedAt: integer("collected_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
+  insertedAt: integer("inserted_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
 });
 
 export const analysis = sqliteTable("analysis", {
@@ -150,7 +150,7 @@ export const analysis = sqliteTable("analysis", {
   suggestedAngle: text("suggested_angle").notNull().default(""),
   summaryShort: text("summary_short").notNull(),
   summaryLong: text("summary_long").notNull(),
-  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => Date.now()),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
 });
 
 export const drafts = sqliteTable("drafts", {
@@ -163,13 +163,13 @@ export const drafts = sqliteTable("drafts", {
   tone: text("tone").notNull().default("helpful"),
   adminDecision: text("admin_decision").notNull().default("pending"),
   finalText: text("final_text"),
-  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => Date.now()),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
 });
 
 export const posts = sqliteTable("posts", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   draftId: integer("draft_id").notNull().references(() => drafts.id),
-  postedAt: integer("posted_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => Date.now()),
+  postedAt: integer("posted_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
   resultJson: text("result_json", { mode: "json" }).notNull().default("{}"),
 });
 
@@ -183,7 +183,7 @@ export const reports = sqliteTable("reports", {
   itemIdsJson: text("item_ids_json", { mode: "json" }).notNull().default("[]"),
   periodStart: integer("period_start", { mode: "timestamp_ms" }),
   periodEnd: integer("period_end", { mode: "timestamp_ms" }),
-  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => Date.now()),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
 });
 
 export const outputs = sqliteTable("outputs", {
@@ -198,7 +198,7 @@ export const outputs = sqliteTable("outputs", {
   reportStage: text("report_stage").notNull().default("full"),
   periodStart: integer("period_start", { mode: "timestamp_ms" }).notNull(),
   periodEnd: integer("period_end", { mode: "timestamp_ms" }).notNull(),
-  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => Date.now()),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }),
 }, (t) => [
   uniqueIndex("outputs_uq_profile_period").on(t.profileId, t.periodStart, t.periodEnd),
@@ -210,7 +210,7 @@ export const outputs = sqliteTable("outputs", {
 export const outputItems = sqliteTable("output_items", {
   outputId: integer("output_id").notNull().references(() => outputs.id, { onDelete: "cascade" }),
   itemId: integer("item_id").notNull().references(() => items.id, { onDelete: "cascade" }),
-  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => Date.now()),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
 }, (t) => [
   primaryKey({ columns: [t.outputId, t.itemId] }),
   index("output_items_idx_output").on(t.outputId),
@@ -220,7 +220,7 @@ export const outputItems = sqliteTable("output_items", {
 export const conversations = sqliteTable("conversations", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   title: text("title").notNull(),
-  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => Date.now()),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
 });
 
 export const messages = sqliteTable("messages", {
@@ -228,7 +228,7 @@ export const messages = sqliteTable("messages", {
   conversationId: integer("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
   role: text("role").notNull(),
   content: text("content").notNull(),
-  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => Date.now()),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
 });
 
 export const chatThreads = sqliteTable("chat_threads", {
@@ -236,7 +236,7 @@ export const chatThreads = sqliteTable("chat_threads", {
   userId: text("user_id").notNull().references(() => users.id),
   title: text("title"),
   activeBotId: integer("active_bot_id").references(() => bots.id),
-  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => Date.now()),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
 });
 
 export const chatMessages = sqliteTable("chat_messages", {
@@ -249,14 +249,14 @@ export const chatMessages = sqliteTable("chat_messages", {
   commandJson: text("command_json", { mode: "json" }),
   resultJson: text("result_json", { mode: "json" }),
   status: text("status").default("done"),
-  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => Date.now()),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
 });
 
 export const settings = sqliteTable("settings", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   key: text("key").notNull().unique(),
   value: text("value").notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => Date.now()),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
 });
 
 export const jobRuns = sqliteTable("job_runs", {
@@ -267,7 +267,7 @@ export const jobRuns = sqliteTable("job_runs", {
   jobType: text("job_type").notNull(),
   trigger: text("trigger").notNull(),
   status: text("status").notNull(),
-  startedAt: integer("started_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => Date.now()),
+  startedAt: integer("started_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
   finishedAt: integer("finished_at", { mode: "timestamp_ms" }),
   durationMs: integer("duration_ms"),
   itemsCollected: integer("items_collected"),
@@ -290,7 +290,7 @@ export const permissions = sqliteTable("permissions", {
   scopeId: integer("scope_id"),
   permissionKey: text("permission_key").notNull(),
   valueJson: text("value_json", { mode: "json" }).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => Date.now()),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
 }, (table) => [
   uniqueIndex("permissions_scope_key_unique").on(table.userId, table.scope, table.scopeId, table.permissionKey),
   index("idx_permissions_user_scope").on(table.userId, table.scope, table.scopeId),
@@ -304,7 +304,7 @@ export const auditLogs = sqliteTable("audit_logs", {
   eventType: text("event_type").notNull(),
   permissionKey: text("permission_key"),
   payloadJson: text("payload_json", { mode: "json" }),
-  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => Date.now()),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
 }, (table) => [
   index("idx_audit_logs_user").on(table.userId, table.createdAt),
   index("idx_audit_logs_event").on(table.eventType, table.createdAt),
@@ -317,7 +317,7 @@ export const reportMetrics = sqliteTable("report_metrics", {
   itemCount: integer("item_count").notNull().default(0),
   keywordSummary: text("keyword_summary", { mode: "json" }).notNull().default("{}"),
   sourceDistribution: text("source_distribution", { mode: "json" }).notNull().default("{}"),
-  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => Date.now()),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
 }, (table) => [
   index("idx_report_metrics_profile").on(table.profileId, table.createdAt),
 ]);
