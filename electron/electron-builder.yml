@@ -2,18 +2,34 @@ appId: com.maker.desktop
 productName: Maker
 directories:
   output: dist-electron
+  buildResources: electron/resources
 files:
-  - "dist/**/*"
-  - "server/**/*.js"
-  - "shared/**/*.js"
-  - "electron/main.js"
-  - "electron/preload.js"
-  - "node_modules/**/*"
-extraResources:
-  - from: "data/"
-    to: "data/"
-    filter:
-      - "**/*"
+  - "dist/client/**/*"
+  - "dist/server/**/*"
+  - "dist/electron/**/*"
+  - "node_modules/better-sqlite3/**/*"
+  - "node_modules/bindings/**/*"
+  - "node_modules/file-uri-to-path/**/*"
+  - "node_modules/node-addon-api/**/*"
+  - "node_modules/pg/**/*"
+  - "node_modules/pg-pool/**/*"
+  - "node_modules/pg-protocol/**/*"
+  - "node_modules/pg-types/**/*"
+  - "node_modules/pgpass/**/*"
+  - "node_modules/pg-connection-string/**/*"
+  - "node_modules/pg-int8/**/*"
+  - "node_modules/postgres-array/**/*"
+  - "node_modules/postgres-bytea/**/*"
+  - "node_modules/postgres-date/**/*"
+  - "node_modules/postgres-interval/**/*"
+  - "package.json"
+extraMetadata:
+  main: dist/electron/main.js
+asarUnpack:
+  - "node_modules/better-sqlite3/**/*"
+  - "node_modules/bindings/**/*"
+  - "node_modules/file-uri-to-path/**/*"
+  - "node_modules/node-addon-api/**/*"
 mac:
   category: public.app-category.productivity
   target:

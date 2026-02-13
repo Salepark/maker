@@ -50,9 +50,19 @@ Supports both PostgreSQL (default for cloud deployment) and SQLite (for local de
 ### Electron Desktop Packaging
 The application is set up for desktop distribution using Electron, allowing the Express server to run locally with SQLite, and opening a BrowserWindow for the UI. SQLite data path: `app.getPath('userData')/maker.db` (Mac: `~/Library/Application Support/Maker/maker.db`, Win: `%AppData%/Maker/maker.db`). Auth in desktop mode uses auto-login with memorystore sessions (no OIDC). Desktop detection: `window.electronAPI` or `window.maker` exposed via preload.
 
+#### Local Mode Gating
+`isLocalMode = driver === "sqlite" && (NODE_ENV === "development" || MAKER_DESKTOP === "true")`. Electron's `main.ts` always sets `MAKER_DESKTOP=true` in the server process env. `isDev` in Electron uses `app.isPackaged` for reliable dev/prod detection.
+
 #### Local Dev Commands
 - `MAKER_DB=sqlite npm run dev` — Run server in SQLite mode (browser at http://localhost:5000)
-- `MAKER_DB=sqlite npx electron electron/main.ts` — Launch Electron desktop app
+- `MAKER_DB=sqlite MAKER_DESKTOP=true NODE_ENV=development npx electron electron/main.ts` — Launch Electron desktop app
+
+#### Desktop Build & Package
+- `npm run build:desktop` — Bundle client+server+electron via `script/build-desktop.ts`
+- `npm run pack:desktop` — Package into .app/.exe/.AppImage via electron-builder
+- Config: `electron/electron-builder.yml` with `asarUnpack` for `better-sqlite3` native module
+- Output: `dist-electron/` directory
+- Full local setup guide: `LOCAL_SETUP.md`
 
 ### Job Run Logging & Diagnostics
 The system includes infrastructure for tracking job executions in a `job_runs` table, providing detailed diagnostics and execution history for each bot. This includes API endpoints for checking bot health, last runs, and comprehensive diagnostics. The Daily Reliability card on the Dashboard shows 7-day success rate, average generation time, last run, and last failure reason via `GET /api/diagnostics/daily-loop`.

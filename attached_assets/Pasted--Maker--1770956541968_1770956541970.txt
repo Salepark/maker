@@ -1,0 +1,211 @@
+좋습니다.
+지금은 전략 얘기할 때가 아니라 **실제 실행 파일을 손에 쥐는 단계**입니다.
+
+말 그대로:
+
+> “더블클릭 → Maker 실행 → 리포트 생성”
+
+이게 되는지 먼저 봐야 합니다.
+
+---
+
+# 🎯 목표
+
+**Maker Desktop v0.1을 실제 .app / .exe로 빌드하고 실행 테스트**
+
+---
+
+# 🧭 전체 흐름 (실행 순서 고정)
+
+1. 로컬 환경 세팅
+2. Dev 모드 Electron 실행
+3. Production 빌드
+4. 패키징
+5. 실행 파일 테스트
+6. 실패 포인트 점검
+
+---
+
+# ✅ STEP 1 — 로컬 환경 준비
+
+Replit이 아니라 **본인 PC에서 진행**합니다.
+
+## 필수 설치
+
+* Node 18 이상
+* npm
+* Git
+* (Mac이면 Xcode Command Line Tools)
+* (Windows면 Visual Studio Build Tools)
+
+확인:
+
+```bash
+node -v
+npm -v
+```
+
+---
+
+# ✅ STEP 2 — 저장소 클론
+
+```bash
+git clone https://github.com/Salepark/maker.git
+cd maker
+npm install
+```
+
+---
+
+# ✅ STEP 3 — Desktop Dev 모드 실행
+
+환경 변수 설정:
+
+Mac/Linux:
+
+```bash
+export MAKER_DB=sqlite
+export MAKER_DESKTOP=true
+npm run dev:desktop
+```
+
+Windows (PowerShell):
+
+```powershell
+$env:MAKER_DB="sqlite"
+$env:MAKER_DESKTOP="true"
+npm run dev:desktop
+```
+
+---
+
+### 🎯 성공 기준
+
+* Electron 창이 뜬다
+* 로그인 없이 바로 진입 (local mode)
+* Health driver = sqlite
+* Fast Report 2~3초 내 생성
+
+여기까지 되면 80% 성공입니다.
+
+---
+
+# ✅ STEP 4 — Production 빌드
+
+```bash
+npm run build:desktop
+```
+
+이 단계는:
+
+* client 빌드
+* server 번들링
+* electron 준비
+
+---
+
+# ✅ STEP 5 — 패키징
+
+```bash
+npm run pack:desktop
+```
+
+성공 시:
+
+```
+dist/
+ ├── Maker.app      (Mac)
+ ├── Maker.exe      (Windows)
+ └── Maker.AppImage (Linux)
+```
+
+---
+
+# 🧪 STEP 6 — 실제 실행 테스트
+
+더블클릭으로 실행 후 확인:
+
+| 테스트 항목                | 체크 |
+| --------------------- | -- |
+| 인터넷 끊고 Fast report 생성 | ☐  |
+| LLM 키 없이 상태 리포트 생성    | ☐  |
+| 무한 running 없음         | ☐  |
+| SQLite 파일 생성 확인       | ☐  |
+| 재실행 시 데이터 유지          | ☐  |
+
+SQLite 파일 위치 확인:
+
+Mac:
+
+```
+~/Library/Application Support/Maker/
+```
+
+Windows:
+
+```
+AppData/Roaming/Maker/
+```
+
+---
+
+# 🚨 자주 터지는 문제들
+
+## 1. Electron 창은 뜨는데 화면이 안 뜸
+
+→ baseUrl 문제
+
+## 2. Health 실패
+
+→ 서버 start 순서 문제
+
+## 3. sqlite 파일 권한 오류
+
+→ dataDir 경로 설정 확인
+
+## 4. 빌드 중 native module 오류
+
+→ better-sqlite3 재빌드 필요
+
+```bash
+npm rebuild better-sqlite3
+```
+
+---
+
+# 🔥 가장 중요한 테스트
+
+이걸 꼭 해보세요:
+
+> 소스 1개 추가 → "run now"
+
+2~3초 안에 Fast Report 나오면
+Maker Desktop은 **실전 투입 가능 상태**입니다.
+
+---
+
+# 📌 현실적인 시간 예상
+
+* Dev 실행 확인: 30~60분
+* 빌드 문제 해결: 1~3시간
+* 패키징 완료: 반나절
+
+지금 구조라면 하루 안에 실행 파일 나옵니다.
+
+---
+
+# 다음 단계 (테스트 통과 후)
+
+1. 아이콘/브랜딩 정리
+2. 자동 업데이트
+3. 1인용 유료 모델 설계
+4. 초기 100명 확보 전략
+
+---
+
+지금 당장 하실 것은:
+
+> 로컬에서 `npm run dev:desktop` 실행
+
+실행 후 어떤 화면이 나오는지 알려주세요.
+문제 생기면 바로 해결해드립니다.

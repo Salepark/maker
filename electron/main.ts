@@ -7,13 +7,13 @@ let serverProcess: ChildProcess | null = null;
 
 const SERVER_PORT = 5000;
 const HEALTH_URL = `http://localhost:${SERVER_PORT}/api/health`;
-const isDev = process.env.NODE_ENV === "development";
+const isDev = !app.isPackaged;
 
 function getServerEntry(): string {
   if (isDev) {
     return path.join(__dirname, "..", "server", "index.ts");
   }
-  return path.join(process.resourcesPath, "server", "index.js");
+  return path.join(__dirname, "..", "server", "index.js");
 }
 
 function getDataDir(): string {
@@ -28,6 +28,7 @@ function startServer(): Promise<void> {
     const env: Record<string, string> = {
       ...process.env as Record<string, string>,
       MAKER_DB: "sqlite",
+      MAKER_DESKTOP: "true",
       MAKER_SQLITE_PATH: path.join(dataDir, "maker.db"),
       PORT: String(SERVER_PORT),
       NODE_ENV: isDev ? "development" : "production",
