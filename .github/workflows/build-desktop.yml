@@ -31,6 +31,27 @@ jobs:
           node-version: 20
           cache: npm
 
+      - name: Fix package.json for electron-builder
+        shell: bash
+        run: |
+          node -e "
+          const fs = require('fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf-8'));
+          pkg.name = 'maker';
+          pkg.description = 'Maker Bot Manager - Personal automation workflow tool';
+          pkg.author = 'Salepark';
+          if (!pkg.devDependencies) pkg.devDependencies = {};
+          const moveToDevDeps = ['electron', 'electron-builder', 'cross-env'];
+          moveToDevDeps.forEach(dep => {
+            if (pkg.dependencies && pkg.dependencies[dep]) {
+              pkg.devDependencies[dep] = pkg.dependencies[dep];
+              delete pkg.dependencies[dep];
+            }
+          });
+          fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          console.log('Fixed package.json');
+          "
+
       - name: Install dependencies
         run: npm ci
 
