@@ -13,7 +13,7 @@ function getServerEntry(): string {
   if (isDev) {
     return path.join(__dirname, "..", "server", "index.ts");
   }
-  return path.join(__dirname, "..", "server", "index.js");
+  return path.join(__dirname, "..", "server", "index.cjs");
 }
 
 function getDataDir(): string {
@@ -88,7 +88,7 @@ function createWindow(): void {
     minHeight: 600,
     title: "Maker",
     webPreferences: {
-      preload: path.join(__dirname, "preload.js"),
+      preload: path.join(__dirname, isDev ? "preload.js" : "preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
     },

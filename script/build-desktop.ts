@@ -50,7 +50,7 @@ async function buildDesktop() {
     platform: "node",
     bundle: true,
     format: "cjs",
-    outfile: "dist/server/index.js",
+    outfile: "dist/server/index.cjs",
     define: {
       "process.env.NODE_ENV": '"production"',
     },
@@ -65,7 +65,7 @@ async function buildDesktop() {
     platform: "node",
     bundle: true,
     format: "cjs",
-    outfile: "dist/electron/main.js",
+    outfile: "dist/electron/main.cjs",
     external: ["electron", "better-sqlite3"],
     logLevel: "info",
   });
@@ -75,7 +75,7 @@ async function buildDesktop() {
     platform: "node",
     bundle: true,
     format: "cjs",
-    outfile: "dist/electron/preload.js",
+    outfile: "dist/electron/preload.cjs",
     external: ["electron"],
     logLevel: "info",
   });

@@ -24,7 +24,7 @@ files:
   - "node_modules/postgres-interval/**/*"
   - "package.json"
 extraMetadata:
-  main: dist/electron/main.js
+  main: dist/electron/main.cjs
 asarUnpack:
   - "node_modules/better-sqlite3/**/*"
   - "node_modules/bindings/**/*"
