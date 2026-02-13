@@ -63,17 +63,17 @@ async function buildDesktop() {
   await esbuild({
     entryPoints: ["electron/main.ts"],
     platform: "node",
-    bundle: false,
+    bundle: true,
     format: "cjs",
     outfile: "dist/electron/main.js",
-    external: ["electron"],
+    external: ["electron", "better-sqlite3"],
     logLevel: "info",
   });
 
   await esbuild({
     entryPoints: ["electron/preload.ts"],
     platform: "node",
-    bundle: false,
+    bundle: true,
     format: "cjs",
     outfile: "dist/electron/preload.js",
     external: ["electron"],
