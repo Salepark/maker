@@ -12,6 +12,7 @@ import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integra
 import { runAllSeeds } from "./seed";
 import { NotImplementedError, handleApiError } from "./lib/safe-storage";
 import { PERMISSION_REQUEST_MESSAGES } from "@shared/permission-messages";
+import { encrypt, decrypt } from "./lib/crypto";
 
 function getUserId(req: Request): string | undefined {
   const user = req.user as any;
@@ -1251,7 +1252,6 @@ export async function registerRoutes(
         return res.status(400).json({ error: `providerType must be one of: ${validTypes.join(", ")}` });
       }
 
-      const { encrypt } = await import("./lib/crypto");
       const provider = await storage.createLlmProvider({
         userId,
         name,
@@ -1261,7 +1261,8 @@ export async function registerRoutes(
         defaultModel: defaultModel || null,
       });
       res.json({ provider: { ...provider, apiKeyEncrypted: undefined, apiKeyHint: "****" } });
-    } catch (error) {
+    } catch (error: any) {
+      console.error("[llm-provider] Create error:", error?.message || error);
       handleApiError(res, error, "Failed to create LLM provider");
     }
   });
@@ -1280,7 +1281,6 @@ export async function registerRoutes(
       if (baseUrl !== undefined) patch.baseUrl = baseUrl;
       if (defaultModel !== undefined) patch.defaultModel = defaultModel;
       if (apiKey) {
-        const { encrypt } = await import("./lib/crypto");
         patch.apiKeyEncrypted = encrypt(apiKey);
       }
 

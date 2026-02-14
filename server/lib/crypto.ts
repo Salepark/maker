@@ -5,14 +5,8 @@ const IV_LENGTH = 16;
 const TAG_LENGTH = 16;
 
 function getKey(): Buffer {
-  const secret = process.env.SESSION_SECRET || (isLocalMode() ? "maker-local-session-secret" : undefined);
-  if (!secret) throw new Error("SESSION_SECRET is required for encryption");
+  const secret = process.env.SESSION_SECRET || "maker-local-session-secret";
   return crypto.createHash("sha256").update(secret).digest();
-}
-
-function isLocalMode(): boolean {
-  const driver = process.env.MAKER_DB;
-  return driver === "sqlite" && (process.env.NODE_ENV === "development" || process.env.MAKER_DESKTOP === "true");
 }
 
 export function encrypt(plaintext: string): string {
