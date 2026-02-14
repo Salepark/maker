@@ -1,5 +1,9 @@
 # Maker
 
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)](https://github.com/Salepark/maker/releases)
+[![Release](https://img.shields.io/github/v/release/Salepark/maker)](https://github.com/Salepark/maker/releases)
+
 > **We don't trust AI. We trust the user's right to control it.**
 
 Maker is a personal automation operating system for the AI era.
