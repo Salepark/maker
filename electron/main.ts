@@ -6,7 +6,7 @@ let mainWindow: BrowserWindow | null = null;
 let serverProcess: ChildProcess | null = null;
 
 const SERVER_PORT = 5000;
-const HEALTH_URL = `http://localhost:${SERVER_PORT}/api/health`;
+const HEALTH_URL = `http://127.0.0.1:${SERVER_PORT}/api/health`;
 const isDev = !app.isPackaged;
 
 function getAppRoot(): string {
@@ -112,7 +112,7 @@ function createWindow(): void {
     },
   });
 
-  mainWindow.loadURL(`http://localhost:${SERVER_PORT}`);
+  mainWindow.loadURL(`http://127.0.0.1:${SERVER_PORT}`);
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith("http")) {
