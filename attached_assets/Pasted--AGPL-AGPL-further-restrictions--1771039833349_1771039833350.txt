@@ -1,0 +1,98 @@
+좋아요. 지금 올리신 문서의 **가장 큰 문제는 “AGPL인데, 위에 붙인 커스텀 문구가 AGPL의 ‘추가 제한’(further restrictions)처럼 오해될 수 있다”**는 점입니다.
+
+그래서 안전하게 가려면 구조를 이렇게 가져가야 합니다.
+
+* **(필수) `LICENSE` 파일**: **AGPL-3.0 원문만 그대로** (수정/추가/서문 금지)
+* **(권장) `LICENSE.md` 파일**: 프로젝트 설명 + 상업 라이선스/트레이드마크 안내(“라이선스 추가 제한”이 아니라 “안내/정책”으로)
+
+아래는 **새로 수정된 `LICENSE.md` 전체 문서(복붙용)** 입니다.
+(그리고 `LICENSE` 파일에는 지금 붙여넣으신 AGPL 원문을 그대로 넣으면 됩니다.)
+
+---
+
+```md
+# Maker — Licensing Overview (AGPL-3.0)
+
+Copyright (c) 2026 Maker
+
+Maker **Core** is free software licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**.
+
+✅ In short:
+
+- You may use, study, modify, and redistribute Maker Core.
+- If you modify Maker Core and run it as a **network service (including SaaS)**, you must provide the **complete corresponding source code** of your running version to the users of that service under **AGPL-3.0**.
+
+📌 The full, official AGPL-3.0 license text is provided in **`LICENSE`** (verbatim).
+
+---
+
+## What this repository covers
+
+This repository contains **Maker Core**.
+
+Everything inside this repository is covered by **AGPL-3.0**, unless a file explicitly states otherwise.
+
+---
+
+## Commercial licensing
+
+If you want to do any of the following:
+
+- Offer Maker as a hosted service **without** meeting AGPL obligations,
+- Embed Maker into a closed-source/commercial product,
+- Receive commercial support, custom features, or enterprise terms,
+
+then you need a **separate commercial license**.
+
+For commercial licensing inquiries:
+
+- Email: contact@maker.am  
+- Or open an issue: (use your GitHub org/repo issue tracker)
+
+---
+
+## Trademarks (important)
+
+The following are **trademarks** and are **not** automatically granted by the AGPL:
+
+- The name “Maker”
+- Maker logo and brand assets
+
+You may not use trademarks in a way that suggests official endorsement or affiliation without permission.
+
+This does **not** restrict your rights to fork and modify the code under AGPL.
+It only governs brand usage.
+
+---
+
+## Project philosophy
+
+Maker exists to help individuals design and control their own automation workflows.
+
+We do not sell bots.  
+We provide tools for people who build their own automation.
+
+---
+
+## See also
+
+- `LICENSE` — GNU Affero General Public License v3.0 (verbatim)
+- `OPEN_SOURCE_POLICY.md` — project’s open-source direction & contribution policy
+```
+
+---
+
+## 다음으로 꼭 해야 하는 것 (중요)
+
+1. **`LICENSE` 파일**은 “지금 붙여넣으신 AGPL 원문”을 **그대로** 넣으세요.
+
+   * `LICENSE.md`에 원문을 다 넣어도 되긴 하지만, 표준 관행은 `LICENSE`에 넣는 겁니다.
+
+2. 지금 문서에 있던 이 문구는 **삭제**하는 게 안전합니다:
+
+* “NOT covered by this license: Maker Pro features / Enterprise modules / Commercial desktop distributions …”
+
+  * 이유: **그게 리포지토리 안에 있으면** 결국 AGPL 적용 대상이 됩니다.
+  * Pro는 “아예 저장소 밖”으로 빼는 게 정석입니다.
+
+원하시면 제가 **README.md의 License 섹션**도 Maker/도메인/이슈 트래커 기준으로 깔끔하게 맞춘 버전까지 같이 써드릴게요.
