@@ -120,4 +120,4 @@ A comprehensive permission and policy system controlling bot capabilities:
 - `wouter`
 
 ## Internal Documents
-- `docs/BUSINESS_STRATEGY.md` — Maker 사업 전략 및 철학 문서 (Core 오픈소스 + Pro 유료 모델, Local-first 신뢰 기반 플랫폼 전략)
+- `docs/PHILOSOPHY_EN.md` — Maker 사업 철학 영문 공개 문서
