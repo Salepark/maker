@@ -1,4 +1,5 @@
 import { db } from "./db";
+import { encrypt, decrypt } from "./lib/crypto";
 import {
   sources, items, analysis, drafts, posts, reports, chatMessages, chatThreads, settings,
   presets, profiles, profileSources, outputs, outputItems,
@@ -1226,7 +1227,7 @@ export class SqliteStorage implements IStorage {
     const [provider] = await db.select().from(llmProviders).where(eq(llmProviders.id, setting.llmProviderId));
     if (!provider) return null;
 
-    const { decrypt } = await import("./lib/crypto");
+    
     return {
       providerType: provider.providerType,
       apiKey: decrypt(provider.apiKeyEncrypted),

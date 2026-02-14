@@ -5,8 +5,7 @@ const IV_LENGTH = 16;
 const TAG_LENGTH = 16;
 
 function getKey(): Buffer {
-  const secret = process.env.SESSION_SECRET;
-  if (!secret) throw new Error("SESSION_SECRET is required for encryption");
+  const secret = process.env.SESSION_SECRET || "maker-local-session-secret";
   return crypto.createHash("sha256").update(secret).digest();
 }
 

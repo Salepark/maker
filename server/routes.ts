@@ -1251,7 +1251,7 @@ export async function registerRoutes(
         return res.status(400).json({ error: `providerType must be one of: ${validTypes.join(", ")}` });
       }
 
-      const { encrypt } = await import("./lib/crypto");
+      
       const provider = await storage.createLlmProvider({
         userId,
         name,
@@ -1280,7 +1280,7 @@ export async function registerRoutes(
       if (baseUrl !== undefined) patch.baseUrl = baseUrl;
       if (defaultModel !== undefined) patch.defaultModel = defaultModel;
       if (apiKey) {
-        const { encrypt } = await import("./lib/crypto");
+        
         patch.apiKeyEncrypted = encrypt(apiKey);
       }
 
