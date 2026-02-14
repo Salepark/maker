@@ -118,3 +118,6 @@ A comprehensive permission and policy system controlling bot capabilities:
 - `express-session`, `connect-pg-simple`
 - `@tanstack/react-query`
 - `wouter`
+
+## Internal Documents
+- `docs/BUSINESS_STRATEGY.md` — Maker 사업 전략 및 철학 문서 (Core 오픈소스 + Pro 유료 모델, Local-first 신뢰 기반 플랫폼 전략)
