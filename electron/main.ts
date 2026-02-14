@@ -39,6 +39,7 @@ function startServer(): Promise<void> {
       MAKER_SQLITE_PATH: path.join(dataDir, "maker.db"),
       PORT: String(SERVER_PORT),
       NODE_ENV: isDev ? "development" : "production",
+      SESSION_SECRET: process.env.SESSION_SECRET || "maker-local-session-secret",
     };
 
     console.log(`[electron] Server entry: ${entry}`);
