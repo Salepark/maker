@@ -1,0 +1,111 @@
+import { storage } from "../storage";
+import { callLLMWithJsonParsing, callLLMWithTimeout } from "../llm/client";
+import { 
+  buildAnalyzePrompt, 
+  buildAiArtCommunityAnalyzePrompt,
+  type AnalysisResult 
+} from "../llm/prompts";
+
+const MIN_TEXT_LENGTH = 50;
+
+function shouldAnalyzeItem(item: any): boolean {
+  const textLength = (item.title?.length ?? 0) + (item.contentText?.length ?? 0);
+  if (textLength < MIN_TEXT_LENGTH) return false;
+  return true;
+}
+
+async function analyzeOneItem(item: any): Promise<boolean> {
+  if (!shouldAnalyzeItem(item)) {
+    console.log(`[AnalyzeJob] Skipping item #${item.id}: text too short (< ${MIN_TEXT_LENGTH} chars)`);
+    await storage.updateItemStatus(item.id, "skipped");
+    return false;
+  }
+  const prompt = item.sourceTopic === "ai_art"
+    ? buildAiArtCommunityAnalyzePrompt({
+        title: item.title ?? "",
+        body: item.contentText ?? "",
+        sourceName: item.sourceName ?? "unknown",
+      })
+    : buildAnalyzePrompt({
+        title: item.title ?? "",
+        body: item.contentText ?? "",
+        sourceName: item.sourceName ?? "unknown",
+        sourceRules: JSON.stringify(item.rulesJson ?? {}),
+        topic: item.sourceTopic ?? undefined,
+      });
+
+  try {
+    const result = await callLLMWithTimeout(
+      () => callLLMWithJsonParsing<AnalysisResult>(prompt),
+      30000
+    );
+
+    if (!result) {
+      console.warn(`[AnalyzeJob] LLM timed out for item #${item.id}, marking as skipped`);
+      await storage.updateItemStatus(item.id, "skipped");
+      return false;
+    }
+
+    await storage.createAnalysis({
+      itemId: item.id,
+      category: result.category || "other",
+      relevanceScore: result.relevance_score || 0,
+      replyWorthinessScore: result.reply_worthiness_score || 0,
+      linkFitScore: result.link_fit_score || 0,
+      riskFlagsJson: result.risk_flags || [],
+      recommendedAction: result.recommended_action || "observe",
+      suggestedAngle: result.suggested_angle || "",
+      summaryShort: result.summary_short || "",
+      summaryLong: result.summary_long || "",
+    });
+
+    await storage.updateItemStatus(item.id, "analyzed");
+    console.log(`✓ Analyzed item #${item.id}: ${result.recommended_action}`);
+    return true;
+  } catch (error) {
+    console.error(`✗ Failed to analyze item #${item.id}:`, error);
+    await storage.updateItemStatus(item.id, "skipped");
+    return false;
+  }
+}
+
+export async function analyzeNewItemsBySourceIds(sourceIds: number[], limit: number = 50, concurrency: number = 1): Promise<number> {
+  console.log(`[AnalyzeJob] Starting bot-scoped analysis for ${sourceIds.length} sources (limit=${limit}, concurrency=${concurrency})...`);
+  const items = await storage.getItemsByStatusAndSourceIds("new", sourceIds, limit);
+  console.log(`[AnalyzeJob] Found ${items.length} new items from bot sources`);
+  let analyzed = 0;
+
+  if (concurrency <= 1) {
+    for (const item of items) {
+      console.log(`[AnalyzeJob] Analyzing item #${item.id} (topic: ${item.sourceTopic}): ${item.title?.slice(0, 50)}...`);
+      if (await analyzeOneItem(item)) analyzed++;
+    }
+  } else {
+    for (let i = 0; i < items.length; i += concurrency) {
+      const batch = items.slice(i, i + concurrency);
+      console.log(`[AnalyzeJob] Processing batch ${Math.floor(i / concurrency) + 1} (${batch.length} items)...`);
+      const results = await Promise.allSettled(
+        batch.map(item => analyzeOneItem(item))
+      );
+      for (const r of results) {
+        if (r.status === "fulfilled" && r.value) analyzed++;
+      }
+    }
+  }
+
+  return analyzed;
+}
+
+export async function analyzeNewItems(): Promise<number> {
+  console.log("[AnalyzeJob] Starting analysis for new items...");
+  const items = await storage.getItemsByStatus("new", 10);
+  console.log(`[AnalyzeJob] Found ${items.length} items in 'new' status`);
+  let analyzed = 0;
+
+  for (const item of items) {
+    console.log(`[AnalyzeJob] Analyzing item #${item.id} (topic: ${item.sourceTopic}): ${item.title?.slice(0, 50)}...`);
+    if (await analyzeOneItem(item)) analyzed++;
+  }
+
+  return analyzed;
+}
