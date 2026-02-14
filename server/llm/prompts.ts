@@ -590,14 +590,24 @@ function getTopicMeta(topic: string) {
   };
 }
 
-export function buildDailyBriefPrompt(items: any[], date: string, topic: string, config?: ReportConfig): string {
-  if (topic === "investing") {
-    return buildInvestingBriefPromptWithConfig(items, date, config);
+function buildUserRulesBlock(userRules?: Record<string, any>): string {
+  if (!userRules || Object.keys(userRules).length === 0) return "";
+  const lines: string[] = [];
+  for (const [key, value] of Object.entries(userRules)) {
+    const displayVal = typeof value === "string" ? value : JSON.stringify(value);
+    lines.push(`- ${key}: ${displayVal}`);
   }
-  return buildGenericBriefPrompt(items, date, topic, config);
+  return `\nUser Rules & Preferences (apply these to the output):\n${lines.join("\n")}\n`;
 }
 
-function buildInvestingBriefPromptWithConfig(items: any[], date: string, config?: ReportConfig): string {
+export function buildDailyBriefPrompt(items: any[], date: string, topic: string, config?: ReportConfig, userRules?: Record<string, any>): string {
+  if (topic === "investing") {
+    return buildInvestingBriefPromptWithConfig(items, date, config, userRules);
+  }
+  return buildGenericBriefPrompt(items, date, topic, config, userRules);
+}
+
+function buildInvestingBriefPromptWithConfig(items: any[], date: string, config?: ReportConfig, userRules?: Record<string, any>): string {
   const verbosity = config?.verbosity || "normal";
   const markdownLevel = config?.markdownLevel || "minimal";
   const sections = config?.sections;
@@ -624,7 +634,7 @@ ${getVerbosityInstructions(verbosity)}
 ${getMarkdownInstructions(markdownLevel)}
 
 ${getSectionInstructions(sections, "investing")}
-
+${buildUserRulesBlock(userRules)}
 Important - Data Filtering:
 The following content must be excluded from the input data:
 - AI art, image generation, creative tool-related content
@@ -659,7 +669,7 @@ Writing Rules:
 - No exaggerated, emotional, or clickbait tone`;
 }
 
-function buildGenericBriefPrompt(items: any[], date: string, topic: string, config?: ReportConfig): string {
+function buildGenericBriefPrompt(items: any[], date: string, topic: string, config?: ReportConfig, userRules?: Record<string, any>): string {
   const verbosity = config?.verbosity || "normal";
   const markdownLevel = config?.markdownLevel || "minimal";
   const sections = config?.sections;
@@ -687,6 +697,7 @@ ${getVerbosityInstructions(verbosity)}
 ${getMarkdownInstructions(markdownLevel)}
 
 ${getSectionInstructions(sections, topic)}
+${buildUserRulesBlock(userRules)}
 ${filterBlock}
 Input Data:
 The following is a list of posts collected and analyzed over the past 24 hours:

@@ -625,7 +625,15 @@ export async function upgradeToFullReport(outputId: number, profileId: number, u
       category: "general",
     }));
 
-    const prompt = buildDailyBriefPrompt(briefItems, today, profile.topic, config);
+    let userRules: Record<string, any> = {};
+    try {
+      const bot = await storage.getBotByUserAndKey(profile.userId, profile.topic);
+      userRules = await storage.getEffectiveRules(profile.userId, bot?.id ?? null);
+    } catch (e) {
+      console.warn(`[ReportJob] Failed to fetch user rules:`, e);
+    }
+
+    const prompt = buildDailyBriefPrompt(briefItems, today, profile.topic, config, userRules);
     const llmResult = await callLLMWithTimeout(
       () => callLLMForProfile(prompt, profile.userId, profile.topic),
       60000

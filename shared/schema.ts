@@ -602,3 +602,29 @@ export const insertReportMetricSchema = createInsertSchema(reportMetrics).omit({
 
 export type ReportMetric = typeof reportMetrics.$inferSelect;
 export type InsertReportMetric = z.infer<typeof insertReportMetricSchema>;
+
+// ============================================
+// RULE MEMORIES - Long-term memory for user preferences/rules
+// ============================================
+export const ruleMemories = pgTable("rule_memories", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  scope: text("scope").notNull(), // "global" | "bot"
+  scopeId: integer("scope_id"), // null for global, botId for bot scope
+  key: text("key").notNull(), // e.g., "REPORT_FORMAT", "WRITING_TONE", "NO_EGRESS_PATHS"
+  valueJson: jsonb("value_json").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("rule_memories_scope_key_unique").on(table.userId, table.scope, table.scopeId, table.key),
+  index("idx_rule_memories_user_scope").on(table.userId, table.scope, table.scopeId),
+]);
+
+export const insertRuleMemorySchema = createInsertSchema(ruleMemories).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type RuleMemory = typeof ruleMemories.$inferSelect;
+export type InsertRuleMemory = z.infer<typeof insertRuleMemorySchema>;

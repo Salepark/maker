@@ -26,6 +26,7 @@ export async function getEffectivePermissions(
     "LLM_USE", "LLM_EGRESS_LEVEL",
     "FS_READ", "FS_WRITE", "FS_DELETE",
     "CAL_READ", "CAL_WRITE", "SCHEDULE_WRITE",
+    "MEMORY_WRITE", "DATA_RETENTION",
   ];
 
   for (const key of allKeys) {

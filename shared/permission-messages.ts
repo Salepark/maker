@@ -120,6 +120,26 @@ export const PERMISSION_REQUEST_MESSAGES: Record<string, PermissionRequestMessag
     riskEn: "Calendar events may be unexpectedly modified.",
     riskKo: "캘린더 일정이 예상치 않게 변경될 수 있습니다.",
   },
+  MEMORY_WRITE: {
+    titleEn: "Wants to save rules & preferences",
+    titleKo: "규칙/선호를 저장하려고 합니다",
+    whyEn: "Permission is needed to save or modify user rules and preferences in long-term memory.",
+    whyKo: "장기 메모리에 사용자 규칙과 선호를 저장/수정하려면 권한이 필요합니다.",
+    impactEn: "Your saved rules will affect how reports are generated.",
+    impactKo: "저장된 규칙이 리포트 생성 방식에 영향을 줍니다.",
+    riskEn: "Rules may override default behavior.",
+    riskKo: "규칙이 기본 동작을 변경할 수 있습니다.",
+  },
+  DATA_RETENTION: {
+    titleEn: "Wants to change data retention policy",
+    titleKo: "데이터 보존 정책을 변경하려고 합니다",
+    whyEn: "Permission is needed to modify how long collected data and memory are retained.",
+    whyKo: "수집된 데이터와 메모리의 보존 기간을 변경하려면 권한이 필요합니다.",
+    impactEn: "Data retention periods will change, which may affect available history.",
+    impactKo: "데이터 보존 기간이 변경되어 사용 가능한 히스토리에 영향을 줄 수 있습니다.",
+    riskEn: "Shorter retention may result in data loss.",
+    riskKo: "보존 기간 단축 시 데이터가 손실될 수 있습니다.",
+  },
 };
 
 export type ApprovalScope = "once" | "bot" | "global";

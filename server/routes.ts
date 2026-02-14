@@ -1857,6 +1857,97 @@ export async function registerRoutes(
     }
   });
 
+  // ============================================
+  // RULE MEMORIES - Long-term memory for user preferences
+  // ============================================
+
+  app.get("/api/memory/rules", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req)!;
+      const scope = (req.query.scope as string) || "global";
+      const scopeId = req.query.scopeId ? parseInt(req.query.scopeId as string) : null;
+
+      if (scope === "all") {
+        const rules = await storage.listAllUserRuleMemories(userId);
+        res.json(rules);
+      } else {
+        const rules = await storage.listRuleMemories(userId, scope, scopeId);
+        res.json(rules);
+      }
+    } catch (error) {
+      handleApiError(res, error, "Failed to list rule memories");
+    }
+  });
+
+  app.get("/api/memory/rules/effective", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req)!;
+      const botId = req.query.botId ? parseInt(req.query.botId as string) : null;
+      const effective = await storage.getEffectiveRules(userId, botId);
+      res.json(effective);
+    } catch (error) {
+      handleApiError(res, error, "Failed to get effective rules");
+    }
+  });
+
+  app.put("/api/memory/rules", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req)!;
+      const { scope, scopeId, key, value } = req.body;
+
+      if (!scope || !key || value === undefined) {
+        res.status(400).json({ error: "scope, key, and value are required" });
+        return;
+      }
+
+      const allowed = await enforcePermission(req, res, "MEMORY_WRITE", "upsert_rule", scopeId);
+      if (!allowed) return;
+
+      const rule = await storage.upsertRuleMemory(userId, scope, scopeId ?? null, key, value);
+
+      await storage.createAuditLog({
+        userId,
+        botId: scope === "bot" ? scopeId : null,
+        eventType: "MEMORY_RULE_UPSERT",
+        permissionKey: "MEMORY_WRITE",
+        payloadJson: { key, scope, scopeId },
+      });
+
+      res.json(rule);
+    } catch (error) {
+      handleApiError(res, error, "Failed to save rule memory");
+    }
+  });
+
+  app.delete("/api/memory/rules", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req)!;
+      const { scope, scopeId, key } = req.body;
+
+      if (!scope || !key) {
+        res.status(400).json({ error: "scope and key are required" });
+        return;
+      }
+
+      const allowed = await enforcePermission(req, res, "MEMORY_WRITE", "delete_rule", scopeId);
+      if (!allowed) return;
+
+      await storage.deleteRuleMemory(userId, scope, scopeId ?? null, key);
+
+      await storage.createAuditLog({
+        userId,
+        botId: scope === "bot" ? scopeId : null,
+        eventType: "MEMORY_RULE_DELETE",
+        permissionKey: "MEMORY_WRITE",
+        payloadJson: { key, scope, scopeId },
+      });
+
+      res.json({ ok: true });
+    } catch (error) {
+      handleApiError(res, error, "Failed to delete rule memory");
+    }
+  });
+
   app.use((err: Error, _req: Request, res: Response, next: NextFunction) => {
     if (err instanceof NotImplementedError || err?.name === "NotImplementedError") {
       console.warn(`[Route] ${err.message}`);

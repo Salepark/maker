@@ -16,6 +16,7 @@ import { useLanguage } from "@/lib/language-provider";
 import { ArrowLeft, Save, Loader2, Brain, Clock, FileText, Filter, Rss, AlertTriangle, Layers, Plus, X, CheckCircle2, XCircle, Timer, SkipForward, Play, Activity, Info } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { PermissionDashboard } from "@/components/permission-dashboard";
+import { MemoryCard } from "@/components/memory-card";
 
 interface JobRunData {
   id: number;
@@ -369,6 +370,8 @@ export default function BotDetail() {
         </Card>
 
         {botId && <PermissionDashboard botId={botId} t={t} language={language} />}
+
+        {botId && <MemoryCard botId={botId} t={t} language={language} />}
 
         <Card>
           <CardHeader>

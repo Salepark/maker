@@ -39,6 +39,8 @@ export const PERMISSION_KEYS = [
   "CAL_READ",
   "CAL_WRITE",
   "SCHEDULE_WRITE",
+  "MEMORY_WRITE",
+  "DATA_RETENTION",
 ] as const;
 
 export type PermissionKey = typeof PERMISSION_KEYS[number];
@@ -191,6 +193,31 @@ export const PERMISSION_GROUPS: PermissionGroupDef[] = [
         descEn: "Allow changing bot run schedules",
         descKo: "봇 실행 스케줄 변경 허용",
         risk: "LOW",
+        defaultValue: { enabled: true, approvalMode: "APPROVAL_REQUIRED" },
+      },
+    ],
+  },
+  {
+    group: "memory",
+    groupLabelEn: "Memory",
+    groupLabelKo: "메모리",
+    keys: [
+      {
+        key: "MEMORY_WRITE",
+        labelEn: "Save Rules & Preferences",
+        labelKo: "규칙/선호 저장",
+        descEn: "Allow saving and modifying user rules and preferences to long-term memory",
+        descKo: "사용자 규칙과 선호를 장기 메모리에 저장/수정 허용",
+        risk: "LOW",
+        defaultValue: { enabled: true, approvalMode: "AUTO_ALLOWED" },
+      },
+      {
+        key: "DATA_RETENTION",
+        labelEn: "Data Retention Policy",
+        labelKo: "데이터 보존 정책",
+        descEn: "Control how long collected data and memory are retained",
+        descKo: "수집된 데이터와 메모리의 보존 기간 관리",
+        risk: "MED",
         defaultValue: { enabled: true, approvalMode: "APPROVAL_REQUIRED" },
       },
     ],

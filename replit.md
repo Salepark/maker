@@ -82,7 +82,7 @@ The system includes infrastructure for tracking job executions in a `job_runs` t
 ### Permission System v1.0
 A comprehensive permission and policy system controlling bot capabilities:
 - **Schema**: `permissions` table (userId, scope global/bot, scopeId, permissionKey, valueJson) and `audit_logs` table for security event tracking. Both PG and SQLite schemas.
-- **Policy Engine** (`server/policy/`): `types.ts` defines 11 permission keys across 5 groups (web_sources, ai_data, files, calendar, scheduling). `engine.ts` provides `getEffectivePermissions` (merge default → global → bot override), `checkPermission`, `checkEgress` (3-level LLM data control: NO_EGRESS < METADATA_ONLY < FULL_CONTENT_ALLOWED), and `logPermissionAction`.
+- **Policy Engine** (`server/policy/`): `types.ts` defines 13 permission keys across 6 groups (web_sources, ai_data, files, calendar, scheduling, memory). `engine.ts` provides `getEffectivePermissions` (merge default → global → bot override), `checkPermission`, `checkEgress` (3-level LLM data control: NO_EGRESS < METADATA_ONLY < FULL_CONTENT_ALLOWED), and `logPermissionAction`.
 - **ApprovalMode**: AUTO_ALLOWED, APPROVAL_REQUIRED, AUTO_DENIED.
 - **Defaults**: WEB_RSS = AUTO_ALLOWED (ON), SOURCE_WRITE/SCHEDULE_WRITE/LLM_USE = APPROVAL_REQUIRED (ON), WEB_FETCH = APPROVAL_REQUIRED (OFF), FS_READ/FS_WRITE/CAL_READ/CAL_WRITE = APPROVAL_REQUIRED (OFF), FS_DELETE = AUTO_DENIED (OFF), LLM egress = METADATA_ONLY.
 - **API Routes**: GET/PUT/DELETE `/api/permissions`, GET `/api/permissions/effective`, POST `/api/permissions/check`, POST `/api/permissions/approve-once`, GET `/api/audit-logs`.
@@ -91,6 +91,17 @@ A comprehensive permission and policy system controlling bot capabilities:
 - **UI**: Dedicated `/permissions` page with global defaults management (group cards, switches, approval mode selects, egress level control) and audit log tab. Bot-level Permission Dashboard card in bot detail page with summary bar, 4 groups, risk badges, detail modal, and recent audit history.
 - **Platform-Aware Filtering**: Permissions are filtered by platform (web vs desktop/Electron). On web: FS_READ, FS_WRITE, FS_DELETE, CAL_READ, CAL_WRITE are hidden (localOnly). LLM_EGRESS_LEVEL hides FULL_CONTENT_ALLOWED on web. On desktop: all permissions shown with "Local Only" badges on desktop-specific items. Detection via `window.electronAPI`.
 - **i18n**: Full EN/KR translations for all permission, audit log, and approval UI strings.
+
+### Long-Term Memory System (Phase 1: Rule Memory)
+A 3-layer memory architecture for persistent user preferences and knowledge:
+- **Rule Memory** (implemented): `rule_memories` table (userId, scope global/bot, scopeId, key, valueJson) for user preferences like report tone, summary length, exclusion keywords, focus topics. Both PG and SQLite schemas mirrored.
+- **Storage CRUD**: `listRuleMemories`, `listAllUserRuleMemories`, `upsertRuleMemory`, `deleteRuleMemory`, `getEffectiveRules` (merges global → bot override).
+- **API Routes**: GET `/api/memory/rules` (with scope/scopeId query params, scope=all for all rules), GET `/api/memory/rules/effective` (merged rules for a bot), PUT `/api/memory/rules` (upsert), DELETE `/api/memory/rules`.
+- **Permission Keys**: `MEMORY_WRITE` (AUTO_ALLOWED, LOW risk), `DATA_RETENTION` (APPROVAL_REQUIRED, MED risk) in `memory` group. Policy engine extended with these keys.
+- **Report Pipeline Integration**: `buildDailyBriefPrompt` accepts optional `userRules` parameter. Report job fetches effective rules via `getEffectiveRules(userId, botId)` and injects them as "User Rules & Preferences" block in the LLM prompt.
+- **UI**: `MemoryCard` component in bot detail page showing bot + global rules, add/edit/delete UI with preset key selection (REPORT_TONE, SUMMARY_LENGTH, LANGUAGE_PREF, EXCLUDE_KEYWORDS, FOCUS_TOPICS, CUSTOM), scope toggle (bot/global), and expandable "Effective Rules" panel.
+- **i18n**: Full EN/KR translations for all memory UI strings.
+- **Planned Phases**: Phase 2 (Knowledge Memory - text search index over collected data), Phase 3 (advanced features - retention policies, embeddings, NL commands).
 
 ## External Dependencies
 

@@ -3,7 +3,7 @@ import {
   sources, items, analysis, drafts, posts, reports, chatMessages, chatThreads, settings,
   presets, profiles, profileSources, outputs, outputItems,
   bots, botSettings, sourceBotLinks, llmProviders, jobRuns,
-  permissions, auditLogs, reportMetrics,
+  permissions, auditLogs, reportMetrics, ruleMemories,
   type Source, type Item, type Analysis, type Draft, type Post, type Report, 
   type InsertSource, type InsertItem, type InsertAnalysis, type InsertDraft, type InsertReport, 
   type ChatMessage, type InsertChatMessage, type ChatThread, type InsertChatThread, type Setting,
@@ -13,6 +13,7 @@ import {
   type LlmProvider, type InsertLlmProvider,
   type JobRun, type InsertJobRun,
   type Permission, type InsertPermission,
+  type RuleMemory,
 } from "@shared/schema";
 import { eq, desc, sql, and, count, gte, lt, lte, or, isNull, inArray } from "drizzle-orm";
 
@@ -197,6 +198,13 @@ export interface IStorage {
   // Audit Log
   createAuditLog(entry: { userId: string; botId?: number | null; threadId?: string | null; eventType: string; permissionKey?: string | null; payloadJson?: any }): Promise<void>;
   listAuditLogs(userId: string, filters?: { botId?: number; eventType?: string; permissionKey?: string; limit?: number; since?: Date }): Promise<any[]>;
+
+  // Rule Memories
+  listRuleMemories(userId: string, scope: string, scopeId: number | null): Promise<RuleMemory[]>;
+  listAllUserRuleMemories(userId: string): Promise<RuleMemory[]>;
+  upsertRuleMemory(userId: string, scope: string, scopeId: number | null, key: string, valueJson: any): Promise<RuleMemory>;
+  deleteRuleMemory(userId: string, scope: string, scopeId: number | null, key: string): Promise<void>;
+  getEffectiveRules(userId: string, botId: number | null): Promise<Record<string, any>>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1629,6 +1637,69 @@ export class DatabaseStorage implements IStorage {
       .where(and(...conditions))
       .orderBy(desc(auditLogs.createdAt))
       .limit(filters?.limit ?? 50);
+  }
+
+  async listRuleMemories(userId: string, scope: string, scopeId: number | null): Promise<RuleMemory[]> {
+    const conditions = [eq(ruleMemories.userId, userId), eq(ruleMemories.scope, scope)];
+    if (scopeId != null) {
+      conditions.push(eq(ruleMemories.scopeId, scopeId));
+    } else {
+      conditions.push(isNull(ruleMemories.scopeId));
+    }
+    return db.select().from(ruleMemories).where(and(...conditions)).orderBy(ruleMemories.key);
+  }
+
+  async listAllUserRuleMemories(userId: string): Promise<RuleMemory[]> {
+    return db.select().from(ruleMemories)
+      .where(eq(ruleMemories.userId, userId))
+      .orderBy(ruleMemories.scope, ruleMemories.key);
+  }
+
+  async upsertRuleMemory(userId: string, scope: string, scopeId: number | null, key: string, valueJson: any): Promise<RuleMemory> {
+    const existing = await db.select().from(ruleMemories)
+      .where(and(
+        eq(ruleMemories.userId, userId),
+        eq(ruleMemories.scope, scope),
+        scopeId != null ? eq(ruleMemories.scopeId, scopeId) : isNull(ruleMemories.scopeId),
+        eq(ruleMemories.key, key),
+      ))
+      .limit(1);
+
+    if (existing.length > 0) {
+      const [updated] = await db.update(ruleMemories)
+        .set({ valueJson, updatedAt: new Date() } as any)
+        .where(eq(ruleMemories.id, existing[0].id))
+        .returning();
+      return updated;
+    }
+
+    const [created] = await db.insert(ruleMemories)
+      .values({ userId, scope, scopeId, key, valueJson, updatedAt: new Date() } as any)
+      .returning();
+    return created;
+  }
+
+  async deleteRuleMemory(userId: string, scope: string, scopeId: number | null, key: string): Promise<void> {
+    await db.delete(ruleMemories).where(and(
+      eq(ruleMemories.userId, userId),
+      eq(ruleMemories.scope, scope),
+      scopeId != null ? eq(ruleMemories.scopeId, scopeId) : isNull(ruleMemories.scopeId),
+      eq(ruleMemories.key, key),
+    ));
+  }
+
+  async getEffectiveRules(userId: string, botId: number | null): Promise<Record<string, any>> {
+    const globalRules = await this.listRuleMemories(userId, "global", null);
+    const botRules = botId ? await this.listRuleMemories(userId, "bot", botId) : [];
+
+    const merged: Record<string, any> = {};
+    for (const rule of globalRules) {
+      merged[rule.key] = rule.valueJson;
+    }
+    for (const rule of botRules) {
+      merged[rule.key] = rule.valueJson;
+    }
+    return merged;
   }
 }
 

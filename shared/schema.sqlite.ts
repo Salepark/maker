@@ -321,3 +321,17 @@ export const reportMetrics = sqliteTable("report_metrics", {
 }, (table) => [
   index("idx_report_metrics_profile").on(table.profileId, table.createdAt),
 ]);
+
+export const ruleMemories = sqliteTable("rule_memories", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id").notNull().references(() => users.id),
+  scope: text("scope").notNull(),
+  scopeId: integer("scope_id"),
+  key: text("key").notNull(),
+  valueJson: text("value_json", { mode: "json" }).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
+}, (table) => [
+  uniqueIndex("rule_memories_scope_key_unique").on(table.userId, table.scope, table.scopeId, table.key),
+  index("idx_rule_memories_user_scope").on(table.userId, table.scope, table.scopeId),
+]);

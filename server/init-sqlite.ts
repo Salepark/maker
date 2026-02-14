@@ -319,6 +319,19 @@ export function initSqliteTables() {
       created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
     );
     CREATE INDEX IF NOT EXISTS idx_report_metrics_profile ON report_metrics(profile_id, created_at);
+
+    CREATE TABLE IF NOT EXISTS rule_memories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT NOT NULL REFERENCES users(id),
+      scope TEXT NOT NULL,
+      scope_id INTEGER,
+      key TEXT NOT NULL,
+      value_json TEXT NOT NULL,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
+      updated_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS rule_memories_scope_key_unique ON rule_memories(user_id, scope, scope_id, key);
+    CREATE INDEX IF NOT EXISTS idx_rule_memories_user_scope ON rule_memories(user_id, scope, scope_id);
   `);
 
   console.log("[SQLite] All tables created successfully");
