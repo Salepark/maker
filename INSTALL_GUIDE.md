@@ -1,282 +1,281 @@
 # Maker Desktop App - Installation & Troubleshooting Guide
-# Maker 데스크톱 앱 - 설치 및 에러 대응 가이드
 
 ---
 
-## Download / 다운로드
+## Download
 
-**[GitHub Releases](https://github.com/Salepark/maker/releases)** 에서 OS에 맞는 파일을 받으세요.
+Download the installer for your OS from **[GitHub Releases](https://github.com/Salepark/maker/releases)**.
 
-| OS | File / 파일 | Size / 크기 |
-|----|------------|-------------|
-| Windows | `Maker-Setup.exe` (installer) 또는 `Maker.exe` (portable) | ~280 MB |
+| OS | File | Size |
+|----|------|------|
+| Windows | `Maker-Setup.exe` (installer) or `Maker.exe` (portable) | ~280 MB |
 | Mac | `Maker.dmg` | ~280 MB |
-| Linux | `Maker.AppImage` 또는 `maker.deb` | ~280 MB |
+| Linux | `Maker.AppImage` or `maker.deb` | ~280 MB |
 
 ---
 
-## Windows Installation / 윈도우 설치
+## Windows Installation
 
-### Install / 설치
+### Install
 
-1. `Maker-Setup.exe` 다운로드
-2. 더블클릭하여 실행
-3. 설치 경로 선택 (기본값 추천)
-4. 설치 완료 후 바탕화면 또는 시작 메뉴에서 **Maker** 실행
+1. Download `Maker-Setup.exe`
+2. Double-click to run
+3. Choose install location (default recommended)
+4. After installation, launch **Maker** from the desktop or Start menu
 
-### Portable Version / 포터블 버전
+### Portable Version
 
-설치 없이 사용하려면 `Maker.exe`를 다운로드하여 바로 실행하세요.
+To use without installing, download `Maker.exe` and run it directly.
 
-### Windows Troubleshooting / 윈도우 에러 대응
+### Windows Troubleshooting
 
-#### "Windows의 PC 보호" 경고 (SmartScreen)
+#### "Windows protected your PC" warning (SmartScreen)
 
-> Windows Defender SmartScreen이 인식할 수 없는 앱의 시작을 방지했습니다.
+> Windows Defender SmartScreen prevented an unrecognized app from starting.
 
-**해결:**
-1. "추가 정보" 클릭
-2. "실행" 버튼 클릭
+**Fix:**
+1. Click "More info"
+2. Click "Run anyway"
 
-이 경고는 코드 서명이 없는 앱에서 나타나며, 처음 한 번만 허용하면 됩니다.
+This warning appears for unsigned apps and only needs to be dismissed once.
 
-#### 빈 화면 (White Screen)
+#### Blank Screen (White Screen)
 
-**해결:**
-1. 앱을 완전히 종료 (작업 표시줄에서 우클릭 > 닫기)
-2. 10초 기다린 후 다시 실행
-3. 그래도 안 되면 명령 프롬프트(cmd)에서 실행하여 에러 확인:
+**Fix:**
+1. Fully close the app (right-click on taskbar > Close)
+2. Wait 10 seconds, then relaunch
+3. If it persists, run from Command Prompt to see error details:
 ```cmd
-"C:\Users\[사용자이름]\AppData\Local\Programs\Maker\Maker.exe"
+"C:\Users\[YourUsername]\AppData\Local\Programs\Maker\Maker.exe"
 ```
 
-#### Port 5000 충돌
+#### Port 5000 Conflict
 
 > Error: listen EADDRINUSE: address already in use 127.0.0.1:5000
 
-이전 실행이 완전히 종료되지 않았을 때 발생합니다.
+This occurs when a previous instance wasn't fully closed.
 
-**해결 (명령 프롬프트):**
+**Fix (Command Prompt):**
 ```cmd
 netstat -ano | findstr :5000
-taskkill /PID [표시된PID번호] /F
+taskkill /PID [displayed_PID] /F
 ```
 
-**또는 작업 관리자에서:**
-1. `Ctrl+Shift+Esc`로 작업 관리자 열기
-2. "Maker" 또는 "Node.js" 프로세스 찾기
-3. "작업 끝내기" 클릭
-4. Maker 다시 실행
+**Or via Task Manager:**
+1. Press `Ctrl+Shift+Esc` to open Task Manager
+2. Find "Maker" or "Node.js" process
+3. Click "End task"
+4. Relaunch Maker
 
 ---
 
-## Mac Installation / 맥 설치
+## Mac Installation
 
-### Install / 설치
+### Install
 
-1. `Maker.dmg` 다운로드
-2. 더블클릭하여 DMG 열기
-3. Maker 아이콘을 **Applications** 폴더로 드래그
-4. DMG 꺼내기 (디스크 아이콘 우클릭 > 추출)
+1. Download `Maker.dmg`
+2. Double-click to open the DMG
+3. Drag the Maker icon to the **Applications** folder
+4. Eject the DMG (right-click disk icon > Eject)
 
-### Mac Troubleshooting / 맥 에러 대응
+### Mac Troubleshooting
 
-#### "개발자를 확인할 수 없습니다" / "악성 코드가 없음을 확인할 수 없습니다"
+#### "Cannot verify developer" / "Cannot confirm it is free from malware"
 
-> 'Maker'은(는) 알 수 없는 개발자가 만든 앱이므로 열 수 없습니다.
+> "Maker" is from an unidentified developer and cannot be opened.
 
-코드 서명이 없는 앱에서 나타나는 macOS 보안 경고입니다.
+This is a macOS security warning for unsigned apps.
 
-**해결 (방법 1 - 터미널):**
+**Fix (Method 1 — Terminal):**
 ```bash
 sudo xattr -cr /Applications/Maker.app
 ```
-비밀번호 입력 후 Maker 실행
+Enter your password, then launch Maker.
 
-**해결 (방법 2 - Finder):**
-1. Finder에서 Applications 폴더 열기
-2. Maker.app을 **Control + 클릭** (또는 트랙패드 두 손가락 클릭)
-3. 메뉴에서 **"열기"** 선택
-4. 경고 대화상자에서 **"열기"** 버튼 클릭
+**Fix (Method 2 — Finder):**
+1. Open the Applications folder in Finder
+2. **Control-click** (or two-finger tap on trackpad) on Maker.app
+3. Select **"Open"** from the menu
+4. Click **"Open"** in the warning dialog
 
-이 과정은 처음 한 번만 하면 됩니다.
+This only needs to be done once.
 
-#### 앱이 바로 종료됨 (시작되자마자 사라짐)
+#### App closes immediately after launch
 
-**원인 확인 - 터미널에서 실행:**
+**Check the cause — run from Terminal:**
 ```bash
 /Applications/Maker.app/Contents/MacOS/Maker
 ```
-에러 메시지가 터미널에 표시됩니다.
+Error messages will appear in the terminal.
 
-#### 빈 화면 (White Screen)
+#### Blank Screen (White Screen)
 
-서버가 시작되었지만 화면이 비어 있는 경우:
+If the server started but the screen is empty:
 
-**해결 1 - 새로고침:**
-- `Cmd + R`로 페이지 새로고침
+**Fix 1 — Refresh:**
+- Press `Cmd + R` to reload the page
 
-**해결 2 - 포트 충돌 확인:**
+**Fix 2 — Check for port conflict:**
 ```bash
 lsof -ti:5000 | xargs kill -9
 ```
-이후 Maker 다시 실행
+Then relaunch Maker.
 
-**해결 3 - 터미널에서 서버 상태 확인:**
+**Fix 3 — Verify server status from Terminal:**
 ```bash
 curl http://127.0.0.1:5000/api/health
 ```
-응답이 오면 서버는 정상입니다. `Cmd + R`로 새로고침하세요.
+If you get a response, the server is running fine. Press `Cmd + R` to refresh.
 
-#### Port 5000 충돌
+#### Port 5000 Conflict
 
 > Error: listen EADDRINUSE: address already in use 127.0.0.1:5000
 
-이전 실행이 완전히 종료되지 않았을 때 발생합니다.
+This occurs when a previous instance wasn't fully closed.
 
-**해결:**
+**Fix:**
 ```bash
 lsof -ti:5000 | xargs kill -9
 ```
-이후 Maker 다시 실행
+Then relaunch Maker.
 
-#### 앱 종료 방법
+#### How to Fully Quit the App
 
-앱을 완전히 종료하려면:
-- 창의 **빨간 X 버튼** 클릭, 또는
-- **Cmd + Q** 누르기
+To completely close Maker:
+- Click the **red X button** on the window, or
+- Press **Cmd + Q**
 
-이렇게 하면 서버도 함께 종료됩니다.
+This also shuts down the server.
 
 ---
 
-## Linux Installation / 리눅스 설치
+## Linux Installation
 
-### AppImage (추천)
+### AppImage (Recommended)
 
 ```bash
-# 1. 다운로드한 파일에 실행 권한 부여
+# 1. Make the downloaded file executable
 chmod +x Maker.AppImage
 
-# 2. 실행
+# 2. Run
 ./Maker.AppImage
 ```
 
 ### Debian/Ubuntu (.deb)
 
 ```bash
-# 1. 설치
+# 1. Install
 sudo dpkg -i maker_amd64.deb
 
-# 2. 의존성 문제 시
+# 2. Fix dependency issues (if any)
 sudo apt-get install -f
 
-# 3. 실행
+# 3. Run
 maker
 ```
 
-### Linux Troubleshooting / 리눅스 에러 대응
+### Linux Troubleshooting
 
-#### AppImage 실행 안 됨
+#### AppImage won't run
 
 ```bash
-# 실행 권한 확인
+# Check execution permission
 chmod +x Maker.AppImage
 
-# FUSE가 필요할 수 있음
+# FUSE may be required
 sudo apt-get install fuse libfuse2
 ```
 
-#### 빈 화면
+#### Blank Screen
 
 ```bash
-# 포트 확인
+# Check port
 ss -tlnp | grep 5000
 
-# 포트 사용 중이면 종료
+# Kill existing process if port is in use
 kill $(lsof -ti:5000)
 
-# 다시 실행
+# Relaunch
 ./Maker.AppImage
 ```
 
-#### Sandbox 에러
+#### Sandbox Error
 
 > FATAL:setuid_sandbox_host.cc - The SUID sandbox helper binary was found...
 
 ```bash
-# --no-sandbox 옵션으로 실행
+# Run with --no-sandbox flag
 ./Maker.AppImage --no-sandbox
 ```
 
 ---
 
-## Common Issues / 공통 문제
+## Common Issues
 
-### 데이터 저장 위치
+### Data Storage Location
 
-Maker는 로컬에 SQLite 데이터베이스를 저장합니다:
+Maker stores its data in a local SQLite database:
 
-| OS | 경로 |
+| OS | Path |
 |----|------|
 | Windows | `%AppData%\maker\maker.db` |
 | Mac | `~/Library/Application Support/maker/maker.db` |
 | Linux | `~/.config/maker/maker.db` |
 
-### 데이터 초기화 (리셋)
+### Reset Data
 
-모든 데이터를 삭제하고 처음부터 시작하려면 위 경로의 `maker.db` 파일을 삭제하세요.
+To delete all data and start fresh, remove the `maker.db` file at the path above.
 
-**Mac 예시:**
+**Mac:**
 ```bash
 rm ~/Library/Application\ Support/maker/maker.db
 ```
 
-**Windows 예시 (PowerShell):**
+**Windows (PowerShell):**
 ```powershell
 Remove-Item "$env:APPDATA\maker\maker.db"
 ```
 
-### 서버 로그 확인
+### Checking Server Logs
 
-문제가 계속될 때 터미널에서 실행하면 상세 로그를 볼 수 있습니다:
+If issues persist, run the app from the terminal to see detailed logs:
 
-| OS | 명령어 |
-|----|--------|
-| Windows | `"C:\Users\[사용자]\AppData\Local\Programs\Maker\Maker.exe"` |
+| OS | Command |
+|----|---------|
+| Windows | `"C:\Users\[YourUsername]\AppData\Local\Programs\Maker\Maker.exe"` |
 | Mac | `/Applications/Maker.app/Contents/MacOS/Maker` |
-| Linux | `./Maker.AppImage` (터미널에서) |
+| Linux | `./Maker.AppImage` (from terminal) |
 
-로그에서 확인할 키워드:
-- `[server] serving on port 5000` - 서버 정상 시작
-- `[server:err]` - 서버 에러
-- `EADDRINUSE` - 포트 충돌
-- `ENOTSUP` - 네트워크 에러
+Key log messages to look for:
+- `[server] serving on port 5000` — Server started successfully
+- `[server:err]` — Server error
+- `EADDRINUSE` — Port conflict
+- `ENOTSUP` — Network error
 
-### LLM API 키 설정
+### LLM API Key Setup
 
-AI 분석 기능을 사용하려면 앱 내 Settings에서 LLM Provider를 설정하세요:
-1. Maker 앱 실행
-2. 좌측 메뉴에서 **Settings** 클릭
-3. **LLM Providers** 섹션에서 API 키 입력
-4. 지원 서비스: OpenAI, Anthropic, Google AI 등
+To use AI analysis features, configure your LLM provider in the app:
+1. Launch Maker
+2. Click **Settings** in the sidebar
+3. Enter your API key in the **LLM Providers** section
+4. Supported services: OpenAI, Anthropic, Google AI, and more
 
 ---
 
-## Version Info / 버전 정보
+## Version Info
 
-- Node.js: v20+ (내장)
+- Node.js: v20+ (bundled)
 - Electron: v33+
-- SQLite: better-sqlite3 (내장)
+- SQLite: better-sqlite3 (bundled)
 
 ---
 
-## Need Help? / 도움이 필요하면
+## Need Help?
 
-GitHub Issues에 에러 메시지와 함께 보고해 주세요:
+Report issues with error messages on GitHub Issues:
 **[https://github.com/Salepark/maker/issues](https://github.com/Salepark/maker/issues)**
 
-보고 시 포함하면 좋은 정보:
-1. OS 종류 및 버전 (예: macOS 15.3, Windows 11)
-2. 에러 메시지 전문 (터미널에서 실행하여 확인)
-3. 스크린샷 (가능하면)
+When reporting, please include:
+1. OS type and version (e.g., macOS 15.3, Windows 11)
+2. Full error message (run from terminal to capture)
+3. Screenshots (if possible)

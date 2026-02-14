@@ -1,46 +1,46 @@
-# Maker Desktop - 설치 & 실행 가이드
+# Maker Desktop - Setup & Run Guide
 
 ---
 
-## 설치 파일 다운로드 (가장 간단한 방법)
+## Download Installers (Easiest Method)
 
-GitHub Releases에서 본인 OS에 맞는 파일을 받으세요:
+Download the installer for your OS from GitHub Releases:
 
 **[https://github.com/Salepark/maker/releases](https://github.com/Salepark/maker/releases)**
 
-| OS | 다운로드 파일 | 설치 방법 |
-|----|-------------|-----------|
-| Windows | `Maker.exe` (portable) 또는 `Maker-Setup.exe` (installer) | 더블클릭으로 실행 |
-| Mac | `Maker.dmg` | 더블클릭 > Maker를 Applications로 드래그 |
-| Linux | `Maker.AppImage` | `chmod +x Maker.AppImage` 후 실행 |
+| OS | Download File | How to Install |
+|----|---------------|----------------|
+| Windows | `Maker.exe` (portable) or `Maker-Setup.exe` (installer) | Double-click to run |
+| Mac | `Maker.dmg` | Double-click > Drag Maker to Applications |
+| Linux | `Maker.AppImage` | `chmod +x Maker.AppImage` then run |
 
-설치 파일은 코드가 업데이트될 때마다 자동으로 새 버전이 올라갑니다.
+Installers are automatically updated with each new code release.
 
-### Mac에서 "개발자를 확인할 수 없습니다" 경고가 나올 때
+### Mac: "Cannot verify developer" warning
 
-Maker.app 우클릭 > "열기" 를 선택하면 됩니다 (처음 한 번만).
-
----
-
-## 소스에서 직접 빌드 (개발자용)
-
-아래는 코드를 직접 받아서 개발 모드로 실행하는 방법입니다.
-
-`clone` -> `npm install` -> `npm run dev:desktop` — 이 3단계로 끝납니다.
+Right-click Maker.app > Select "Open" (only needed once).
 
 ---
 
-## 사전 준비
+## Build from Source (For Developers)
 
-### 필수 설치 프로그램
+Below are instructions for cloning the code and running in development mode.
 
-| 항목 | 최소 버전 | 확인 명령어 |
-|------|-----------|-------------|
-| Node.js | 18 이상 | `node -v` |
-| npm | 9 이상 | `npm -v` |
-| Git | 최신 | `git --version` |
+`clone` -> `npm install` -> `npm run dev:desktop` — That's it, 3 steps.
 
-### OS별 추가 준비
+---
+
+## Prerequisites
+
+### Required Software
+
+| Item | Minimum Version | Check Command |
+|------|-----------------|---------------|
+| Node.js | 18+ | `node -v` |
+| npm | 9+ | `npm -v` |
+| Git | Latest | `git --version` |
+
+### OS-Specific Preparation
 
 **Mac:**
 ```bash
@@ -48,12 +48,12 @@ xcode-select --install
 ```
 
 **Windows:**
-- [Visual Studio Build Tools](https://visualstudio.microsoft.com/ko/visual-studio-build-tools/) 설치
-- "C++ 빌드 도구" 워크로드 선택
+- Install [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-studio-build-tools/)
+- Select "C++ Build Tools" workload
 
 ---
 
-## STEP 1 - 코드 다운로드 & 설치
+## STEP 1 - Clone & Install
 
 ```bash
 git clone https://github.com/Salepark/maker.git
@@ -61,58 +61,58 @@ cd maker
 npm install
 ```
 
-`npm install` 후 `better-sqlite3` 관련 오류가 나면:
+If you get a `better-sqlite3` related error after `npm install`:
 ```bash
 npm rebuild better-sqlite3
 ```
 
 ---
 
-## STEP 2 - Dev 모드 실행
+## STEP 2 - Run in Dev Mode
 
 ```bash
 npm run dev:desktop
 ```
 
-이 명령 하나로 Mac / Windows / Linux 전부 동작합니다.
-(`cross-env`로 환경변수를 OS에 관계없이 통일 처리합니다)
+This single command works on Mac / Windows / Linux.
+(`cross-env` handles environment variables consistently across all OSes)
 
-내부적으로 실행되는 명령:
+Under the hood, it runs:
 ```
 cross-env MAKER_DB=sqlite MAKER_DESKTOP=true NODE_ENV=development electron -r tsx/register electron/main.ts
 ```
 
-### 성공하면 이렇게 됩니다
+### What success looks like
 
-1. 터미널에 `[electron] Starting Maker desktop app...` 로그 출력
-2. `[server] serving on port 5000` 로그 출력
-3. Electron 창이 열림
-4. **로그인 화면 없이** 바로 대시보드 진입 (로컬 자동 로그인)
+1. Terminal shows `[electron] Starting Maker desktop app...`
+2. Terminal shows `[server] serving on port 5000`
+3. Electron window opens
+4. Dashboard loads immediately **without a login screen** (local auto-login)
 
-### 기본 확인 사항
+### Basic Checks
 
-| 확인 항목 | 예상 결과 |
-|-----------|-----------|
-| Electron 창 표시 | 대시보드 화면이 보임 |
-| 로그인 과정 | 없음 (자동 진입) |
-| Health 체크 | 브라우저에서 `http://localhost:5000/api/health` 접속 시 `driver: "sqlite"` 표시 |
+| Check | Expected Result |
+|-------|-----------------|
+| Electron window | Dashboard is displayed |
+| Login process | None (auto-login) |
+| Health check | Visit `http://localhost:5000/api/health` in browser — should show `driver: "sqlite"` |
 
-**여기까지 성공하면 80% 완료입니다.**
+**If you've reached this point, you're 80% done.**
 
 ---
 
-## STEP 3 - 기본 기능 테스트
+## STEP 3 - Test Basic Features
 
-### 소스 추가 & Fast Report 테스트
+### Add Sources & Test Fast Report
 
-1. 사이드바에서 "Sources" 클릭
-2. RSS 소스 추가 (예: `https://news.ycombinator.com/rss`)
-3. 봇 상세 페이지에서 "Run Now" 클릭
-4. 2~3초 내에 Fast Report 생성 확인
+1. Click "Sources" in the sidebar
+2. Add an RSS source (e.g., `https://news.ycombinator.com/rss`)
+3. Click "Run Now" on the bot detail page
+4. Confirm a Fast Report is generated within 2–3 seconds
 
-### SQLite 파일 확인
+### Verify SQLite File
 
-소스를 추가하면 SQLite 파일이 자동 생성됩니다:
+Adding a source automatically creates the SQLite database file:
 
 **Mac:**
 ```bash
@@ -129,61 +129,61 @@ dir "$env:APPDATA\Maker\maker.db"
 ls ~/.config/Maker/maker.db
 ```
 
-파일이 존재하면 데이터가 정상 저장되고 있는 것입니다.
+If the file exists, data is being saved correctly.
 
 ---
 
-## STEP 4 - 프로덕션 빌드 (선택사항)
+## STEP 4 - Production Build (Optional)
 
-실행 파일(.app, .exe)을 만들려면:
+To create distributable executables (.app, .exe):
 
 ```bash
-# 1. 클라이언트 + 서버 번들링
+# 1. Bundle client + server
 npm run build:desktop
 
-# 2. 실행 파일 패키징
+# 2. Package into executable
 npm run pack:desktop
 ```
 
-성공 시 `dist-electron/` 폴더에 생성됩니다:
+Output is generated in the `dist-electron/` folder:
 
-| OS | 생성 파일 |
-|----|-----------|
+| OS | Output Files |
+|----|-------------|
 | Mac | `Maker.app`, `Maker.dmg` |
 | Windows | `Maker.exe` (portable), `Maker Setup.exe` (installer) |
 | Linux | `Maker.AppImage`, `maker.deb` |
 
 ---
 
-## 자주 발생하는 문제 & 해결
+## Troubleshooting
 
-### 1. Electron 창은 뜨지만 화면이 비어있음
+### 1. Electron window opens but screen is blank
 
-**원인:** 서버가 아직 시작되지 않은 상태에서 페이지 로딩
+**Cause:** Page loaded before the server finished starting.
 
-**해결:**
-- 터미널에서 `[server] serving on port 5000` 로그가 나오는지 확인
-- Electron 창에서 `Cmd+R` (Mac) / `Ctrl+R` (Windows)로 새로고침
+**Fix:**
+- Check terminal for the `[server] serving on port 5000` log
+- Press `Cmd+R` (Mac) / `Ctrl+R` (Windows) to refresh
 
-### 2. `better-sqlite3` 네이티브 모듈 오류
+### 2. `better-sqlite3` native module error
 
 ```
 Error: Module did not self-register
 ```
 
-**해결:**
+**Fix:**
 ```bash
 npm rebuild better-sqlite3
 ```
 
-Mac에서 계속 오류 시:
+If the error persists on Mac:
 ```bash
 npm rebuild better-sqlite3 --build-from-source
 ```
 
-### 3. `npm run dev:desktop`이 동작하지 않을 때 (수동 실행)
+### 3. `npm run dev:desktop` doesn't work (manual run)
 
-스크립트 없이 직접 실행하려면:
+Run directly without the script:
 
 **Mac / Linux:**
 ```bash
@@ -208,7 +208,7 @@ npx electron -r tsx/register electron/main.ts
 
 ### 4. Port 5000 already in use
 
-**해결:**
+**Fix:**
 ```bash
 # Mac/Linux
 lsof -i :5000 | grep LISTEN
@@ -219,19 +219,19 @@ netstat -ano | findstr :5000
 taskkill /PID <PID> /F
 ```
 
-### 5. 패키징 시 코드 서명 경고 (Mac)
+### 5. Code signing warning on Mac during packaging
 
-Mac에서 서명 없이 빌드하면 "개발자를 확인할 수 없습니다" 경고가 나옵니다.
+Building without code signing on Mac will trigger a "Cannot verify developer" warning.
 
-**테스트용 우회:**
-- `Maker.app` 우클릭 > "열기" 선택 (처음 한 번만)
+**Workaround for testing:**
+- Right-click `Maker.app` > Select "Open" (only needed once)
 
-**또는 빌드 시 서명 건너뛰기:**
+**Or skip signing during build:**
 ```bash
 CSC_IDENTITY_AUTO_DISCOVERY=false npm run pack:desktop
 ```
 
-### 6. 앱 종료 후에도 서버 프로세스가 남아있음
+### 6. Server process remains running after app closes
 
 ```bash
 # Mac/Linux
@@ -243,70 +243,70 @@ taskkill /F /IM node.exe
 
 ---
 
-## 실행 파일 테스트 체크리스트
+## Executable Testing Checklist
 
-더블클릭으로 실행한 후 아래 항목을 점검합니다:
+After launching the built executable, verify the following:
 
-| 테스트 항목 | 확인 |
-|-------------|------|
-| 앱 실행 (더블클릭) | |
-| 로그인 없이 바로 진입 | |
-| RSS 소스 추가 | |
-| Fast Report 생성 (2~3초) | |
-| SQLite 파일 생성 확인 | |
-| 앱 종료 후 재실행 시 데이터 유지 | |
-| 인터넷 끊고 Fast Report 생성 | |
-
----
-
-## npm 스크립트 정리
-
-| 스크립트 | 용도 |
-|----------|------|
-| `npm run dev:desktop` | Dev 모드 Electron 실행 (SQLite, 자동 로그인) |
-| `npm run build:desktop` | 프로덕션용 클라이언트+서버 번들링 |
-| `npm run pack:desktop` | .app / .exe / .AppImage 패키징 |
-| `npm run dev` | 클라우드 모드 서버 실행 (PostgreSQL) |
+| Test Item | Pass |
+|-----------|------|
+| App launches (double-click) | |
+| Dashboard loads without login | |
+| Add RSS source | |
+| Fast Report generated (2–3 sec) | |
+| SQLite file created | |
+| Data persists after restart | |
+| Fast Report works offline | |
 
 ---
 
-## 프로젝트 구조 (Desktop 관련)
+## npm Scripts Reference
+
+| Script | Purpose |
+|--------|---------|
+| `npm run dev:desktop` | Run Electron in dev mode (SQLite, auto-login) |
+| `npm run build:desktop` | Bundle client + server for production |
+| `npm run pack:desktop` | Package into .app / .exe / .AppImage |
+| `npm run dev` | Run cloud mode server (PostgreSQL) |
+
+---
+
+## Project Structure (Desktop-related)
 
 ```
 maker/
 ├── electron/
-│   ├── main.ts               # Electron 메인 프로세스 (서버 시작, 창 생성)
-│   ├── preload.ts            # 브라우저에 window.maker / window.electronAPI 노출
-│   └── electron-builder.yml  # 패키징 설정
+│   ├── main.ts               # Electron main process (starts server, creates window)
+│   ├── preload.ts            # Exposes window.maker / window.electronAPI to renderer
+│   └── electron-builder.yml  # Packaging configuration
 ├── script/
-│   ├── build.ts              # 클라우드용 빌드
-│   └── build-desktop.ts      # 데스크톱용 빌드 (서버+클라이언트+Electron)
+│   ├── build.ts              # Cloud build script
+│   └── build-desktop.ts      # Desktop build script (server + client + Electron)
 ├── server/
-│   ├── db.ts                 # DB 드라이버 분기 (PostgreSQL / SQLite)
-│   ├── init-sqlite.ts        # SQLite 테이블 초기화
-│   └── storage-sqlite.ts     # SQLite 전용 스토리지 구현
+│   ├── db.ts                 # DB driver selector (PostgreSQL / SQLite)
+│   ├── init-sqlite.ts        # SQLite table initialization
+│   └── storage-sqlite.ts     # SQLite-specific storage implementation
 ├── shared/
-│   ├── schema.ts             # PostgreSQL 스키마 (Drizzle)
-│   └── schema.sqlite.ts      # SQLite 스키마 (Drizzle)
-└── LOCAL_SETUP.md            # 이 문서
+│   ├── schema.ts             # PostgreSQL schema (Drizzle)
+│   └── schema.sqlite.ts      # SQLite schema (Drizzle)
+└── LOCAL_SETUP.md            # This document
 ```
 
 ---
 
-## 다음 단계 (테스트 통과 후)
+## Next Steps (After Testing)
 
-1. 앱 아이콘 & 브랜딩 적용
-2. 자동 업데이트 (electron-updater)
-3. 코드 서명 (Apple Developer / Windows Authenticode)
-4. 배포 채널 설정 (GitHub Releases)
+1. App icon & branding
+2. Auto-update (electron-updater)
+3. Code signing (Apple Developer / Windows Authenticode)
+4. Distribution channel setup (GitHub Releases)
 
 ---
 
-## 문제가 생기면
+## Need Help?
 
-Dev 모드 실행 시 터미널에 나오는 로그를 확인하세요:
-- `[electron]` - Electron 메인 프로세스 로그
-- `[server]` - Express 서버 로그
-- `[server:err]` - 서버 에러 로그
+Check the terminal logs when running in dev mode:
+- `[electron]` — Electron main process logs
+- `[server]` — Express server logs
+- `[server:err]` — Server error logs
 
-로그 내용과 함께 문의하면 빠르게 해결할 수 있습니다.
+Include these logs when reporting issues for faster resolution.
