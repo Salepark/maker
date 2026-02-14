@@ -1,5 +1,6 @@
 appId: com.maker.desktop
 productName: Maker
+asar: false
 directories:
   output: dist-electron
   buildResources: electron/resources
@@ -24,11 +25,6 @@ files:
   - "package.json"
 extraMetadata:
   main: dist/electron/main.cjs
-asarUnpack:
-  - "node_modules/better-sqlite3/**/*"
-  - "node_modules/bindings/**/*"
-  - "node_modules/file-uri-to-path/**/*"
-  - "node_modules/node-addon-api/**/*"
 mac:
   category: public.app-category.productivity
   target:
