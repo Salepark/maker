@@ -1,0 +1,172 @@
+Run npm run pack:desktop
+
+> maker@1.0.0 pack:desktop
+> electron-builder --config electron/electron-builder.yml
+
+  • electron-builder  version=26.7.0 os=6.14.0-1017-azure
+  • Implicit publishing triggered by git tag. This behavior will be disabled in electron-builder v27. Please use --publish explicitly.  tag=v1.0.0
+  • loaded configuration  file=/home/runner/work/maker/maker/electron/electron-builder.yml
+  • executing @electron/rebuild  electronVersion=40.4.0 arch=x64 buildFromSource=false workspaceRoot=/home/runner/work/maker/maker projectDir=./ appDir=./
+  • installing native dependencies  arch=x64
+  • preparing       moduleName=better-sqlite3 arch=x64
+  • finished        moduleName=better-sqlite3 arch=x64
+  • preparing       moduleName=bufferutil arch=x64
+  • finished        moduleName=bufferutil arch=x64
+  • completed installing native dependencies
+  • packaging       platform=linux arch=x64 electron=40.4.0 appOutDir=dist-electron/linux-unpacked
+  • downloading     url=https://github.com/electron/electron/releases/download/v40.4.0/electron-v40.4.0-linux-x64.zip size=115 MB parts=4
+  • downloaded      url=https://github.com/electron/electron/releases/download/v40.4.0/electron-v40.4.0-linux-x64.zip duration=474ms
+  • asar usage is disabled — this is strongly not recommended  solution=enable asar and use asarUnpack to unpack files that must be externally available
+  • searching for node modules  pm=npm searchDir=/home/runner/work/maker/maker
+  • asar usage is disabled — this is strongly not recommended  solution=enable asar and use asarUnpack to unpack files that must be externally available
+  • building        target=AppImage arch=x64 file=dist-electron/Maker-1.0.0.AppImage
+  • default Electron icon is used  reason=application icon is not set
+  • downloading     url=https://github.com/electron-userland/electron-builder-binaries/releases/download/appimage-12.0.1/appimage-12.0.1.7z size=1.6 MB parts=1
+  • downloaded      url=https://github.com/electron-userland/electron-builder-binaries/releases/download/appimage-12.0.1/appimage-12.0.1.7z duration=190ms
+  • publishing      publisher=Github (owner: Salepark, project: maker, version: 1.0.0)
+  • building        target=deb arch=x64 file=dist-electron/maker_1.0.0_amd64.deb
+  • uploading       file=Maker-1.0.0.AppImage provider=github
+  • adding autoupdate files for: deb  resourceDir=dist-electron/linux-unpacked/resources
+  • creating GitHub release  reason=release doesn't exist tag=v1.0.0 version=1.0.0
+  • downloading     url=https://github.com/electron-userland/electron-builder-binaries/releases/download/fpm@2.1.4/fpm-1.17.0-ruby-3.4.3-linux-amd64.7z size=9.8 MB parts=1
+  • downloaded      url=https://github.com/electron-userland/electron-builder-binaries/releases/download/fpm@2.1.4/fpm-1.17.0-ruby-3.4.3-linux-amd64.7z duration=256ms
+  • uploading       file=maker_1.0.0_amd64.deb provider=github
+  ⨯ Cannot cleanup: 
+
+Error #1 --------------------------------------------------------------------------------
+HttpError: 403 Forbidden
+"method: post url: https://api.github.com/repos/Salepark/maker/releases\n\n          Data:\n          {\"message\":\"Resource not accessible by integration\",\"documentation_url\":\"https://docs.github.com/rest/releases/releases#create-a-release\",\"status\":\"403\"}\n          "
+Headers: {
+  "date": "Sat, 14 Feb 2026 00:51:35 GMT",
+  "content-type": "application/json; charset=utf-8",
+  "content-length": "153",
+  "x-github-media-type": "github.v3; format=json",
+  "x-accepted-github-permissions": "contents=write; contents=write,workflows=write",
+  "x-github-api-version-selected": "2022-11-28",
+  "x-ratelimit-limit": "5000",
+  "x-ratelimit-remaining": "4992",
+  "x-ratelimit-reset": "1771031369",
+  "x-ratelimit-used": "8",
+  "x-ratelimit-resource": "core",
+  "access-control-expose-headers": "ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes, X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO, X-GitHub-Request-Id, Deprecation, Sunset",
+  "access-control-allow-origin": "*",
+  "strict-transport-security": "max-age=31536000; includeSubdomains; preload",
+  "x-frame-options": "deny",
+  "x-content-type-options": "nosniff",
+  "x-xss-protection": "0",
+  "referrer-policy": "origin-when-cross-origin, strict-origin-when-cross-origin",
+  "content-security-policy": "default-src 'none'",
+  "vary": "Accept-Encoding, Accept, X-Requested-With",
+  "x-github-request-id": "2C20:536B1:11928D8:4BC860F:698FC717",
+  "server": "github.com"
+}
+    at createHttpError (/home/runner/work/maker/maker/node_modules/builder-util-runtime/src/httpExecutor.ts:31:10)
+    at IncomingMessage.<anonymous> (/home/runner/work/maker/maker/node_modules/builder-util-runtime/src/httpExecutor.ts:202:13)
+    at IncomingMessage.emit (node:events:536:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at processTicksAndRejections (node:internal/process/task_queues:82:21)
+
+Error #2 --------------------------------------------------------------------------------
+HttpError: 403 Forbidden
+"method: post url: https://api.github.com/repos/Salepark/maker/releases\n\n          Data:\n          {\"message\":\"Resource not accessible by integration\",\"documentation_url\":\"https://docs.github.com/rest/releases/releases#create-a-release\",\"status\":\"403\"}\n          "
+Headers: {
+  "date": "Sat, 14 Feb 2026 00:51:35 GMT",
+  "content-type": "application/json; charset=utf-8",
+  "content-length": "153",
+  "x-github-media-type": "github.v3; format=json",
+  "x-accepted-github-permissions": "contents=write; contents=write,workflows=write",
+  "x-github-api-version-selected": "2022-11-28",
+  "x-ratelimit-limit": "5000",
+  "x-ratelimit-remaining": "4992",
+  "x-ratelimit-reset": "1771031369",
+  "x-ratelimit-used": "8",
+  "x-ratelimit-resource": "core",
+  "access-control-expose-headers": "ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes, X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO, X-GitHub-Request-Id, Deprecation, Sunset",
+  "access-control-allow-origin": "*",
+  "strict-transport-security": "max-age=31536000; includeSubdomains; preload",
+  "x-frame-options": "deny",
+  "x-content-type-options": "nosniff",
+  "x-xss-protection": "0",
+  "referrer-policy": "origin-when-cross-origin, strict-origin-when-cross-origin",
+  "content-security-policy": "default-src 'none'",
+  "vary": "Accept-Encoding, Accept, X-Requested-With",
+  "x-github-request-id": "2C20:536B1:11928D8:4BC860F:698FC717",
+  "server": "github.com"
+}
+    at createHttpError (/home/runner/work/maker/maker/node_modules/builder-util-runtime/src/httpExecutor.ts:31:10)
+    at IncomingMessage.<anonymous> (/home/runner/work/maker/maker/node_modules/builder-util-runtime/src/httpExecutor.ts:202:13)
+    at IncomingMessage.emit (node:events:536:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at processTicksAndRejections (node:internal/process/task_queues:82:21)  failedTask=build stackTrace=Error: Cannot cleanup: 
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            Error #1 --------------------------------------------------------------------------------
+HttpError: 403 Forbidden
+"method: post url: https://api.github.com/repos/Salepark/maker/releases\n\n          Data:\n          {\"message\":\"Resource not accessible by integration\",\"documentation_url\":\"https://docs.github.com/rest/releases/releases#create-a-release\",\"status\":\"403\"}\n          "
+Headers: {
+  "date": "Sat, 14 Feb 2026 00:51:35 GMT",
+  "content-type": "application/json; charset=utf-8",
+  "content-length": "153",
+  "x-github-media-type": "github.v3; format=json",
+  "x-accepted-github-permissions": "contents=write; contents=write,workflows=write",
+  "x-github-api-version-selected": "2022-11-28",
+  "x-ratelimit-limit": "5000",
+  "x-ratelimit-remaining": "4992",
+  "x-ratelimit-reset": "1771031369",
+  "x-ratelimit-used": "8",
+  "x-ratelimit-resource": "core",
+  "access-control-expose-headers": "ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes, X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO, X-GitHub-Request-Id, Deprecation, Sunset",
+  "access-control-allow-origin": "*",
+  "strict-transport-security": "max-age=31536000; includeSubdomains; preload",
+  "x-frame-options": "deny",
+  "x-content-type-options": "nosniff",
+  "x-xss-protection": "0",
+  "referrer-policy": "origin-when-cross-origin, strict-origin-when-cross-origin",
+  "content-security-policy": "default-src 'none'",
+  "vary": "Accept-Encoding, Accept, X-Requested-With",
+  "x-github-request-id": "2C20:536B1:11928D8:4BC860F:698FC717",
+  "server": "github.com"
+}
+    at createHttpError (/home/runner/work/maker/maker/node_modules/builder-util-runtime/src/httpExecutor.ts:31:10)
+    at IncomingMessage.<anonymous> (/home/runner/work/maker/maker/node_modules/builder-util-runtime/src/httpExecutor.ts:202:13)
+    at IncomingMessage.emit (node:events:536:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at processTicksAndRejections (node:internal/process/task_queues:82:21)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            Error #2 --------------------------------------------------------------------------------
+HttpError: 403 Forbidden
+"method: post url: https://api.github.com/repos/Salepark/maker/releases\n\n          Data:\n          {\"message\":\"Resource not accessible by integration\",\"documentation_url\":\"https://docs.github.com/rest/releases/releases#create-a-release\",\"status\":\"403\"}\n          "
+Headers: {
+  "date": "Sat, 14 Feb 2026 00:51:35 GMT",
+  "content-type": "application/json; charset=utf-8",
+  "content-length": "153",
+  "x-github-media-type": "github.v3; format=json",
+  "x-accepted-github-permissions": "contents=write; contents=write,workflows=write",
+  "x-github-api-version-selected": "2022-11-28",
+  "x-ratelimit-limit": "5000",
+  "x-ratelimit-remaining": "4992",
+  "x-ratelimit-reset": "1771031369",
+  "x-ratelimit-used": "8",
+  "x-ratelimit-resource": "core",
+  "access-control-expose-headers": "ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes, X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO, X-GitHub-Request-Id, Deprecation, Sunset",
+  "access-control-allow-origin": "*",
+  "strict-transport-security": "max-age=31536000; includeSubdomains; preload",
+  "x-frame-options": "deny",
+  "x-content-type-options": "nosniff",
+  "x-xss-protection": "0",
+  "referrer-policy": "origin-when-cross-origin, strict-origin-when-cross-origin",
+  "content-security-policy": "default-src 'none'",
+  "vary": "Accept-Encoding, Accept, X-Requested-With",
+  "x-github-request-id": "2C20:536B1:11928D8:4BC860F:698FC717",
+  "server": "github.com"
+}
+    at createHttpError (/home/runner/work/maker/maker/node_modules/builder-util-runtime/src/httpExecutor.ts:31:10)
+    at IncomingMessage.<anonymous> (/home/runner/work/maker/maker/node_modules/builder-util-runtime/src/httpExecutor.ts:202:13)
+    at IncomingMessage.emit (node:events:536:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at processTicksAndRejections (node:internal/process/task_queues:82:21)
+    at throwError (/home/runner/work/maker/maker/node_modules/builder-util/src/asyncTaskManager.ts:88:11)
+    at checkErrors (/home/runner/work/maker/maker/node_modules/builder-util/src/asyncTaskManager.ts:53:9)
+    at AsyncTaskManager.awaitTasks (/home/runner/work/maker/maker/node_modules/builder-util/src/asyncTaskManager.ts:58:5)
+    at PublishManager.awaitTasks (/home/runner/work/maker/maker/node_modules/app-builder-lib/src/publish/PublishManager.ts:247:28)
+    at /home/runner/work/maker/maker/node_modules/app-builder-lib/src/index.ts:132:32
+    at executeFinally (/home/runner/work/maker/maker/node_modules/builder-util/src/promise.ts:23:9)
+Error: Process completed with exit code 1.
+0s

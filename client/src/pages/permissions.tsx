@@ -733,6 +733,10 @@ export default function Permissions() {
       queryClient.invalidateQueries({ queryKey: ["/api/audit-logs"] });
       toast({ title: t("perm.saved") });
     },
+    onError: (error: Error) => {
+      console.error("[Permissions] Update failed:", error);
+      toast({ title: t("perm.error") || "Failed to update permission", variant: "destructive" });
+    },
   });
 
   const resetMutation = useMutation({
@@ -747,6 +751,10 @@ export default function Permissions() {
       queryClient.invalidateQueries({ queryKey: ["/api/permissions/effective"] });
       queryClient.invalidateQueries({ queryKey: ["/api/audit-logs"] });
       toast({ title: t("perm.deleted") });
+    },
+    onError: (error: Error) => {
+      console.error("[Permissions] Reset failed:", error);
+      toast({ title: t("perm.error") || "Failed to reset permission", variant: "destructive" });
     },
   });
 

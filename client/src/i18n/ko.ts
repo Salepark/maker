@@ -752,6 +752,7 @@ export const ko: Record<string, string> = {
   "perm.resetToDefault": "기본값으로 재설정",
   "perm.saved": "권한이 저장되었습니다",
   "perm.deleted": "권한이 기본값으로 재설정되었습니다",
+  "perm.error": "권한 업데이트에 실패했습니다",
   "perm.egressLevel": "데이터 전송 수준",
   "perm.overrideForBot": "이 봇에 대해 재정의",
   "perm.usingGlobal": "전역 설정 사용 중",

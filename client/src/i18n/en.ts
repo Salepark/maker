@@ -752,6 +752,7 @@ export const en: Record<string, string> = {
   "perm.resetToDefault": "Reset to Default",
   "perm.saved": "Permission saved",
   "perm.deleted": "Permission reset to default",
+  "perm.error": "Failed to update permission",
   "perm.egressLevel": "Data Egress Level",
   "perm.overrideForBot": "Override for this bot",
   "perm.usingGlobal": "Using global setting",

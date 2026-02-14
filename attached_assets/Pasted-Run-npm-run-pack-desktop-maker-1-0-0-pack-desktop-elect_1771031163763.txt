@@ -1,0 +1,244 @@
+Run npm run pack:desktop
+
+> maker@1.0.0 pack:desktop
+> electron-builder --config electron/electron-builder.yml
+
+  • electron-builder  version=26.7.0 os=10.0.26100
+  • Implicit publishing triggered by git tag. This behavior will be disabled in electron-builder v27. Please use --publish explicitly.  tag=v1.0.0
+  • loaded configuration  file=D:\a\maker\maker\electron\electron-builder.yml
+  • executing @electron/rebuild  electronVersion=40.4.0 arch=x64 buildFromSource=false workspaceRoot=D:\a\maker\maker projectDir=./ appDir=./
+  • installing native dependencies  arch=x64
+  • preparing       moduleName=better-sqlite3 arch=x64
+  • finished        moduleName=better-sqlite3 arch=x64
+  • preparing       moduleName=bufferutil arch=x64
+  • finished        moduleName=bufferutil arch=x64
+  • completed installing native dependencies
+  • packaging       platform=win32 arch=x64 electron=40.4.0 appOutDir=dist-electron\win-unpacked
+  • downloading     url=https://github.com/electron/electron/releases/download/v40.4.0/electron-v40.4.0-win32-x64.zip size=138 MB parts=4
+  • downloaded      url=https://github.com/electron/electron/releases/download/v40.4.0/electron-v40.4.0-win32-x64.zip duration=557ms
+  • asar usage is disabled — this is strongly not recommended  solution=enable asar and use asarUnpack to unpack files that must be externally available
+  • searching for node modules  pm=npm searchDir=D:\a\maker\maker
+  • asar usage is disabled — this is strongly not recommended  solution=enable asar and use asarUnpack to unpack files that must be externally available
+  • default Electron icon is used  reason=application icon is not set
+  • downloading     url=https://github.com/electron-userland/electron-builder-binaries/releases/download/winCodeSign-2.6.0/winCodeSign-2.6.0.7z size=5.6 MB parts=1
+  • downloaded      url=https://github.com/electron-userland/electron-builder-binaries/releases/download/winCodeSign-2.6.0/winCodeSign-2.6.0.7z duration=173ms
+  • signing with signtool.exe  path=dist-electron\win-unpacked\Maker.exe
+  • building        target=nsis file=dist-electron\Maker Setup 1.0.0.exe archs=x64 oneClick=false perMachine=false
+  • downloading     url=https://github.com/electron-userland/electron-builder-binaries/releases/download/nsis-3.0.4.1/nsis-3.0.4.1.7z size=1.3 MB parts=1
+  • downloaded      url=https://github.com/electron-userland/electron-builder-binaries/releases/download/nsis-3.0.4.1/nsis-3.0.4.1.7z duration=213ms
+  • signing with signtool.exe  path=dist-electron\win-unpacked\resources\elevate.exe
+  • downloading     url=https://github.com/electron-userland/electron-builder-binaries/releases/download/nsis-resources-3.4.1/nsis-resources-3.4.1.7z size=731 kB parts=1
+  • downloaded      url=https://github.com/electron-userland/electron-builder-binaries/releases/download/nsis-resources-3.4.1/nsis-resources-3.4.1.7z duration=211ms
+  • signing with signtool.exe  path=dist-electron\Maker Setup 1.0.0.__uninstaller.exe
+  • signing with signtool.exe  path=dist-electron\Maker Setup 1.0.0.exe
+  • building block map  blockMapFile=dist-electron\Maker Setup 1.0.0.exe.blockmap
+  • publishing      publisher=Github (owner: Salepark, project: maker, version: 1.0.0)
+  • building        target=portable file=dist-electron\Maker 1.0.0.exe archs=x64
+  • uploading       file=Maker-Setup-1.0.0.exe.blockmap provider=github
+  • uploading       file=Maker-Setup-1.0.0.exe provider=github
+  • creating GitHub release  reason=release doesn't exist tag=v1.0.0 version=1.0.0
+  • signing with signtool.exe  path=dist-electron\Maker 1.0.0.exe
+  • uploading       file=Maker-1.0.0.exe provider=github
+  ⨯ Cannot cleanup: 
+
+Error #1 --------------------------------------------------------------------------------
+HttpError: 403 Forbidden
+"method: post url: https://api.github.com/repos/Salepark/maker/releases\n\n          Data:\n          {\"message\":\"Resource not accessible by integration\",\"documentation_url\":\"https://docs.github.com/rest/releases/releases#create-a-release\",\"status\":\"403\"}\n          "
+Headers: {
+  "date": "Sat, 14 Feb 2026 00:54:03 GMT",
+  "content-type": "application/json; charset=utf-8",
+  "content-length": "153",
+  "x-github-media-type": "github.v3; format=json",
+  "x-accepted-github-permissions": "contents=write; contents=write,workflows=write",
+  "x-github-api-version-selected": "2022-11-28",
+  "x-ratelimit-limit": "5000",
+  "x-ratelimit-remaining": "4988",
+  "x-ratelimit-reset": "1771031369",
+  "x-ratelimit-used": "12",
+  "x-ratelimit-resource": "core",
+  "access-control-expose-headers": "ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes, X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO, X-GitHub-Request-Id, Deprecation, Sunset",
+  "access-control-allow-origin": "*",
+  "strict-transport-security": "max-age=31536000; includeSubdomains; preload",
+  "x-frame-options": "deny",
+  "x-content-type-options": "nosniff",
+  "x-xss-protection": "0",
+  "referrer-policy": "origin-when-cross-origin, strict-origin-when-cross-origin",
+  "content-security-policy": "default-src 'none'",
+  "vary": "Accept-Encoding, Accept, X-Requested-With",
+  "x-github-request-id": "6400:1CFF8D:C36E39:34B7B32:698FC7AB",
+  "server": "github.com"
+}
+    at createHttpError (D:\a\maker\maker\node_modules\builder-util-runtime\src\httpExecutor.ts:31:10)
+    at IncomingMessage.<anonymous> (D:\a\maker\maker\node_modules\builder-util-runtime\src\httpExecutor.ts:202:13)
+    at IncomingMessage.emit (node:events:536:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at processTicksAndRejections (node:internal/process/task_queues:82:21)
+
+Error #2 --------------------------------------------------------------------------------
+HttpError: 403 Forbidden
+"method: post url: https://api.github.com/repos/Salepark/maker/releases\n\n          Data:\n          {\"message\":\"Resource not accessible by integration\",\"documentation_url\":\"https://docs.github.com/rest/releases/releases#create-a-release\",\"status\":\"403\"}\n          "
+Headers: {
+  "date": "Sat, 14 Feb 2026 00:54:03 GMT",
+  "content-type": "application/json; charset=utf-8",
+  "content-length": "153",
+  "x-github-media-type": "github.v3; format=json",
+  "x-accepted-github-permissions": "contents=write; contents=write,workflows=write",
+  "x-github-api-version-selected": "2022-11-28",
+  "x-ratelimit-limit": "5000",
+  "x-ratelimit-remaining": "4988",
+  "x-ratelimit-reset": "1771031369",
+  "x-ratelimit-used": "12",
+  "x-ratelimit-resource": "core",
+  "access-control-expose-headers": "ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes, X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO, X-GitHub-Request-Id, Deprecation, Sunset",
+  "access-control-allow-origin": "*",
+  "strict-transport-security": "max-age=31536000; includeSubdomains; preload",
+  "x-frame-options": "deny",
+  "x-content-type-options": "nosniff",
+  "x-xss-protection": "0",
+  "referrer-policy": "origin-when-cross-origin, strict-origin-when-cross-origin",
+  "content-security-policy": "default-src 'none'",
+  "vary": "Accept-Encoding, Accept, X-Requested-With",
+  "x-github-request-id": "6400:1CFF8D:C36E39:34B7B32:698FC7AB",
+  "server": "github.com"
+}
+    at createHttpError (D:\a\maker\maker\node_modules\builder-util-runtime\src\httpExecutor.ts:31:10)
+    at IncomingMessage.<anonymous> (D:\a\maker\maker\node_modules\builder-util-runtime\src\httpExecutor.ts:202:13)
+    at IncomingMessage.emit (node:events:536:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at processTicksAndRejections (node:internal/process/task_queues:82:21)
+
+Error #3 --------------------------------------------------------------------------------
+HttpError: 403 Forbidden
+"method: post url: https://api.github.com/repos/Salepark/maker/releases\n\n          Data:\n          {\"message\":\"Resource not accessible by integration\",\"documentation_url\":\"https://docs.github.com/rest/releases/releases#create-a-release\",\"status\":\"403\"}\n          "
+Headers: {
+  "date": "Sat, 14 Feb 2026 00:54:03 GMT",
+  "content-type": "application/json; charset=utf-8",
+  "content-length": "153",
+  "x-github-media-type": "github.v3; format=json",
+  "x-accepted-github-permissions": "contents=write; contents=write,workflows=write",
+  "x-github-api-version-selected": "2022-11-28",
+  "x-ratelimit-limit": "5000",
+  "x-ratelimit-remaining": "4988",
+  "x-ratelimit-reset": "1771031369",
+  "x-ratelimit-used": "12",
+  "x-ratelimit-resource": "core",
+  "access-control-expose-headers": "ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes, X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO, X-GitHub-Request-Id, Deprecation, Sunset",
+  "access-control-allow-origin": "*",
+  "strict-transport-security": "max-age=31536000; includeSubdomains; preload",
+  "x-frame-options": "deny",
+  "x-content-type-options": "nosniff",
+  "x-xss-protection": "0",
+  "referrer-policy": "origin-when-cross-origin, strict-origin-when-cross-origin",
+  "content-security-policy": "default-src 'none'",
+  "vary": "Accept-Encoding, Accept, X-Requested-With",
+  "x-github-request-id": "6400:1CFF8D:C36E39:34B7B32:698FC7AB",
+  "server": "github.com"
+}
+    at createHttpError (D:\a\maker\maker\node_modules\builder-util-runtime\src\httpExecutor.ts:31:10)
+    at IncomingMessage.<anonymous> (D:\a\maker\maker\node_modules\builder-util-runtime\src\httpExecutor.ts:202:13)
+    at IncomingMessage.emit (node:events:536:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at processTicksAndRejections (node:internal/process/task_queues:82:21)  failedTask=build stackTrace=Error: Cannot cleanup: 
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           Error #1 --------------------------------------------------------------------------------
+HttpError: 403 Forbidden
+"method: post url: https://api.github.com/repos/Salepark/maker/releases\n\n          Data:\n          {\"message\":\"Resource not accessible by integration\",\"documentation_url\":\"https://docs.github.com/rest/releases/releases#create-a-release\",\"status\":\"403\"}\n          "
+Headers: {
+  "date": "Sat, 14 Feb 2026 00:54:03 GMT",
+  "content-type": "application/json; charset=utf-8",
+  "content-length": "153",
+  "x-github-media-type": "github.v3; format=json",
+  "x-accepted-github-permissions": "contents=write; contents=write,workflows=write",
+  "x-github-api-version-selected": "2022-11-28",
+  "x-ratelimit-limit": "5000",
+  "x-ratelimit-remaining": "4988",
+  "x-ratelimit-reset": "1771031369",
+  "x-ratelimit-used": "12",
+  "x-ratelimit-resource": "core",
+  "access-control-expose-headers": "ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes, X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO, X-GitHub-Request-Id, Deprecation, Sunset",
+  "access-control-allow-origin": "*",
+  "strict-transport-security": "max-age=31536000; includeSubdomains; preload",
+  "x-frame-options": "deny",
+  "x-content-type-options": "nosniff",
+  "x-xss-protection": "0",
+  "referrer-policy": "origin-when-cross-origin, strict-origin-when-cross-origin",
+  "content-security-policy": "default-src 'none'",
+  "vary": "Accept-Encoding, Accept, X-Requested-With",
+  "x-github-request-id": "6400:1CFF8D:C36E39:34B7B32:698FC7AB",
+  "server": "github.com"
+}
+    at createHttpError (D:\a\maker\maker\node_modules\builder-util-runtime\src\httpExecutor.ts:31:10)
+    at IncomingMessage.<anonymous> (D:\a\maker\maker\node_modules\builder-util-runtime\src\httpExecutor.ts:202:13)
+    at IncomingMessage.emit (node:events:536:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at processTicksAndRejections (node:internal/process/task_queues:82:21)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           Error #2 --------------------------------------------------------------------------------
+HttpError: 403 Forbidden
+"method: post url: https://api.github.com/repos/Salepark/maker/releases\n\n          Data:\n          {\"message\":\"Resource not accessible by integration\",\"documentation_url\":\"https://docs.github.com/rest/releases/releases#create-a-release\",\"status\":\"403\"}\n          "
+Headers: {
+  "date": "Sat, 14 Feb 2026 00:54:03 GMT",
+  "content-type": "application/json; charset=utf-8",
+  "content-length": "153",
+  "x-github-media-type": "github.v3; format=json",
+  "x-accepted-github-permissions": "contents=write; contents=write,workflows=write",
+  "x-github-api-version-selected": "2022-11-28",
+  "x-ratelimit-limit": "5000",
+  "x-ratelimit-remaining": "4988",
+  "x-ratelimit-reset": "1771031369",
+  "x-ratelimit-used": "12",
+  "x-ratelimit-resource": "core",
+  "access-control-expose-headers": "ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes, X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO, X-GitHub-Request-Id, Deprecation, Sunset",
+  "access-control-allow-origin": "*",
+  "strict-transport-security": "max-age=31536000; includeSubdomains; preload",
+  "x-frame-options": "deny",
+  "x-content-type-options": "nosniff",
+  "x-xss-protection": "0",
+  "referrer-policy": "origin-when-cross-origin, strict-origin-when-cross-origin",
+  "content-security-policy": "default-src 'none'",
+  "vary": "Accept-Encoding, Accept, X-Requested-With",
+  "x-github-request-id": "6400:1CFF8D:C36E39:34B7B32:698FC7AB",
+  "server": "github.com"
+}
+    at createHttpError (D:\a\maker\maker\node_modules\builder-util-runtime\src\httpExecutor.ts:31:10)
+    at IncomingMessage.<anonymous> (D:\a\maker\maker\node_modules\builder-util-runtime\src\httpExecutor.ts:202:13)
+    at IncomingMessage.emit (node:events:536:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at processTicksAndRejections (node:internal/process/task_queues:82:21)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           Error #3 --------------------------------------------------------------------------------
+HttpError: 403 Forbidden
+"method: post url: https://api.github.com/repos/Salepark/maker/releases\n\n          Data:\n          {\"message\":\"Resource not accessible by integration\",\"documentation_url\":\"https://docs.github.com/rest/releases/releases#create-a-release\",\"status\":\"403\"}\n          "
+Headers: {
+  "date": "Sat, 14 Feb 2026 00:54:03 GMT",
+  "content-type": "application/json; charset=utf-8",
+  "content-length": "153",
+  "x-github-media-type": "github.v3; format=json",
+  "x-accepted-github-permissions": "contents=write; contents=write,workflows=write",
+  "x-github-api-version-selected": "2022-11-28",
+  "x-ratelimit-limit": "5000",
+  "x-ratelimit-remaining": "4988",
+  "x-ratelimit-reset": "1771031369",
+  "x-ratelimit-used": "12",
+  "x-ratelimit-resource": "core",
+  "access-control-expose-headers": "ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes, X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO, X-GitHub-Request-Id, Deprecation, Sunset",
+  "access-control-allow-origin": "*",
+  "strict-transport-security": "max-age=31536000; includeSubdomains; preload",
+  "x-frame-options": "deny",
+  "x-content-type-options": "nosniff",
+  "x-xss-protection": "0",
+  "referrer-policy": "origin-when-cross-origin, strict-origin-when-cross-origin",
+  "content-security-policy": "default-src 'none'",
+  "vary": "Accept-Encoding, Accept, X-Requested-With",
+  "x-github-request-id": "6400:1CFF8D:C36E39:34B7B32:698FC7AB",
+  "server": "github.com"
+}
+    at createHttpError (D:\a\maker\maker\node_modules\builder-util-runtime\src\httpExecutor.ts:31:10)
+    at IncomingMessage.<anonymous> (D:\a\maker\maker\node_modules\builder-util-runtime\src\httpExecutor.ts:202:13)
+    at IncomingMessage.emit (node:events:536:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at processTicksAndRejections (node:internal/process/task_queues:82:21)
+    at throwError (D:\a\maker\maker\node_modules\builder-util\src\asyncTaskManager.ts:88:11)
+    at checkErrors (D:\a\maker\maker\node_modules\builder-util\src\asyncTaskManager.ts:53:9)
+    at AsyncTaskManager.awaitTasks (D:\a\maker\maker\node_modules\builder-util\src\asyncTaskManager.ts:58:5)
+    at PublishManager.awaitTasks (D:\a\maker\maker\node_modules\app-builder-lib\src\publish\PublishManager.ts:247:28)
+    at D:\a\maker\maker\node_modules\app-builder-lib\src\index.ts:132:32
+    at executeFinally (D:\a\maker\maker\node_modules\builder-util\src\promise.ts:23:9)
+Error: Process completed with exit code 1.

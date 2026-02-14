@@ -1349,14 +1349,14 @@ export class SqliteStorage implements IStorage {
 
     if (existing.length > 0) {
       const [updated] = await db.update(permissions)
-        .set({ valueJson, updatedAt: Date.now() } as any)
+        .set({ valueJson, updatedAt: new Date() } as any)
         .where(eq(permissions.id, existing[0].id))
         .returning();
       return updated as any;
     }
 
     const [created] = await db.insert(permissions)
-      .values({ userId, scope, scopeId, permissionKey, valueJson, updatedAt: Date.now() } as any)
+      .values({ userId, scope, scopeId, permissionKey, valueJson, updatedAt: new Date() } as any)
       .returning();
     return created as any;
   }
