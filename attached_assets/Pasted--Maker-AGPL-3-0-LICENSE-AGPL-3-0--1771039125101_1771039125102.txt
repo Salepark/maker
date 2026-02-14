@@ -1,0 +1,129 @@
+좋습니다.
+그럼 **Maker 철학에 맞게 다듬은 AGPL-3.0 기반 LICENSE 문구**를 드리겠습니다.
+
+핵심 방향은:
+
+* 표준 AGPL-3.0을 기반으로 함 (법적 안정성 유지)
+* Maker 철학(로컬 퍼스트, 사용자 통제)을 서문에 명확히 명시
+* 상업 라이선스 옵션을 명확히 열어둠
+* “Pro/Enterprise는 본 라이선스에 포함되지 않음”을 분명히 함
+
+아래는 그대로 `LICENSE.md`에 넣을 수 있는 최종 버전입니다.
+
+---
+
+```
+# Maker Community License (AGPL-3.0 Based)
+
+Copyright (c) 2026 Maker
+
+Maker Core is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
+
+This means:
+
+- You are free to use, study, modify, and redistribute the software.
+- If you modify Maker and deploy it as a network service (including SaaS),
+  you must make the complete corresponding source code available
+  to all users of that service under the same license.
+- All derivative works must remain under AGPL-3.0.
+
+The full text of the GNU Affero General Public License v3.0 follows below.
+
+---
+
+## Additional Clarifications for Maker
+
+Maker is designed as a personal automation operating system.
+This license applies to the open-source "Maker Core" repository only.
+
+The following are NOT covered by this license:
+
+- Maker Pro features
+- Enterprise modules
+- Commercial desktop distributions
+- Proprietary connectors or integrations
+- Branding assets and trademarks
+
+These components may be distributed under separate commercial terms.
+
+---
+
+## Commercial Licensing
+
+If you wish to:
+
+- Embed Maker into a commercial product without AGPL obligations,
+- Offer Maker as a hosted SaaS without publishing source code,
+- Use proprietary Maker extensions in production environments,
+
+You must obtain a separate commercial license.
+
+For commercial licensing inquiries:
+
+contact@maker.am
+
+---
+
+## Trademarks
+
+The name "Maker", the Maker logo, and related brand assets
+are trademarks of Maker and may not be used without permission.
+
+---
+
+## Philosophy
+
+Maker exists to empower individuals to build and control
+their own automation workflows.
+
+We do not sell bots.
+We provide tools for people who build their own automation.
+
+---
+
+## GNU Affero General Public License v3.0
+
+Below is the official AGPL-3.0 license text.
+
+[Insert full AGPL-3.0 text here verbatim]
+```
+
+---
+
+# 📌 중요
+
+AGPL은 반드시 **공식 AGPL-3.0 전문을 그대로 포함**해야 합니다.
+GitHub에서 “AGPL-3.0 license text”를 복사해서 아래에 붙여 넣으시면 됩니다.
+
+(줄이거나 요약하면 안 됩니다.)
+
+---
+
+# 🎯 이 구조의 의미
+
+* 법적 효력은 100% AGPL
+* Maker 철학을 명확히 서술
+* SaaS 무단 운영 시 코드 공개 의무
+* 상업 라이선스 전환 가능성 열어둠
+* Pro 기능은 보호
+
+---
+
+# 🔥 전략적 효과
+
+이 라이선스는 이렇게 말합니다:
+
+> “우리는 진짜 오픈소스다.
+> 하지만 우리 코드를 이용해 닫힌 SaaS를 만들 수는 없다.”
+
+이게 지금 Maker 포지션에 가장 어울립니다.
+
+---
+
+원하시면 다음 단계로:
+
+1️⃣ Pro 기능 분리 아키텍처 설계
+2️⃣ GitHub 저장소 공개 전 최종 점검 체크리스트
+3️⃣ VC 설득용 ‘왜 AGPL인가’ 슬라이드 구조
+
+어디로 가시겠습니까?
