@@ -33,7 +33,8 @@ then you need a **separate commercial license**.
 
 For commercial licensing inquiries:
 
-- Open an issue: https://github.com/Salepark/maker/issues
+- Website: https://makelr.com
+- Issues: https://github.com/Salepark/maker/issues
 
 ---
 
