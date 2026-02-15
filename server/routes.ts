@@ -1252,18 +1252,21 @@ export async function registerRoutes(
         return res.status(400).json({ error: `providerType must be one of: ${validTypes.join(", ")}` });
       }
 
+      const { encrypt: enc } = await import("./lib/crypto");
+      const encryptedKey = enc(apiKey);
       const provider = await storage.createLlmProvider({
         userId,
         name,
         providerType,
-        apiKeyEncrypted: encrypt(apiKey),
+        apiKeyEncrypted: encryptedKey,
         baseUrl: baseUrl || null,
         defaultModel: defaultModel || null,
       });
       res.json({ provider: { ...provider, apiKeyEncrypted: undefined, apiKeyHint: "****" } });
     } catch (error: any) {
-      console.error("[llm-provider] Create error:", error?.message || error);
-      handleApiError(res, error, "Failed to create LLM provider");
+      const msg = error?.message || String(error);
+      console.error("[llm-provider] Create error:", msg, error?.stack);
+      res.status(500).json({ error: `Failed to create LLM provider: ${msg}` });
     }
   });
 

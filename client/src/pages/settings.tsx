@@ -98,8 +98,10 @@ export default function Settings() {
       toast({ title: t("settings.providers.added") });
       resetForm();
     },
-    onError: () => {
-      toast({ title: t("settings.providers.addFailed"), variant: "destructive" });
+    onError: (err: any) => {
+      const detail = err?.message || "";
+      const serverMsg = detail.includes(":") ? detail.split(": ").slice(1).join(": ") : "";
+      toast({ title: t("settings.providers.addFailed"), description: serverMsg || undefined, variant: "destructive" });
     },
   });
 
