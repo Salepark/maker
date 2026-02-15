@@ -1203,6 +1203,10 @@ export class SqliteStorage implements IStorage {
     return db.select().from(llmProviders).where(eq(llmProviders.userId, userId)).orderBy(desc(llmProviders.createdAt)) as any;
   }
 
+  async listAllLlmProviders(): Promise<LlmProvider[]> {
+    return db.select().from(llmProviders).orderBy(desc(llmProviders.createdAt)) as any;
+  }
+
   async getLlmProvider(id: number, userId: string): Promise<LlmProvider | undefined> {
     const [provider] = await db.select().from(llmProviders).where(and(eq(llmProviders.id, id), eq(llmProviders.userId, userId)));
     return provider as any;
@@ -1222,17 +1226,34 @@ export class SqliteStorage implements IStorage {
 
   async resolveLLMForBot(botId: number): Promise<{ providerType: string; apiKey: string; baseUrl: string | null; model: string | null } | null> {
     const [setting] = await db.select().from(botSettings).where(eq(botSettings.botId, botId));
-    if (!setting || !setting.llmProviderId) return null;
 
-    const [provider] = await db.select().from(llmProviders).where(eq(llmProviders.id, setting.llmProviderId));
-    if (!provider) return null;
+    if (setting?.llmProviderId) {
+      const [provider] = await db.select().from(llmProviders).where(eq(llmProviders.id, setting.llmProviderId));
+      if (provider) {
+        return {
+          providerType: provider.providerType,
+          apiKey: decrypt(provider.apiKeyEncrypted),
+          baseUrl: provider.baseUrl,
+          model: setting.modelOverride || provider.defaultModel,
+        };
+      }
+    }
 
-    return {
-      providerType: provider.providerType,
-      apiKey: decrypt(provider.apiKeyEncrypted),
-      baseUrl: provider.baseUrl,
-      model: setting.modelOverride || provider.defaultModel,
-    };
+    const [bot] = await db.select().from(bots).where(eq(bots.id, botId));
+    if (bot?.userId) {
+      const userProviders = await db.select().from(llmProviders).where(eq(llmProviders.userId, bot.userId)).limit(1);
+      if (userProviders.length > 0) {
+        const provider = userProviders[0];
+        return {
+          providerType: provider.providerType,
+          apiKey: decrypt(provider.apiKeyEncrypted),
+          baseUrl: provider.baseUrl,
+          model: provider.defaultModel,
+        };
+      }
+    }
+
+    return null;
   }
 
   async findSourceByUrl(url: string): Promise<Source | undefined> {

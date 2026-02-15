@@ -13,6 +13,7 @@ import { runAllSeeds } from "./seed";
 import { NotImplementedError, handleApiError } from "./lib/safe-storage";
 import { PERMISSION_REQUEST_MESSAGES } from "@shared/permission-messages";
 import { encrypt, decrypt } from "./lib/crypto";
+import { setUserHasProviders } from "./llm/client";
 
 function getUserId(req: Request): string | undefined {
   const user = req.user as any;
@@ -90,7 +91,18 @@ export async function registerRoutes(
   
   // Run seeds on startup
   await runAllSeeds();
-  
+
+  // Initialize BYO LLM provider status at startup (for desktop single-user mode)
+  try {
+    const allProviders = await storage.listAllLlmProviders?.() ?? [];
+    if (allProviders.length > 0) {
+      setUserHasProviders(true);
+      console.log(`[Init] Found ${allProviders.length} BYO LLM provider(s), marking LLM available`);
+    }
+  } catch {
+    // listAllLlmProviders may not exist - fall back to lazy detection
+  }
+
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true, status: "ok", timestamp: new Date().toISOString(), driver });
   });
@@ -566,6 +578,8 @@ export async function registerRoutes(
       lastCollectedAt = stats.lastCollectAt;
 
       const providers = await storage.listLlmProviders(userId);
+      const userHasProviders = providers.length > 0;
+      setUserHasProviders(userHasProviders);
 
       res.json({
         botCount: bots.length,
@@ -577,8 +591,8 @@ export async function registerRoutes(
         scheduleRule,
         scheduleTimeLocal,
         isEnabled,
-        hasLlmProvider,
-        hasUserProviders: providers.length > 0,
+        hasLlmProvider: hasLlmProvider || userHasProviders,
+        hasUserProviders: userHasProviders,
       });
     } catch (error) {
       handleApiError(res, error, "Failed to get console context");
@@ -1080,8 +1094,12 @@ export async function registerRoutes(
       if (error?.code === '23505') {
         return res.status(409).json({ error: "A bot with this topic already exists. Please choose a different topic." });
       }
-      console.error("Error creating bot from preset:", error);
-      res.status(500).json({ error: "Bot creation failed. Please try again later." });
+      const msg = error?.message || String(error);
+      console.error("Error creating bot from preset:", msg, error?.stack);
+      if (error?.code === 'SQLITE_CONSTRAINT_UNIQUE' || msg.includes('UNIQUE constraint')) {
+        return res.status(409).json({ error: "A bot with this topic already exists. Please choose a different topic." });
+      }
+      res.status(500).json({ error: `Bot creation failed: ${msg}` });
     }
   });
 
@@ -1262,6 +1280,7 @@ export async function registerRoutes(
         baseUrl: baseUrl || null,
         defaultModel: defaultModel || null,
       });
+      setUserHasProviders(true);
       res.json({ provider: { ...provider, apiKeyEncrypted: undefined, apiKeyHint: "****" } });
     } catch (error: any) {
       const msg = error?.message || String(error);
@@ -1303,6 +1322,8 @@ export async function registerRoutes(
       if (isNaN(id)) return res.status(400).json({ error: "Invalid provider id" });
 
       await storage.deleteLlmProvider(id, userId);
+      const remaining = await storage.listLlmProviders(userId);
+      setUserHasProviders(remaining.length > 0);
       res.json({ ok: true });
     } catch (error) {
       handleApiError(res, error, "Failed to delete LLM provider");

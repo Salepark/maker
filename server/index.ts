@@ -61,6 +61,13 @@ app.use((req, res, next) => {
   next();
 });
 
+process.on("uncaughtException", (err) => {
+  console.error("[FATAL] Uncaught exception (server kept alive):", err?.message || err);
+});
+process.on("unhandledRejection", (reason) => {
+  console.error("[FATAL] Unhandled rejection (server kept alive):", reason);
+});
+
 (async () => {
   if (driver === "sqlite") {
     const { initSqliteTables } = await import("./init-sqlite");

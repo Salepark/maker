@@ -110,6 +110,12 @@ export function hasSystemLLMKey(): boolean {
   return !!(process.env.LLM_API_KEY);
 }
 
+let _userHasProviders = false;
+export function setUserHasProviders(val: boolean) { _userHasProviders = val; }
+export function hasAnyLLMAvailable(): boolean {
+  return hasSystemLLMKey() || _userHasProviders;
+}
+
 function getSystemConfig(): LLMConfig {
   const apiKey = process.env.LLM_API_KEY || "";
   if (!apiKey) throw new Error("LLM_API_KEY is not set. System-level AI features are unavailable. Each bot can still use its own LLM provider configured in Settings.");
