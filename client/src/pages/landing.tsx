@@ -367,7 +367,8 @@ export default function Landing() {
                 icon: Monitor,
                 color: "bg-emerald-500 dark:bg-emerald-600",
                 features: [t("landing.pricing.local.f1"), t("landing.pricing.local.f2"), t("landing.pricing.local.f3")],
-                active: false,
+                active: true,
+                href: "https://github.com/Salepark/maker/releases/latest",
               },
               {
                 key: "teams",
@@ -405,8 +406,10 @@ export default function Landing() {
                     ))}
                   </ul>
                   {plan.active ? (
-                    <Button asChild className="w-full" data-testid="button-pricing-start">
-                      <a href="/api/login">{t(`landing.pricing.${plan.key}.button`)}</a>
+                    <Button asChild className="w-full" data-testid={`button-pricing-${plan.key}`}>
+                      <a href={plan.href || "/api/login"} target={plan.href ? "_blank" : undefined} rel={plan.href ? "noopener noreferrer" : undefined}>
+                        {t(`landing.pricing.${plan.key}.button`)}
+                      </a>
                     </Button>
                   ) : (
                     <Button variant="secondary" disabled className="w-full" data-testid={`button-pricing-${plan.key}`}>
