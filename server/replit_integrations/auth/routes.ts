@@ -56,7 +56,13 @@ export function registerAuthRoutes(app: Express): void {
           console.error("Demo login session error:", err);
           return res.status(500).json({ message: "Session creation failed" });
         }
-        res.json({ success: true });
+        req.session.save((saveErr: any) => {
+          if (saveErr) {
+            console.error("Demo login session save error:", saveErr);
+            return res.status(500).json({ message: "Session save failed" });
+          }
+          res.json({ success: true });
+        });
       });
     } catch (error) {
       console.error("Demo login error:", error);
