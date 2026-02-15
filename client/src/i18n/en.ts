@@ -59,7 +59,7 @@ export const en: Record<string, string> = {
   "landing.pricing.local.f1": "All data stays local",
   "landing.pricing.local.f2": "Personal automation engine",
   "landing.pricing.local.f3": "Manage API keys directly",
-  "landing.pricing.local.button": "Coming Soon",
+  "landing.pricing.local.button": "Download",
   "landing.pricing.teams.name": "Local Edition — Teams",
   "landing.pricing.teams.price": "Local Edition",
   "landing.pricing.teams.desc": "Internal team automation",

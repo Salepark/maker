@@ -59,7 +59,7 @@ export const ko: Record<string, string> = {
   "landing.pricing.local.f1": "모든 데이터 로컬",
   "landing.pricing.local.f2": "개인 자동화 엔진",
   "landing.pricing.local.f3": "API 키 직접 관리",
-  "landing.pricing.local.button": "다운로드 예정",
+  "landing.pricing.local.button": "다운로드",
   "landing.pricing.teams.name": "Local Edition — Teams",
   "landing.pricing.teams.price": "Local Edition",
   "landing.pricing.teams.desc": "조직 내부 자동화",
