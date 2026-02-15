@@ -187,14 +187,35 @@ export default function Landing() {
       </nav>
 
       <main className="pt-24 pb-16">
-        <section className="max-w-6xl mx-auto px-6 py-16">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
+        <section className="max-w-6xl mx-auto px-6 pt-12 pb-6" data-testid="section-hero-type">
+          <div className="select-none" style={{ lineHeight: 0.95, letterSpacing: "-0.03em" }}>
+            <div
+              className="font-black text-foreground"
+              style={{ fontSize: "clamp(3rem, 12vw, 10rem)" }}
+              data-testid="text-hero-iammaker"
+            >
+              I.am.maker
+            </div>
+            <div className="mt-2">
+              <span
+                className="inline-block font-black text-background bg-foreground px-3 py-1"
+                style={{ fontSize: "clamp(3rem, 12vw, 10rem)" }}
+                data-testid="text-hero-makeram"
+              >
+                maker.am
+              </span>
+            </div>
+          </div>
+        </section>
+
+        <section className="max-w-6xl mx-auto px-6 py-12">
+          <div className="grid lg:grid-cols-2 gap-12 items-start">
             <div className="space-y-6">
-              <h1 className="text-4xl lg:text-5xl font-bold leading-tight" data-testid="text-hero-title">
+              <h2 className="text-3xl lg:text-4xl font-bold leading-tight" data-testid="text-hero-title">
                 {t("landing.hero.title1")}
                 <br />
                 <span className="text-primary">{t("landing.hero.title2")}</span>
-              </h1>
+              </h2>
               <p className="text-lg text-muted-foreground max-w-lg" data-testid="text-hero-subtitle">
                 {t("landing.hero.subtitle")}
               </p>
@@ -223,23 +244,23 @@ export default function Landing() {
             </div>
 
             <div className="relative space-y-6">
-              <div className="bg-gradient-to-br from-primary/20 to-primary/5 rounded-2xl p-8 border border-border/50">
+              <div className="bg-gradient-to-br from-primary/20 to-primary/5 rounded-md p-8 border border-border/50">
                 <div className="space-y-4">
-                  <div className="flex items-center gap-3 p-4 bg-background rounded-lg border border-border">
+                  <div className="flex items-center gap-3 p-4 bg-background rounded-md border border-border">
                     <Rss className="h-8 w-8 text-primary" />
                     <div>
                       <div className="font-medium">{t("landing.hero.chooseSources")}</div>
                       <div className="text-sm text-muted-foreground">{t("landing.hero.chooseSourcesDesc")}</div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 p-4 bg-background rounded-lg border border-border">
+                  <div className="flex items-center gap-3 p-4 bg-background rounded-md border border-border">
                     <Settings className="h-8 w-8 text-primary" />
                     <div>
                       <div className="font-medium">{t("landing.hero.scheduleFormat")}</div>
                       <div className="text-sm text-muted-foreground">{t("landing.hero.scheduleFormatDesc")}</div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 p-4 bg-background rounded-lg border border-border">
+                  <div className="flex items-center gap-3 p-4 bg-background rounded-md border border-border">
                     <Zap className="h-8 w-8 text-primary" />
                     <div>
                       <div className="font-medium">{t("landing.hero.aiAnalysis")}</div>
