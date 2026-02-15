@@ -196,14 +196,12 @@ export default function Landing() {
             >
               I.am.maker
             </div>
-            <div className="mt-2">
-              <span
-                className="inline-block font-black text-background bg-foreground px-3 py-1"
-                style={{ fontSize: "clamp(3rem, 12vw, 10rem)" }}
-                data-testid="text-hero-makeram"
-              >
-                maker.am
-              </span>
+            <div
+              className="mt-2 font-black text-background bg-foreground px-3 py-1"
+              style={{ fontSize: "clamp(3rem, 12vw, 10rem)" }}
+              data-testid="text-hero-makeram"
+            >
+              maker.am
             </div>
           </div>
         </section>
