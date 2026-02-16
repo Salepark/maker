@@ -3,6 +3,7 @@ import { callLLM, callLLMWithConfig, callLLMWithTimeout, hasSystemLLMKey, type L
 import { buildDailyBriefPrompt, ReportConfig } from "../llm/prompts";
 import { analyzeNewItemsBySourceIds } from "./analyze_items";
 import { startRun, endRunOk, endRunError, endRunSkipped } from "./runLogger";
+import { collectFromSourceIds } from "../services/rss";
 
 const STOPWORDS = new Set([
   "the", "a", "an", "is", "are", "was", "were", "in", "on", "at", "to", "for",
@@ -186,7 +187,7 @@ export async function generateReportsForDueProfiles(): Promise<ReportJobResult[]
         continue;
       }
 
-      const lookbackHours = 24;
+      const lookbackHours = 72;
       const periodStart = new Date(now.getTime() - lookbackHours * 60 * 60 * 1000);
       const periodEnd = now;
 
@@ -195,6 +196,14 @@ export async function generateReportsForDueProfiles(): Promise<ReportJobResult[]
         console.log(`[ReportJob] Report already exists for profile ${profile.id} in this period, skipping`);
         await endRunSkipped(runId, "ALREADY_EXISTS");
         continue;
+      }
+
+      let schedCollectResult = { totalCollected: 0, sourcesProcessed: sourceIds.length };
+      try {
+        schedCollectResult = await collectFromSourceIds(sourceIds);
+        console.log(`[ReportJob] Pre-report collection: ${schedCollectResult.totalCollected} items from ${schedCollectResult.sourcesProcessed} sources`);
+      } catch (collectErr) {
+        console.warn(`[ReportJob] Pre-report collection failed for profile ${profile.id} (continuing):`, collectErr);
       }
 
       const recentItems = await storage.getRecentItemsBySourceIds(sourceIds, lookbackHours, 30);
@@ -207,7 +216,7 @@ export async function generateReportsForDueProfiles(): Promise<ReportJobResult[]
         topic: profile.topic,
         profileName: profile.name,
         sourceIds,
-        collectResult: { totalCollected: 0, sourcesProcessed: sourceIds.length },
+        collectResult: schedCollectResult,
         sourceNames,
         timezone: profile.timezone || "Asia/Seoul",
       });
@@ -255,6 +264,15 @@ export async function generateReportForProfile(profileId: number, userId?: strin
     throw new Error(`No sources linked to this bot. Add sources first using 'add source' command or from the Sources page.`);
   }
 
+  let collectResult = { totalCollected: 0, sourcesProcessed: 0 };
+  try {
+    console.log(`[ReportJob] Collecting fresh items for ${sourceIds.length} sources before report...`);
+    collectResult = await collectFromSourceIds(sourceIds);
+    console.log(`[ReportJob] Collected ${collectResult.totalCollected} new items from ${collectResult.sourcesProcessed} sources`);
+  } catch (e) {
+    console.warn(`[ReportJob] Pre-report collection failed (continuing with existing data):`, e);
+  }
+
   const allSources = await storage.getSources();
   const sourceNames = allSources
     .filter((s: any) => sourceIds.includes(s.id))
@@ -267,7 +285,7 @@ export async function generateReportForProfile(profileId: number, userId?: strin
     topic: profile.topic,
     profileName: profile.name,
     sourceIds,
-    collectResult: { totalCollected: 0, sourcesProcessed: 0 },
+    collectResult,
     sourceNames,
     timezone: profile.timezone || "Asia/Seoul",
   });
@@ -433,7 +451,7 @@ export async function generateFastReport(params: FastReportParams): Promise<Repo
   } = params;
 
   const now = new Date();
-  const lookbackHours = 24;
+  const lookbackHours = 72;
   const periodStart = new Date(now.getTime() - lookbackHours * 60 * 60 * 1000);
   const periodEnd = now;
 
@@ -561,8 +579,8 @@ export async function upgradeToFullReport(outputId: number, profileId: number, u
   if (sourceIds.length === 0) return null;
 
   const now = new Date();
-  const lookbackHours = 24;
-  const maxItems = 12;
+  const lookbackHours = 72;
+  const maxItems = 20;
 
   let items = await storage.getItemsForReport(null, sourceIds, lookbackHours, maxItems);
 

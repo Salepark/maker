@@ -758,7 +758,7 @@ export class SqliteStorage implements IStorage {
     const cutoff = new Date(Date.now() - lookbackHours * 60 * 60 * 1000);
 
     const conditions = [
-      eq(items.status, "analyzed"),
+      inArray(items.status, ["analyzed", "drafted", "approved"]),
       inArray(items.sourceId, sourceIds),
       gte(items.publishedAt, cutoff),
     ];
