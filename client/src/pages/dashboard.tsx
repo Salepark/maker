@@ -529,7 +529,7 @@ export default function Dashboard() {
         </Card>
       )}
 
-      {diagResults && diagResults.some(d => d.health !== "healthy") && (
+      {diagResults && diagResults.length > 0 && (
         <Card data-testid="card-dashboard-diagnostics">
           <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
             <CardTitle className="text-base flex items-center gap-2">
@@ -538,17 +538,17 @@ export default function Dashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0 grid gap-2">
-            {diagResults
-              .filter(d => d.health !== "healthy")
-              .map(d => (
+            {diagResults.map(d => (
                 <div key={d.botId} className="space-y-1">
                   <Link href={`/bots/${d.botId}`}>
                     <div className="flex items-center gap-2 hover-elevate p-2 rounded-md cursor-pointer" data-testid={`diag-bot-${d.botId}`}>
-                      <Badge variant={d.health === "error" ? "destructive" : "outline"}>
+                      <Badge variant={d.health === "error" ? "destructive" : d.health === "healthy" ? "secondary" : "outline"}>
                         {d.botName}
                       </Badge>
                       <span className="text-xs text-muted-foreground">
-                        {d.items.map(i => language === "ko" ? i.messageKo : i.messageEn).join(" · ")}
+                        {d.health === "healthy"
+                          ? (language === "ko" ? "정상 작동 중" : "Running normally")
+                          : d.items.map(i => language === "ko" ? i.messageKo : i.messageEn).join(" · ")}
                       </span>
                       <ArrowRight className="h-3.5 w-3.5 text-muted-foreground ml-auto shrink-0" />
                     </div>

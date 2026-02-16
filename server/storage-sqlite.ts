@@ -1348,6 +1348,14 @@ export class SqliteStorage implements IStorage {
     return (run as any) || null;
   }
 
+  async getLastJobRunByBotKey(userId: string, botKey: string): Promise<JobRun | null> {
+    const [run] = await db.select().from(jobRuns)
+      .where(and(eq(jobRuns.userId, userId), eq(jobRuns.botKey, botKey)))
+      .orderBy(desc(jobRuns.startedAt))
+      .limit(1);
+    return (run as any) || null;
+  }
+
   async listPermissions(userId: string, scope: string, scopeId: number | null): Promise<Permission[]> {
     const conditions = [eq(permissions.userId, userId), eq(permissions.scope, scope)];
     if (scopeId != null) {

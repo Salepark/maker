@@ -186,6 +186,7 @@ export interface IStorage {
   finishJobRun(id: number, patch: Partial<InsertJobRun>): Promise<JobRun | null>;
   listJobRunsForBot(userId: string, botId: number, limit?: number): Promise<JobRun[]>;
   getLastJobRunForBot(userId: string, botId: number): Promise<JobRun | null>;
+  getLastJobRunByBotKey(userId: string, botKey: string): Promise<JobRun | null>;
 
   // Report Metrics
   createReportMetric(data: { reportId: number; profileId: number; itemCount: number; keywordSummary: Record<string, number>; sourceDistribution: Record<string, number> }): Promise<any>;
@@ -1572,6 +1573,14 @@ export class DatabaseStorage implements IStorage {
   async getLastJobRunForBot(userId: string, botId: number): Promise<JobRun | null> {
     const [run] = await db.select().from(jobRuns)
       .where(and(eq(jobRuns.userId, userId), eq(jobRuns.botId, botId)))
+      .orderBy(desc(jobRuns.startedAt))
+      .limit(1);
+    return run || null;
+  }
+
+  async getLastJobRunByBotKey(userId: string, botKey: string): Promise<JobRun | null> {
+    const [run] = await db.select().from(jobRuns)
+      .where(and(eq(jobRuns.userId, userId), eq(jobRuns.botKey, botKey)))
       .orderBy(desc(jobRuns.startedAt))
       .limit(1);
     return run || null;

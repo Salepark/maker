@@ -27,7 +27,17 @@ export async function diagnoseBot(userId: string, bot: Bot): Promise<DiagnosisRe
   }
 
   const botSources = await storage.getBotSources(bot.id);
-  if (botSources.length === 0) {
+  let hasLinkedSources = botSources.length > 0;
+
+  if (!hasLinkedSources) {
+    const profile = await storage.getProfileByUserAndTopic(userId, bot.key);
+    if (profile) {
+      const profileSourceIds = await storage.getProfileSourceIds(profile.id);
+      hasLinkedSources = profileSourceIds.length > 0;
+    }
+  }
+
+  if (!hasLinkedSources) {
     items.push({
       rule: "NO_SOURCES",
       severity: "error",
@@ -46,7 +56,15 @@ export async function diagnoseBot(userId: string, bot: Bot): Promise<DiagnosisRe
     });
   }
 
-  const lastRun = await storage.getLastJobRunForBot(userId, bot.id);
+  let lastRun = await storage.getLastJobRunForBot(userId, bot.id);
+
+  if (!lastRun) {
+    const profile = await storage.getProfileByUserAndTopic(userId, bot.key);
+    if (profile) {
+      lastRun = await storage.getLastJobRunByBotKey(userId, `profile-${profile.id}`);
+    }
+  }
+
   if (lastRun && lastRun.status === "error") {
     const ago = lastRun.finishedAt
       ? Math.round((Date.now() - new Date(lastRun.finishedAt).getTime()) / 60000)
@@ -61,7 +79,7 @@ export async function diagnoseBot(userId: string, bot: Bot): Promise<DiagnosisRe
     });
   }
 
-  if (!lastRun && bot.isEnabled && botSources.length > 0) {
+  if (!lastRun && bot.isEnabled && hasLinkedSources) {
     items.push({
       rule: "NEVER_RAN",
       severity: "info",
