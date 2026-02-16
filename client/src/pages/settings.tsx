@@ -202,8 +202,20 @@ export default function Settings() {
           {tgLoading ? (
             <Skeleton className="h-16 w-full" />
           ) : !tgStatus?.botConfigured ? (
-            <div className="p-4 rounded-md border">
-              <p className="text-sm text-muted-foreground">{t("settings.telegram.notConfigured")}</p>
+            <div className="space-y-3">
+              <div className="p-4 rounded-md border">
+                <p className="text-sm text-muted-foreground">{t("settings.telegram.notConfigured")}</p>
+              </div>
+              <div className="p-4 rounded-md border space-y-2">
+                <h3 className="font-medium text-sm">{t("settings.telegram.setupGuideTitle")}</h3>
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <p>{t("settings.telegram.setupGuide1")}</p>
+                  <p>{t("settings.telegram.setupGuide2")}</p>
+                  <p>{t("settings.telegram.setupGuide3")}</p>
+                  <p>{t("settings.telegram.setupGuide4")}</p>
+                  <p>{t("settings.telegram.setupGuide5")}</p>
+                </div>
+              </div>
             </div>
           ) : tgStatus?.linked ? (
             <div className="space-y-3">
@@ -225,6 +237,15 @@ export default function Settings() {
                   <Unlink className="h-4 w-4 mr-1" />
                   {t("settings.telegram.unlink")}
                 </Button>
+              </div>
+              <div className="p-4 rounded-md border space-y-2" data-testid="telegram-commands-guide">
+                <h3 className="font-medium text-sm">{t("settings.telegram.commands")}</h3>
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <p><code className="bg-muted px-1 rounded">{t("settings.telegram.cmdStart")}</code></p>
+                  <p><code className="bg-muted px-1 rounded">{t("settings.telegram.cmdHelp")}</code></p>
+                  <p><code className="bg-muted px-1 rounded">{t("settings.telegram.cmdUnlink")}</code></p>
+                  <p className="pt-1">{t("settings.telegram.cmdNatural")}</p>
+                </div>
               </div>
             </div>
           ) : (
