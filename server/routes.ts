@@ -1992,14 +1992,46 @@ export async function registerRoutes(
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ error: "Not authenticated" });
       const link = await storage.getTelegramLinkByUserId(userId);
+      const dbToken = await storage.getAppSetting("TELEGRAM_BOT_TOKEN");
+      const hasToken = !!(process.env.TELEGRAM_BOT_TOKEN || dbToken);
       res.json({
         linked: !!link,
         telegramUsername: link?.telegramUsername || null,
         linkedAt: link?.createdAt || null,
-        botConfigured: !!process.env.TELEGRAM_BOT_TOKEN,
+        botConfigured: hasToken,
+        tokenSource: dbToken ? "settings" : (process.env.TELEGRAM_BOT_TOKEN ? "env" : null),
       });
     } catch (error) {
       handleApiError(res, error, "Failed to get Telegram status");
+    }
+  });
+
+  app.put("/api/telegram/bot-token", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+      const { token } = req.body;
+      if (!token || typeof token !== "string" || token.trim().length < 10) {
+        return res.status(400).json({ error: "Invalid bot token" });
+      }
+      await storage.setAppSetting("TELEGRAM_BOT_TOKEN", token.trim());
+      process.env.TELEGRAM_BOT_TOKEN = token.trim();
+      setupTelegramWebhook().catch(err => console.error("[Telegram] webhook setup error after token save:", err));
+      res.json({ ok: true });
+    } catch (error) {
+      handleApiError(res, error, "Failed to save bot token");
+    }
+  });
+
+  app.delete("/api/telegram/bot-token", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+      await storage.deleteAppSetting("TELEGRAM_BOT_TOKEN");
+      delete process.env.TELEGRAM_BOT_TOKEN;
+      res.json({ ok: true });
+    } catch (error) {
+      handleApiError(res, error, "Failed to delete bot token");
     }
   });
 
@@ -2017,8 +2049,17 @@ export async function registerRoutes(
   // Register Telegram webhook endpoint (no auth - Telegram calls this)
   registerTelegramWebhook(app);
 
-  // Setup Telegram webhook URL on startup
-  setupTelegramWebhook().catch(err => console.error("[Telegram] webhook setup error:", err));
+  // Load Telegram bot token from DB on startup, then setup webhook
+  (async () => {
+    try {
+      const dbToken = await storage.getAppSetting("TELEGRAM_BOT_TOKEN");
+      if (dbToken && !process.env.TELEGRAM_BOT_TOKEN) {
+        process.env.TELEGRAM_BOT_TOKEN = dbToken;
+        console.log("[Telegram] Loaded bot token from app settings");
+      }
+    } catch (e) {}
+    setupTelegramWebhook().catch(err => console.error("[Telegram] webhook setup error:", err));
+  })();
 
   app.use((err: Error, _req: Request, res: Response, next: NextFunction) => {
     if (err instanceof NotImplementedError || err?.name === "NotImplementedError") {
