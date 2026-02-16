@@ -223,6 +223,8 @@ export default function Settings() {
             <p>{t("settings.telegram.setupGuide3")}</p>
             <p>{t("settings.telegram.setupGuide4")}</p>
             <p>{t("settings.telegram.setupGuide5")}</p>
+            <p>{t("settings.telegram.setupGuide6")}</p>
+            <p>{t("settings.telegram.setupGuide7")}</p>
           </div>
           <div className="space-y-2 pt-1">
             <Label className="text-xs">{t("settings.telegram.botTokenLabel")}</Label>
