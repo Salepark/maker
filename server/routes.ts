@@ -14,6 +14,7 @@ import { NotImplementedError, handleApiError } from "./lib/safe-storage";
 import { PERMISSION_REQUEST_MESSAGES } from "@shared/permission-messages";
 import { encrypt, decrypt } from "./lib/crypto";
 import { setUserHasProviders } from "./llm/client";
+import { registerTelegramWebhook, setupTelegramWebhook } from "./adapters/telegram";
 
 function getUserId(req: Request): string | undefined {
   const user = req.user as any;
@@ -1971,6 +1972,53 @@ export async function registerRoutes(
       handleApiError(res, error, "Failed to delete rule memory");
     }
   });
+
+  // ============================================
+  // TELEGRAM LINK MANAGEMENT
+  // ============================================
+  app.post("/api/telegram/link-code", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+      const code = await storage.createLinkCode(userId, "telegram");
+      res.json({ code, expiresInSeconds: 600 });
+    } catch (error) {
+      handleApiError(res, error, "Failed to generate link code");
+    }
+  });
+
+  app.get("/api/telegram/status", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+      const link = await storage.getTelegramLinkByUserId(userId);
+      res.json({
+        linked: !!link,
+        telegramUsername: link?.telegramUsername || null,
+        linkedAt: link?.createdAt || null,
+        botConfigured: !!process.env.TELEGRAM_BOT_TOKEN,
+      });
+    } catch (error) {
+      handleApiError(res, error, "Failed to get Telegram status");
+    }
+  });
+
+  app.delete("/api/telegram/unlink", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+      await storage.deleteTelegramLink(userId);
+      res.json({ ok: true });
+    } catch (error) {
+      handleApiError(res, error, "Failed to unlink Telegram");
+    }
+  });
+
+  // Register Telegram webhook endpoint (no auth - Telegram calls this)
+  registerTelegramWebhook(app);
+
+  // Setup Telegram webhook URL on startup
+  setupTelegramWebhook().catch(err => console.error("[Telegram] webhook setup error:", err));
 
   app.use((err: Error, _req: Request, res: Response, next: NextFunction) => {
     if (err instanceof NotImplementedError || err?.name === "NotImplementedError") {

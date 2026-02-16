@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useLanguage } from "@/lib/language-provider";
-import { Settings as SettingsIcon, Play, Pause, RefreshCw, Zap, Clock, Plus, Trash2, Key, Loader2, Pencil } from "lucide-react";
+import { Settings as SettingsIcon, Play, Pause, RefreshCw, Zap, Clock, Plus, Trash2, Key, Loader2, Pencil, MessageCircle, Copy, Unlink, ExternalLink, Check } from "lucide-react";
 
 interface SchedulerStatus {
   isRunning: boolean;
@@ -148,6 +148,125 @@ export default function Settings() {
     setApiKey("");
     setBaseUrl("");
     setDefaultModel("");
+  }
+
+  function TelegramCard() {
+    const [linkCode, setLinkCode] = useState<string | null>(null);
+    const [copied, setCopied] = useState(false);
+
+    const { data: tgStatus, isLoading: tgLoading } = useQuery<{
+      linked: boolean;
+      telegramUsername: string | null;
+      linkedAt: string | null;
+      botConfigured: boolean;
+    }>({
+      queryKey: ["/api/telegram/status"],
+    });
+
+    const generateCodeMutation = useMutation({
+      mutationFn: () => apiRequest("POST", "/api/telegram/link-code").then((r: any) => r.json()),
+      onSuccess: (data: any) => {
+        setLinkCode(data.code);
+      },
+      onError: () => {
+        toast({ title: t("settings.telegram.codeFailed"), variant: "destructive" });
+      },
+    });
+
+    const unlinkMutation = useMutation({
+      mutationFn: () => apiRequest("DELETE", "/api/telegram/unlink"),
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["/api/telegram/status"] });
+        toast({ title: t("settings.telegram.unlinked") });
+      },
+    });
+
+    const copyCode = () => {
+      if (linkCode) {
+        navigator.clipboard.writeText(`/link ${linkCode}`);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+    };
+
+    return (
+      <Card data-testid="card-telegram-settings">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <MessageCircle className="h-5 w-5" />
+            {t("settings.telegram.title")}
+          </CardTitle>
+          <CardDescription>{t("settings.telegram.subtitle")}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {tgLoading ? (
+            <Skeleton className="h-16 w-full" />
+          ) : !tgStatus?.botConfigured ? (
+            <div className="p-4 rounded-md border">
+              <p className="text-sm text-muted-foreground">{t("settings.telegram.notConfigured")}</p>
+            </div>
+          ) : tgStatus?.linked ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-4 p-4 rounded-md border flex-wrap">
+                <div>
+                  <h3 className="font-medium text-sm">{t("settings.telegram.linked")}</h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {tgStatus.telegramUsername && `@${tgStatus.telegramUsername}`}
+                    {tgStatus.linkedAt && ` · ${new Date(tgStatus.linkedAt).toLocaleDateString()}`}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => unlinkMutation.mutate()}
+                  disabled={unlinkMutation.isPending}
+                  data-testid="button-unlink-telegram"
+                >
+                  <Unlink className="h-4 w-4 mr-1" />
+                  {t("settings.telegram.unlink")}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="p-4 rounded-md border space-y-3">
+                <h3 className="font-medium text-sm">{t("settings.telegram.howToLink")}</h3>
+                <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
+                  <li>{t("settings.telegram.step1")}</li>
+                  <li>{t("settings.telegram.step2")}</li>
+                  <li>{t("settings.telegram.step3")}</li>
+                </ol>
+
+                {linkCode ? (
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 p-2 rounded-md bg-muted text-sm font-mono" data-testid="text-link-code">
+                      /link {linkCode}
+                    </code>
+                    <Button size="sm" variant="outline" onClick={copyCode} data-testid="button-copy-link-code">
+                      {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    size="sm"
+                    onClick={() => generateCodeMutation.mutate()}
+                    disabled={generateCodeMutation.isPending}
+                    data-testid="button-generate-link-code"
+                  >
+                    {generateCodeMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    ) : (
+                      <Key className="h-4 w-4 mr-1" />
+                    )}
+                    {t("settings.telegram.generateCode")}
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
   }
 
   function startEdit(provider: LlmProviderSafe) {
@@ -318,6 +437,8 @@ export default function Settings() {
           )}
         </CardContent>
       </Card>
+
+      <TelegramCard />
 
       <Card>
         <CardHeader>

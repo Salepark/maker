@@ -5,6 +5,7 @@ import {
   presets, profiles, profileSources, outputs, outputItems,
   bots, botSettings, sourceBotLinks, llmProviders, jobRuns,
   permissions, auditLogs, reportMetrics, ruleMemories,
+  telegramLinks, linkCodes,
   type Source, type Item, type Analysis, type Draft, type Post, type Report, 
   type InsertSource, type InsertItem, type InsertAnalysis, type InsertDraft, type InsertReport, 
   type ChatMessage, type InsertChatMessage, type ChatThread, type InsertChatThread, type Setting,
@@ -15,6 +16,7 @@ import {
   type JobRun, type InsertJobRun,
   type Permission, type InsertPermission,
   type RuleMemory,
+  type TelegramLink,
 } from "@shared/schema";
 import { eq, desc, sql, and, count, gte, lt, lte, or, isNull, inArray } from "drizzle-orm";
 
@@ -208,6 +210,13 @@ export interface IStorage {
   upsertRuleMemory(userId: string, scope: string, scopeId: number | null, key: string, valueJson: any): Promise<RuleMemory>;
   deleteRuleMemory(userId: string, scope: string, scopeId: number | null, key: string): Promise<void>;
   getEffectiveRules(userId: string, botId: number | null): Promise<Record<string, any>>;
+
+  getTelegramLinkByUserId(userId: string): Promise<TelegramLink | null>;
+  getTelegramLinkByChatId(chatId: string): Promise<TelegramLink | null>;
+  createTelegramLink(data: { userId: string; telegramChatId: string; telegramUsername?: string; threadId: number }): Promise<TelegramLink>;
+  deleteTelegramLink(userId: string): Promise<void>;
+  createLinkCode(userId: string, platform: string): Promise<string>;
+  consumeLinkCode(code: string): Promise<{ userId: string; platform: string } | null>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1731,6 +1740,57 @@ export class DatabaseStorage implements IStorage {
       merged[rule.key] = rule.valueJson;
     }
     return merged;
+  }
+
+  async getTelegramLinkByUserId(userId: string): Promise<TelegramLink | null> {
+    const [link] = await db.select().from(telegramLinks)
+      .where(and(eq(telegramLinks.userId, userId), eq(telegramLinks.isActive, true)))
+      .limit(1);
+    return link || null;
+  }
+
+  async getTelegramLinkByChatId(chatId: string): Promise<TelegramLink | null> {
+    const [link] = await db.select().from(telegramLinks)
+      .where(and(eq(telegramLinks.telegramChatId, chatId), eq(telegramLinks.isActive, true)))
+      .limit(1);
+    return link || null;
+  }
+
+  async createTelegramLink(data: { userId: string; telegramChatId: string; telegramUsername?: string; threadId: number }): Promise<TelegramLink> {
+    const existingByChatId = await this.getTelegramLinkByChatId(data.telegramChatId);
+    if (existingByChatId && existingByChatId.userId !== data.userId) {
+      await db.delete(telegramLinks).where(eq(telegramLinks.telegramChatId, data.telegramChatId));
+    }
+    await db.delete(telegramLinks).where(eq(telegramLinks.userId, data.userId));
+    const [link] = await db.insert(telegramLinks).values({
+      userId: data.userId,
+      telegramChatId: data.telegramChatId,
+      telegramUsername: data.telegramUsername || null,
+      threadId: data.threadId,
+      isActive: true,
+    }).returning();
+    return link;
+  }
+
+  async deleteTelegramLink(userId: string): Promise<void> {
+    await db.delete(telegramLinks).where(eq(telegramLinks.userId, userId));
+  }
+
+  async createLinkCode(userId: string, platform: string): Promise<string> {
+    await db.delete(linkCodes).where(and(eq(linkCodes.userId, userId), eq(linkCodes.platform, platform), isNull(linkCodes.usedAt)));
+    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    await db.insert(linkCodes).values({ userId, code, platform, expiresAt });
+    return code;
+  }
+
+  async consumeLinkCode(code: string): Promise<{ userId: string; platform: string } | null> {
+    const [row] = await db.select().from(linkCodes)
+      .where(and(eq(linkCodes.code, code), isNull(linkCodes.usedAt), gte(linkCodes.expiresAt, new Date())))
+      .limit(1);
+    if (!row) return null;
+    await db.update(linkCodes).set({ usedAt: new Date() }).where(eq(linkCodes.id, row.id));
+    return { userId: row.userId, platform: row.platform };
   }
 }
 

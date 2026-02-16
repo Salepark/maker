@@ -1508,4 +1508,11 @@ export class SqliteStorage implements IStorage {
     }
     return merged;
   }
+
+  async getTelegramLinkByUserId(_userId: string): Promise<any> { return null; }
+  async getTelegramLinkByChatId(_chatId: string): Promise<any> { return null; }
+  async createTelegramLink(_data: any): Promise<any> { throw new Error("Telegram linking not supported in local mode"); }
+  async deleteTelegramLink(_userId: string): Promise<void> {}
+  async createLinkCode(_userId: string, _platform: string): Promise<string> { throw new Error("Link codes not supported in local mode"); }
+  async consumeLinkCode(_code: string): Promise<any> { return null; }
 }
