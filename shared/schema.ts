@@ -668,3 +668,15 @@ export const linkCodes = pgTable("link_codes", {
   index("idx_link_codes_code").on(table.code),
   index("idx_link_codes_user").on(table.userId),
 ]);
+
+// ============================================
+// APP SETTINGS - Encrypted key-value config (e.g. Telegram bot token)
+// ============================================
+export const appSettings = pgTable("app_settings", {
+  id: serial("id").primaryKey(),
+  key: varchar("key", { length: 255 }).notNull().unique(),
+  valueEncrypted: text("value_encrypted").notNull(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export type AppSetting = typeof appSettings.$inferSelect;

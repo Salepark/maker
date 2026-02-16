@@ -5,7 +5,7 @@ import {
   presets, profiles, profileSources, outputs, outputItems,
   bots, botSettings, sourceBotLinks, llmProviders, jobRuns,
   permissions, auditLogs, reportMetrics, ruleMemories,
-  telegramLinks, linkCodes,
+  telegramLinks, linkCodes, appSettings,
   type Source, type Item, type Analysis, type Draft, type Post, type Report, 
   type InsertSource, type InsertItem, type InsertAnalysis, type InsertDraft, type InsertReport, 
   type ChatMessage, type InsertChatMessage, type ChatThread, type InsertChatThread, type Setting,
@@ -217,6 +217,10 @@ export interface IStorage {
   deleteTelegramLink(userId: string): Promise<void>;
   createLinkCode(userId: string, platform: string): Promise<string>;
   consumeLinkCode(code: string): Promise<{ userId: string; platform: string } | null>;
+
+  getAppSetting(key: string): Promise<string | null>;
+  setAppSetting(key: string, value: string): Promise<void>;
+  deleteAppSetting(key: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1791,6 +1795,26 @@ export class DatabaseStorage implements IStorage {
     if (!row) return null;
     await db.update(linkCodes).set({ usedAt: new Date() }).where(eq(linkCodes.id, row.id));
     return { userId: row.userId, platform: row.platform };
+  }
+
+  async getAppSetting(key: string): Promise<string | null> {
+    const [row] = await db.select().from(appSettings).where(eq(appSettings.key, key)).limit(1);
+    if (!row) return null;
+    return decrypt(row.valueEncrypted);
+  }
+
+  async setAppSetting(key: string, value: string): Promise<void> {
+    const encrypted = encrypt(value);
+    const [existing] = await db.select().from(appSettings).where(eq(appSettings.key, key)).limit(1);
+    if (existing) {
+      await db.update(appSettings).set({ valueEncrypted: encrypted, updatedAt: new Date() }).where(eq(appSettings.key, key));
+    } else {
+      await db.insert(appSettings).values({ key, valueEncrypted: encrypted });
+    }
+  }
+
+  async deleteAppSetting(key: string): Promise<void> {
+    await db.delete(appSettings).where(eq(appSettings.key, key));
   }
 }
 

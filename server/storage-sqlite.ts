@@ -1515,4 +1515,8 @@ export class SqliteStorage implements IStorage {
   async deleteTelegramLink(_userId: string): Promise<void> {}
   async createLinkCode(_userId: string, _platform: string): Promise<string> { throw new Error("Link codes not supported in local mode"); }
   async consumeLinkCode(_code: string): Promise<any> { return null; }
+
+  async getAppSetting(_key: string): Promise<string | null> { return null; }
+  async setAppSetting(_key: string, _value: string): Promise<void> {}
+  async deleteAppSetting(_key: string): Promise<void> {}
 }
