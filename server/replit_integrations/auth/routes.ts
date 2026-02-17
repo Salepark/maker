@@ -4,6 +4,8 @@ import { isAuthenticated } from "./replitAuth";
 
 const TEST_ACCOUNT_ID = "test_clean_account";
 const REVIEWER_ACCOUNT_ID = "reviewer_account";
+const DEMO_USERNAME = "reviewer";
+const DEMO_PASSWORD = "maker2025";
 
 export function registerAuthRoutes(app: Express): void {
   app.get("/api/auth/user", isAuthenticated, async (req: any, res) => {
@@ -14,6 +16,50 @@ export function registerAuthRoutes(app: Express): void {
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  app.post("/api/demo-login", async (req: any, res) => {
+    try {
+      const { username, password } = req.body;
+      if (username !== DEMO_USERNAME || password !== DEMO_PASSWORD) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+
+      await authStorage.upsertUser({
+        id: REVIEWER_ACCOUNT_ID,
+        email: "reviewer@maker.review",
+        firstName: "Reviewer",
+        lastName: "",
+        profileImageUrl: null,
+      });
+
+      const demoUser: any = {
+        claims: {
+          sub: REVIEWER_ACCOUNT_ID,
+          email: "reviewer@maker.review",
+          first_name: "Reviewer",
+          last_name: "",
+        },
+        expires_at: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60,
+      };
+
+      req.login(demoUser, (err: any) => {
+        if (err) {
+          console.error("Demo login session error:", err);
+          return res.status(500).json({ message: "Login failed" });
+        }
+        req.session.save((saveErr: any) => {
+          if (saveErr) {
+            console.error("Demo session save error:", saveErr);
+            return res.status(500).json({ message: "Session save failed" });
+          }
+          res.json({ success: true, userId: REVIEWER_ACCOUNT_ID });
+        });
+      });
+    } catch (error) {
+      console.error("Demo login error:", error);
+      res.status(500).json({ message: "Login failed" });
     }
   });
 
