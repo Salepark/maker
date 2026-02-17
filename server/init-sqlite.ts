@@ -332,6 +332,37 @@ export function initSqliteTables() {
     );
     CREATE UNIQUE INDEX IF NOT EXISTS rule_memories_scope_key_unique ON rule_memories(user_id, scope, scope_id, key);
     CREATE INDEX IF NOT EXISTS idx_rule_memories_user_scope ON rule_memories(user_id, scope, scope_id);
+
+    CREATE TABLE IF NOT EXISTS telegram_links (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT NOT NULL REFERENCES users(id),
+      telegram_chat_id TEXT NOT NULL,
+      telegram_username TEXT,
+      thread_id INTEGER REFERENCES chat_threads(id),
+      is_active INTEGER NOT NULL DEFAULT 1,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS telegram_links_chat_id_unique_sqlite ON telegram_links(telegram_chat_id);
+    CREATE INDEX IF NOT EXISTS idx_telegram_links_user_sqlite ON telegram_links(user_id);
+
+    CREATE TABLE IF NOT EXISTS link_codes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT NOT NULL REFERENCES users(id),
+      code TEXT NOT NULL UNIQUE,
+      platform TEXT NOT NULL,
+      expires_at INTEGER NOT NULL,
+      used_at INTEGER,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+    );
+    CREATE INDEX IF NOT EXISTS idx_link_codes_code_sqlite ON link_codes(code);
+    CREATE INDEX IF NOT EXISTS idx_link_codes_user_sqlite ON link_codes(user_id);
+
+    CREATE TABLE IF NOT EXISTS app_settings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      key TEXT NOT NULL UNIQUE,
+      value_encrypted TEXT NOT NULL,
+      updated_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+    );
   `);
 
   console.log("[SQLite] All tables created successfully");

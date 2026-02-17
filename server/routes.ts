@@ -14,7 +14,11 @@ import { NotImplementedError, handleApiError } from "./lib/safe-storage";
 import { PERMISSION_REQUEST_MESSAGES } from "@shared/permission-messages";
 import { encrypt, decrypt } from "./lib/crypto";
 import { setUserHasProviders } from "./llm/client";
-import { registerTelegramWebhook, setupTelegramWebhook } from "./adapters/telegram";
+import { registerTelegramWebhook, setupTelegramWebhook, startPolling, stopPolling } from "./adapters/telegram";
+
+const isLocalMode = driver === "sqlite" && (
+  process.env.NODE_ENV === "development" || process.env.MAKER_DESKTOP === "true"
+);
 
 function getUserId(req: Request): string | undefined {
   const user = req.user as any;
@@ -2016,7 +2020,12 @@ export async function registerRoutes(
       }
       await storage.setAppSetting("TELEGRAM_BOT_TOKEN", token.trim());
       process.env.TELEGRAM_BOT_TOKEN = token.trim();
-      setupTelegramWebhook().catch(err => console.error("[Telegram] webhook setup error after token save:", err));
+      if (isLocalMode) {
+        stopPolling();
+        startPolling().catch(err => console.error("[Telegram] polling restart error:", err));
+      } else {
+        setupTelegramWebhook().catch(err => console.error("[Telegram] webhook setup error after token save:", err));
+      }
       res.json({ ok: true });
     } catch (error) {
       handleApiError(res, error, "Failed to save bot token");
@@ -2029,6 +2038,9 @@ export async function registerRoutes(
       if (!userId) return res.status(401).json({ error: "Not authenticated" });
       await storage.deleteAppSetting("TELEGRAM_BOT_TOKEN");
       delete process.env.TELEGRAM_BOT_TOKEN;
+      if (isLocalMode) {
+        stopPolling();
+      }
       res.json({ ok: true });
     } catch (error) {
       handleApiError(res, error, "Failed to delete bot token");
@@ -2046,20 +2058,30 @@ export async function registerRoutes(
     }
   });
 
-  // Register Telegram webhook endpoint (no auth - Telegram calls this)
-  registerTelegramWebhook(app);
-
-  // Load Telegram bot token from DB on startup, then setup webhook
-  (async () => {
-    try {
-      const dbToken = await storage.getAppSetting("TELEGRAM_BOT_TOKEN");
-      if (dbToken && !process.env.TELEGRAM_BOT_TOKEN) {
-        process.env.TELEGRAM_BOT_TOKEN = dbToken;
-        console.log("[Telegram] Loaded bot token from app settings");
-      }
-    } catch (e) {}
-    setupTelegramWebhook().catch(err => console.error("[Telegram] webhook setup error:", err));
-  })();
+  if (isLocalMode) {
+    (async () => {
+      try {
+        const dbToken = await storage.getAppSetting("TELEGRAM_BOT_TOKEN");
+        if (dbToken && !process.env.TELEGRAM_BOT_TOKEN) {
+          process.env.TELEGRAM_BOT_TOKEN = dbToken;
+          console.log("[Telegram] Loaded bot token from app settings (local mode)");
+        }
+      } catch (e) {}
+      startPolling().catch(err => console.error("[Telegram] polling start error:", err));
+    })();
+  } else {
+    registerTelegramWebhook(app);
+    (async () => {
+      try {
+        const dbToken = await storage.getAppSetting("TELEGRAM_BOT_TOKEN");
+        if (dbToken && !process.env.TELEGRAM_BOT_TOKEN) {
+          process.env.TELEGRAM_BOT_TOKEN = dbToken;
+          console.log("[Telegram] Loaded bot token from app settings");
+        }
+      } catch (e) {}
+      setupTelegramWebhook().catch(err => console.error("[Telegram] webhook setup error:", err));
+    })();
+  }
 
   app.use((err: Error, _req: Request, res: Response, next: NextFunction) => {
     if (err instanceof NotImplementedError || err?.name === "NotImplementedError") {

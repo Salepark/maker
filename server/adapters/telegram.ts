@@ -186,6 +186,52 @@ async function handleCallbackQuery(chatId: string, callbackQueryId: string, data
   }
 }
 
+async function processUpdate(update: any): Promise<void> {
+  if (update.message) {
+    const msg = update.message;
+    const chatId = String(msg.chat.id);
+    const text = msg.text || "";
+    const username = msg.from?.username;
+
+    if (text.startsWith("/start")) {
+      await sendTelegramMessage(chatId,
+        "Welcome to Maker Bot Manager!\n\nLink your account:\n1. Go to Maker Settings → Telegram\n2. Click 'Generate Link Code'\n3. Send `/link YOUR_CODE` here");
+    } else if (text.startsWith("/link")) {
+      const code = text.replace("/link", "").trim();
+      await handleLinkCommand(chatId, username, code);
+    } else if (text.startsWith("/unlink")) {
+      await handleUnlinkCommand(chatId);
+    } else if (text.startsWith("/help")) {
+      await sendTelegramMessage(chatId,
+        "*Maker Bot Commands*\n\n" +
+        "`/link CODE` — Link Maker account\n" +
+        "`/unlink` — Unlink account\n" +
+        "`/help` — Show this help\n\n" +
+        "*Bot commands (after linking):*\n" +
+        "• `list bots` / `봇 목록`\n" +
+        "• `run now` / `지금 실행`\n" +
+        "• `status` / `상태`\n" +
+        "• `pause` / `일시정지`\n" +
+        "• `resume` / `재개`\n" +
+        "• Any natural language command!");
+    } else if (text.length > 0) {
+      await handleTextMessage(chatId, text);
+    }
+  }
+
+  if (update.callback_query) {
+    const cb = update.callback_query;
+    const chatId = String(cb.message?.chat?.id || "");
+    if (chatId) {
+      await handleCallbackQuery(chatId, cb.id, cb.data || "");
+    }
+  }
+}
+
+// ============================================
+// WEBHOOK MODE (Cloud / Web)
+// ============================================
+
 export function registerTelegramWebhook(app: Express): void {
   const token = getBotToken();
   if (!token) {
@@ -203,47 +249,7 @@ export function registerTelegramWebhook(app: Express): void {
         }
       }
 
-      const update = req.body;
-
-      if (update.message) {
-        const msg = update.message;
-        const chatId = String(msg.chat.id);
-        const text = msg.text || "";
-        const username = msg.from?.username;
-
-        if (text.startsWith("/start")) {
-          await sendTelegramMessage(chatId,
-            "Welcome to Maker Bot Manager!\n\nLink your account:\n1. Go to Maker Settings → Telegram\n2. Click 'Generate Link Code'\n3. Send `/link YOUR_CODE` here");
-        } else if (text.startsWith("/link")) {
-          const code = text.replace("/link", "").trim();
-          await handleLinkCommand(chatId, username, code);
-        } else if (text.startsWith("/unlink")) {
-          await handleUnlinkCommand(chatId);
-        } else if (text.startsWith("/help")) {
-          await sendTelegramMessage(chatId,
-            "*Maker Bot Commands*\n\n" +
-            "`/link CODE` — Link Maker account\n" +
-            "`/unlink` — Unlink account\n" +
-            "`/help` — Show this help\n\n" +
-            "*Bot commands (after linking):*\n" +
-            "• `list bots` / `봇 목록`\n" +
-            "• `run now` / `지금 실행`\n" +
-            "• `status` / `상태`\n" +
-            "• `pause` / `일시정지`\n" +
-            "• `resume` / `재개`\n" +
-            "• Any natural language command!");
-        } else if (text.length > 0) {
-          await handleTextMessage(chatId, text);
-        }
-      }
-
-      if (update.callback_query) {
-        const cb = update.callback_query;
-        const chatId = String(cb.message?.chat?.id || "");
-        if (chatId) {
-          await handleCallbackQuery(chatId, cb.id, cb.data || "");
-        }
-      }
+      await processUpdate(req.body);
 
       res.sendStatus(200);
     } catch (err) {
@@ -280,6 +286,124 @@ export async function setupTelegramWebhook(): Promise<void> {
     console.error("[Telegram] Failed to set webhook:", err);
   }
 }
+
+// ============================================
+// POLLING MODE (Desktop / Local)
+// ============================================
+
+let pollingActive = false;
+let pollingTimeout: ReturnType<typeof setTimeout> | null = null;
+
+async function deleteWebhook(): Promise<void> {
+  const token = getBotToken();
+  if (!token) return;
+
+  try {
+    await fetch(`${TELEGRAM_API}${token}/deleteWebhook`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ drop_pending_updates: true }),
+    });
+    console.log("[Telegram] Webhook deleted for polling mode");
+  } catch (err) {
+    console.error("[Telegram] Failed to delete webhook:", err);
+  }
+}
+
+async function getUpdates(offset: number): Promise<{ updates: any[]; nextOffset: number }> {
+  const token = getBotToken();
+  if (!token) return { updates: [], nextOffset: offset };
+
+  try {
+    const resp = await fetch(`${TELEGRAM_API}${token}/getUpdates`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        offset,
+        timeout: 30,
+        allowed_updates: ["message", "callback_query"],
+      }),
+    });
+    const data = await resp.json() as any;
+
+    if (!data.ok || !Array.isArray(data.result)) {
+      return { updates: [], nextOffset: offset };
+    }
+
+    const updates = data.result;
+    const newOffset = updates.length > 0
+      ? updates[updates.length - 1].update_id + 1
+      : offset;
+
+    return { updates, nextOffset: newOffset };
+  } catch (err) {
+    console.error("[Telegram] getUpdates error:", err);
+    return { updates: [], nextOffset: offset };
+  }
+}
+
+async function pollLoop(offset: number): Promise<void> {
+  if (!pollingActive) return;
+
+  const token = getBotToken();
+  if (!token) {
+    console.log("[Telegram] Polling paused: no bot token");
+    pollingTimeout = setTimeout(() => pollLoop(offset), 10000);
+    return;
+  }
+
+  try {
+    const { updates, nextOffset } = await getUpdates(offset);
+
+    for (const update of updates) {
+      try {
+        await processUpdate(update);
+      } catch (err) {
+        console.error("[Telegram] Error processing polled update:", err);
+      }
+    }
+
+    if (pollingActive) {
+      pollingTimeout = setTimeout(() => pollLoop(nextOffset), 500);
+    }
+  } catch (err) {
+    console.error("[Telegram] Polling error:", err);
+    if (pollingActive) {
+      pollingTimeout = setTimeout(() => pollLoop(offset), 5000);
+    }
+  }
+}
+
+export async function startPolling(): Promise<void> {
+  if (pollingActive) return;
+
+  const token = getBotToken();
+  if (!token) {
+    console.log("[Telegram] No bot token set, polling will start when token is configured");
+  }
+
+  await deleteWebhook();
+  pollingActive = true;
+  console.log("[Telegram] Polling mode started");
+  pollLoop(0);
+}
+
+export function stopPolling(): void {
+  pollingActive = false;
+  if (pollingTimeout) {
+    clearTimeout(pollingTimeout);
+    pollingTimeout = null;
+  }
+  console.log("[Telegram] Polling stopped");
+}
+
+export function isPollingActive(): boolean {
+  return pollingActive;
+}
+
+// ============================================
+// SHARED: Pending confirmation cleanup
+// ============================================
 
 setInterval(() => {
   const now = Date.now();

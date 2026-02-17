@@ -5,6 +5,7 @@ import {
   presets, profiles, profileSources, outputs, outputItems,
   bots, botSettings, sourceBotLinks, llmProviders, jobRuns,
   permissions, auditLogs, reportMetrics, ruleMemories,
+  telegramLinks, linkCodes, appSettings,
 } from "../shared/schema.sqlite";
 import type {
   Source, Item, Analysis, Draft, Post, Report,
@@ -1509,14 +1510,71 @@ export class SqliteStorage implements IStorage {
     return merged;
   }
 
-  async getTelegramLinkByUserId(_userId: string): Promise<any> { return null; }
-  async getTelegramLinkByChatId(_chatId: string): Promise<any> { return null; }
-  async createTelegramLink(_data: any): Promise<any> { throw new Error("Telegram linking not supported in local mode"); }
-  async deleteTelegramLink(_userId: string): Promise<void> {}
-  async createLinkCode(_userId: string, _platform: string): Promise<string> { throw new Error("Link codes not supported in local mode"); }
-  async consumeLinkCode(_code: string): Promise<any> { return null; }
+  async getTelegramLinkByUserId(userId: string): Promise<any> {
+    const [row] = await db.select().from(telegramLinks).where(eq(telegramLinks.userId, userId)).limit(1);
+    return row || null;
+  }
 
-  async getAppSetting(_key: string): Promise<string | null> { return null; }
-  async setAppSetting(_key: string, _value: string): Promise<void> {}
-  async deleteAppSetting(_key: string): Promise<void> {}
+  async getTelegramLinkByChatId(chatId: string): Promise<any> {
+    const [row] = await db.select().from(telegramLinks).where(eq(telegramLinks.telegramChatId, chatId)).limit(1);
+    return row || null;
+  }
+
+  async createTelegramLink(data: { userId: string; telegramChatId: string; telegramUsername?: string; threadId: number }): Promise<any> {
+    const existingByChatId = await this.getTelegramLinkByChatId(data.telegramChatId);
+    if (existingByChatId && existingByChatId.userId !== data.userId) {
+      await db.delete(telegramLinks).where(eq(telegramLinks.telegramChatId, data.telegramChatId));
+    }
+    const existingByUser = await this.getTelegramLinkByUserId(data.userId);
+    if (existingByUser) {
+      await db.delete(telegramLinks).where(eq(telegramLinks.userId, data.userId));
+    }
+    const [row] = await db.insert(telegramLinks).values({
+      userId: data.userId,
+      telegramChatId: data.telegramChatId,
+      telegramUsername: data.telegramUsername || null,
+      threadId: data.threadId,
+    }).returning();
+    return row;
+  }
+
+  async deleteTelegramLink(userId: string): Promise<void> {
+    await db.delete(telegramLinks).where(eq(telegramLinks.userId, userId));
+  }
+
+  async createLinkCode(userId: string, platform: string): Promise<string> {
+    const code = Array.from({ length: 6 }, () => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(Math.random() * 31)]).join("");
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    await db.insert(linkCodes).values({ userId, code, platform, expiresAt });
+    return code;
+  }
+
+  async consumeLinkCode(code: string): Promise<{ userId: string; platform: string } | null> {
+    const [row] = await db.select().from(linkCodes)
+      .where(and(eq(linkCodes.code, code), isNull(linkCodes.usedAt), gte(linkCodes.expiresAt, new Date())))
+      .limit(1);
+    if (!row) return null;
+    await db.update(linkCodes).set({ usedAt: new Date() }).where(eq(linkCodes.id, row.id));
+    return { userId: row.userId, platform: row.platform };
+  }
+
+  async getAppSetting(key: string): Promise<string | null> {
+    const [row] = await db.select().from(appSettings).where(eq(appSettings.key, key)).limit(1);
+    if (!row) return null;
+    return decrypt(row.valueEncrypted);
+  }
+
+  async setAppSetting(key: string, value: string): Promise<void> {
+    const encrypted = encrypt(value);
+    const [existing] = await db.select().from(appSettings).where(eq(appSettings.key, key)).limit(1);
+    if (existing) {
+      await db.update(appSettings).set({ valueEncrypted: encrypted, updatedAt: new Date() }).where(eq(appSettings.key, key));
+    } else {
+      await db.insert(appSettings).values({ key, valueEncrypted: encrypted });
+    }
+  }
+
+  async deleteAppSetting(key: string): Promise<void> {
+    await db.delete(appSettings).where(eq(appSettings.key, key));
+  }
 }
