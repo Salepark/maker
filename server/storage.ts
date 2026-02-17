@@ -21,7 +21,7 @@ import {
 import { eq, desc, sql, and, count, gte, lt, lte, or, isNull, inArray } from "drizzle-orm";
 
 export interface IStorage {
-  getStats(): Promise<{
+  getStats(userId?: string): Promise<{
     total: number;
     new: number;
     analyzed: number;
@@ -39,10 +39,10 @@ export interface IStorage {
   updateSource(id: number, data: Partial<InsertSource>): Promise<Source | undefined>;
   deleteSource(id: number): Promise<void>;
 
-  getItems(status?: string): Promise<(Item & { sourceName: string; relevanceScore?: number; replyWorthinessScore?: number })[]>;
-  getRecentItems(limit?: number): Promise<(Item & { sourceName: string })[]>;
-  getObserveItems(limit?: number): Promise<any[]>;
-  getItem(id: number): Promise<(Item & { sourceName: string; analysis?: Analysis; drafts: Draft[] }) | undefined>;
+  getItems(status?: string, userId?: string): Promise<(Item & { sourceName: string; relevanceScore?: number; replyWorthinessScore?: number })[]>;
+  getRecentItems(limit?: number, userId?: string): Promise<(Item & { sourceName: string })[]>;
+  getObserveItems(limit?: number, userId?: string): Promise<any[]>;
+  getItem(id: number, userId?: string): Promise<(Item & { sourceName: string; analysis?: Analysis; drafts: Draft[] }) | undefined>;
   getItemsByStatus(status: string, limit?: number): Promise<(Item & { sourceName: string; sourceTopic: string; rulesJson?: unknown })[]>;
   getItemsByStatusAndSourceIds(status: string, sourceIds: number[], limit?: number): Promise<(Item & { sourceName: string; sourceTopic: string; rulesJson?: unknown })[]>;
   createItem(data: InsertItem): Promise<Item>;
@@ -52,7 +52,7 @@ export interface IStorage {
   createAnalysis(data: InsertAnalysis): Promise<Analysis>;
   getAnalysisByItemId(itemId: number): Promise<Analysis | undefined>;
 
-  getDrafts(decision?: string): Promise<(Draft & { itemTitle: string; itemUrl: string; sourceName: string })[]>;
+  getDrafts(decision?: string, userId?: string): Promise<(Draft & { itemTitle: string; itemUrl: string; sourceName: string })[]>;
   getDraftsByItemId(itemId: number): Promise<Draft[]>;
   createDraft(data: InsertDraft): Promise<Draft>;
   updateDraftDecision(id: number, decision: string, finalText?: string): Promise<void>;
@@ -226,14 +226,19 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
-  async getStats() {
-    const result = await db
+  async getStats(userId?: string) {
+    let statsQuery = db
       .select({
         status: items.status,
         count: count(),
       })
-      .from(items)
-      .groupBy(items.status);
+      .from(items);
+    
+    if (userId) {
+      statsQuery = statsQuery.innerJoin(sources, eq(items.sourceId, sources.id)).where(eq(sources.userId, userId)) as any;
+    }
+
+    const result = await (statsQuery as any).groupBy(items.status);
 
     const stats: {
       total: number;
@@ -265,11 +270,13 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
-    const lastCollect = await db
+    let lastCollectQuery = db
       .select({ insertedAt: items.insertedAt })
-      .from(items)
-      .orderBy(desc(items.insertedAt))
-      .limit(1);
+      .from(items);
+    if (userId) {
+      lastCollectQuery = lastCollectQuery.innerJoin(sources, eq(items.sourceId, sources.id)).where(eq(sources.userId, userId)) as any;
+    }
+    const lastCollect = await (lastCollectQuery as any).orderBy(desc(items.insertedAt)).limit(1);
     
     if (lastCollect.length > 0 && lastCollect[0].insertedAt) {
       stats.lastCollectAt = lastCollect[0].insertedAt.toISOString();
@@ -324,7 +331,15 @@ export class DatabaseStorage implements IStorage {
     await db.delete(sources).where(eq(sources.id, id));
   }
 
-  async getItems(status?: string): Promise<(Item & { sourceName: string; relevanceScore?: number; replyWorthinessScore?: number })[]> {
+  async getItems(status?: string, userId?: string): Promise<(Item & { sourceName: string; relevanceScore?: number; replyWorthinessScore?: number })[]> {
+    const conditions: any[] = [];
+    if (status && status !== "all") {
+      conditions.push(eq(items.status, status));
+    }
+    if (userId) {
+      conditions.push(eq(sources.userId, userId));
+    }
+
     let query = db
       .select({
         item: items,
@@ -333,12 +348,12 @@ export class DatabaseStorage implements IStorage {
         replyWorthinessScore: analysis.replyWorthinessScore,
       })
       .from(items)
-      .leftJoin(sources, eq(items.sourceId, sources.id))
+      .innerJoin(sources, eq(items.sourceId, sources.id))
       .leftJoin(analysis, eq(analysis.itemId, items.id))
       .orderBy(desc(items.insertedAt));
 
-    if (status && status !== "all") {
-      query = query.where(eq(items.status, status)) as any;
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
     }
 
     const result = await query;
@@ -350,24 +365,38 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
-  async getRecentItems(limit: number = 10): Promise<(Item & { sourceName: string })[]> {
-    const result = await db
+  async getRecentItems(limit: number = 10, userId?: string): Promise<(Item & { sourceName: string })[]> {
+    let query = db
       .select({
         item: items,
         sourceName: sources.name,
       })
       .from(items)
-      .leftJoin(sources, eq(items.sourceId, sources.id))
+      .innerJoin(sources, eq(items.sourceId, sources.id))
       .orderBy(desc(items.insertedAt))
       .limit(limit);
 
+    if (userId) {
+      query = query.where(eq(sources.userId, userId)) as any;
+    }
+
+    const result = await query;
     return result.map((r) => ({
       ...r.item,
       sourceName: r.sourceName || "Unknown",
     }));
   }
 
-  async getObserveItems(limit: number = 50): Promise<any[]> {
+  async getObserveItems(limit: number = 50, userId?: string): Promise<any[]> {
+    const conditions: any[] = [
+      eq(items.status, "skipped"),
+      gte(analysis.relevanceScore, 60),
+      lt(analysis.replyWorthinessScore, 50),
+    ];
+    if (userId) {
+      conditions.push(eq(sources.userId, userId));
+    }
+
     const result = await db
       .select({
         item: items,
@@ -378,15 +407,9 @@ export class DatabaseStorage implements IStorage {
         summaryShort: analysis.summaryShort,
       })
       .from(items)
-      .leftJoin(sources, eq(items.sourceId, sources.id))
+      .innerJoin(sources, eq(items.sourceId, sources.id))
       .leftJoin(analysis, eq(items.id, analysis.itemId))
-      .where(
-        and(
-          eq(items.status, "skipped"),
-          gte(analysis.relevanceScore, 60),
-          lt(analysis.replyWorthinessScore, 50)
-        )
-      )
+      .where(and(...conditions))
       .orderBy(desc(analysis.relevanceScore))
       .limit(limit);
 
@@ -404,15 +427,20 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
-  async getItem(id: number): Promise<(Item & { sourceName: string; analysis?: Analysis; drafts: Draft[] }) | undefined> {
+  async getItem(id: number, userId?: string): Promise<(Item & { sourceName: string; analysis?: Analysis; drafts: Draft[] }) | undefined> {
+    const conditions: any[] = [eq(items.id, id)];
+    if (userId) {
+      conditions.push(eq(sources.userId, userId));
+    }
+
     const [itemResult] = await db
       .select({
         item: items,
         sourceName: sources.name,
       })
       .from(items)
-      .leftJoin(sources, eq(items.sourceId, sources.id))
-      .where(eq(items.id, id));
+      .innerJoin(sources, eq(items.sourceId, sources.id))
+      .where(and(...conditions));
 
     if (!itemResult) return undefined;
 
@@ -501,7 +529,15 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async getDrafts(decision?: string): Promise<(Draft & { itemTitle: string; itemUrl: string; sourceName: string })[]> {
+  async getDrafts(decision?: string, userId?: string): Promise<(Draft & { itemTitle: string; itemUrl: string; sourceName: string })[]> {
+    const conditions: any[] = [];
+    if (decision && decision !== "all") {
+      conditions.push(eq(drafts.adminDecision, decision));
+    }
+    if (userId) {
+      conditions.push(eq(sources.userId, userId));
+    }
+
     let query = db
       .select({
         draft: drafts,
@@ -511,11 +547,11 @@ export class DatabaseStorage implements IStorage {
       })
       .from(drafts)
       .innerJoin(items, eq(drafts.itemId, items.id))
-      .leftJoin(sources, eq(items.sourceId, sources.id))
+      .innerJoin(sources, eq(items.sourceId, sources.id))
       .orderBy(desc(drafts.createdAt));
 
-    if (decision && decision !== "all") {
-      query = query.where(eq(drafts.adminDecision, decision)) as any;
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
     }
 
     const result = await query;

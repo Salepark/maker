@@ -118,7 +118,8 @@ export async function registerRoutes(
   // All API routes below require authentication
   app.get("/api/stats", isAuthenticated, async (req, res) => {
     try {
-      const stats = await storage.getStats();
+      const userId = (req as any).user?.claims?.sub;
+      const stats = await storage.getStats(userId);
       res.json(stats);
     } catch (error) {
       handleApiError(res, error, "Failed to get stats");
@@ -127,7 +128,8 @@ export async function registerRoutes(
 
   app.get("/api/items/recent", isAuthenticated, async (req, res) => {
     try {
-      const items = await storage.getRecentItems(10);
+      const userId = (req as any).user?.claims?.sub;
+      const items = await storage.getRecentItems(10, userId);
       res.json(items);
     } catch (error) {
       handleApiError(res, error, "Failed to get recent items");
@@ -136,7 +138,8 @@ export async function registerRoutes(
 
   app.get("/api/items/observe", isAuthenticated, async (req, res) => {
     try {
-      const items = await storage.getObserveItems(50);
+      const userId = (req as any).user?.claims?.sub;
+      const items = await storage.getObserveItems(50, userId);
       res.json(items);
     } catch (error) {
       handleApiError(res, error, "Failed to get observe items");
@@ -145,8 +148,9 @@ export async function registerRoutes(
 
   app.get("/api/items", isAuthenticated, async (req, res) => {
     try {
+      const userId = (req as any).user?.claims?.sub;
       const status = req.query.status as string | undefined;
-      const items = await storage.getItems(status);
+      const items = await storage.getItems(status, userId);
       res.json(items);
     } catch (error) {
       handleApiError(res, error, "Failed to get items");
@@ -155,8 +159,9 @@ export async function registerRoutes(
 
   app.get("/api/items/:id", isAuthenticated, async (req, res) => {
     try {
+      const userId = (req as any).user?.claims?.sub;
       const id = parseInt(req.params.id);
-      const item = await storage.getItem(id);
+      const item = await storage.getItem(id, userId);
       if (!item) {
         return res.status(404).json({ error: "Item not found" });
       }
@@ -283,8 +288,9 @@ export async function registerRoutes(
 
   app.get("/api/drafts", isAuthenticated, async (req, res) => {
     try {
+      const userId = (req as any).user?.claims?.sub;
       const decision = req.query.decision as string | undefined;
-      const drafts = await storage.getDrafts(decision);
+      const drafts = await storage.getDrafts(decision, userId);
       res.json(drafts);
     } catch (error) {
       handleApiError(res, error, "Failed to get drafts");
@@ -607,7 +613,7 @@ export async function registerRoutes(
         }
       }
 
-      const stats = await storage.getStats();
+      const stats = await storage.getStats(userId);
       lastCollectedAt = stats.lastCollectAt;
 
       const providers = await storage.listLlmProviders(userId);
