@@ -628,3 +628,55 @@ export const insertRuleMemorySchema = createInsertSchema(ruleMemories).omit({
 
 export type RuleMemory = typeof ruleMemories.$inferSelect;
 export type InsertRuleMemory = z.infer<typeof insertRuleMemorySchema>;
+
+// ============================================
+// TELEGRAM LINKS - Connect Maker accounts to Telegram
+// ============================================
+export const telegramLinks = pgTable("telegram_links", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  telegramChatId: text("telegram_chat_id").notNull(),
+  telegramUsername: text("telegram_username"),
+  threadId: integer("thread_id").references(() => chatThreads.id),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("telegram_links_chat_id_unique").on(table.telegramChatId),
+  index("idx_telegram_links_user").on(table.userId),
+]);
+
+export const insertTelegramLinkSchema = createInsertSchema(telegramLinks).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type TelegramLink = typeof telegramLinks.$inferSelect;
+export type InsertTelegramLink = z.infer<typeof insertTelegramLinkSchema>;
+
+// ============================================
+// LINK CODES - One-time codes for account linking
+// ============================================
+export const linkCodes = pgTable("link_codes", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  code: text("code").notNull().unique(),
+  platform: text("platform").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  usedAt: timestamp("used_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  index("idx_link_codes_code").on(table.code),
+  index("idx_link_codes_user").on(table.userId),
+]);
+
+// ============================================
+// APP SETTINGS - Encrypted key-value config (e.g. Telegram bot token)
+// ============================================
+export const appSettings = pgTable("app_settings", {
+  id: serial("id").primaryKey(),
+  key: varchar("key", { length: 255 }).notNull().unique(),
+  valueEncrypted: text("value_encrypted").notNull(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export type AppSetting = typeof appSettings.$inferSelect;

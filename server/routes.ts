@@ -14,6 +14,11 @@ import { NotImplementedError, handleApiError } from "./lib/safe-storage";
 import { PERMISSION_REQUEST_MESSAGES } from "@shared/permission-messages";
 import { encrypt, decrypt } from "./lib/crypto";
 import { setUserHasProviders } from "./llm/client";
+import { registerTelegramWebhook, setupTelegramWebhook, startPolling, stopPolling } from "./adapters/telegram";
+
+const isLocalMode = driver === "sqlite" && (
+  process.env.NODE_ENV === "development" || process.env.MAKER_DESKTOP === "true"
+);
 
 function getUserId(req: Request): string | undefined {
   const user = req.user as any;
@@ -1971,6 +1976,112 @@ export async function registerRoutes(
       handleApiError(res, error, "Failed to delete rule memory");
     }
   });
+
+  // ============================================
+  // TELEGRAM LINK MANAGEMENT
+  // ============================================
+  app.post("/api/telegram/link-code", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+      const code = await storage.createLinkCode(userId, "telegram");
+      res.json({ code, expiresInSeconds: 600 });
+    } catch (error) {
+      handleApiError(res, error, "Failed to generate link code");
+    }
+  });
+
+  app.get("/api/telegram/status", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+      const link = await storage.getTelegramLinkByUserId(userId);
+      const dbToken = await storage.getAppSetting("TELEGRAM_BOT_TOKEN");
+      const hasToken = !!(process.env.TELEGRAM_BOT_TOKEN || dbToken);
+      res.json({
+        linked: !!link,
+        telegramUsername: link?.telegramUsername || null,
+        linkedAt: link?.createdAt || null,
+        botConfigured: hasToken,
+        tokenSource: dbToken ? "settings" : (process.env.TELEGRAM_BOT_TOKEN ? "env" : null),
+      });
+    } catch (error) {
+      handleApiError(res, error, "Failed to get Telegram status");
+    }
+  });
+
+  app.put("/api/telegram/bot-token", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+      const { token } = req.body;
+      if (!token || typeof token !== "string" || token.trim().length < 10) {
+        return res.status(400).json({ error: "Invalid bot token" });
+      }
+      await storage.setAppSetting("TELEGRAM_BOT_TOKEN", token.trim());
+      process.env.TELEGRAM_BOT_TOKEN = token.trim();
+      if (isLocalMode) {
+        stopPolling();
+        startPolling().catch(err => console.error("[Telegram] polling restart error:", err));
+      } else {
+        setupTelegramWebhook().catch(err => console.error("[Telegram] webhook setup error after token save:", err));
+      }
+      res.json({ ok: true });
+    } catch (error) {
+      handleApiError(res, error, "Failed to save bot token");
+    }
+  });
+
+  app.delete("/api/telegram/bot-token", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+      await storage.deleteAppSetting("TELEGRAM_BOT_TOKEN");
+      delete process.env.TELEGRAM_BOT_TOKEN;
+      if (isLocalMode) {
+        stopPolling();
+      }
+      res.json({ ok: true });
+    } catch (error) {
+      handleApiError(res, error, "Failed to delete bot token");
+    }
+  });
+
+  app.delete("/api/telegram/unlink", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+      await storage.deleteTelegramLink(userId);
+      res.json({ ok: true });
+    } catch (error) {
+      handleApiError(res, error, "Failed to unlink Telegram");
+    }
+  });
+
+  if (isLocalMode) {
+    (async () => {
+      try {
+        const dbToken = await storage.getAppSetting("TELEGRAM_BOT_TOKEN");
+        if (dbToken && !process.env.TELEGRAM_BOT_TOKEN) {
+          process.env.TELEGRAM_BOT_TOKEN = dbToken;
+          console.log("[Telegram] Loaded bot token from app settings (local mode)");
+        }
+      } catch (e) {}
+      startPolling().catch(err => console.error("[Telegram] polling start error:", err));
+    })();
+  } else {
+    registerTelegramWebhook(app);
+    (async () => {
+      try {
+        const dbToken = await storage.getAppSetting("TELEGRAM_BOT_TOKEN");
+        if (dbToken && !process.env.TELEGRAM_BOT_TOKEN) {
+          process.env.TELEGRAM_BOT_TOKEN = dbToken;
+          console.log("[Telegram] Loaded bot token from app settings");
+        }
+      } catch (e) {}
+      setupTelegramWebhook().catch(err => console.error("[Telegram] webhook setup error:", err));
+    })();
+  }
 
   app.use((err: Error, _req: Request, res: Response, next: NextFunction) => {
     if (err instanceof NotImplementedError || err?.name === "NotImplementedError") {

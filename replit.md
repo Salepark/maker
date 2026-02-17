@@ -32,7 +32,14 @@ Scheduled tasks, managed by `node-cron`, handle content collection from RSS feed
 A multi-provider LLM architecture allows users to integrate their own LLMs (e.g., Anthropic, OpenAI, Google AI, or custom OpenAI-compatible endpoints). API keys are encrypted, and users can assign specific LLM providers and models to their bots. Prompts are topic-based, and outputs are structured JSON.
 
 ### Command Chat
-A natural language interface, powered by Claude AI, enables users to control bots via chat commands for tasks such as listing, switching, checking status, running, pausing, resuming bots, and managing sources.
+A natural language interface, powered by Claude AI, enables users to control bots via chat commands for tasks such as listing, switching, checking status, running, pausing, resuming bots, and managing sources. The core chat engine (`server/chat/chatEngine.ts`) provides reusable `processMessage` and `processConfirm` functions used by both the web UI and external adapters.
+
+### External Messaging Adapters
+Modular adapter system (`server/adapters/`) for connecting Maker to external messaging platforms. Each adapter translates platform-specific messages into the shared chat engine pipeline.
+- **Telegram** (implemented): Webhook-based adapter at `/api/telegram/webhook`. Users link accounts via one-time codes (Settings → Telegram → Generate Link Code → `/link CODE` in Telegram). Supports all Command Chat features including confirmation buttons (inline keyboard). Schema: `telegram_links` and `link_codes` tables. Requires `TELEGRAM_BOT_TOKEN` secret.
+- **Discord** (planned): Next phase after Telegram validation.
+- **Slack** (planned): Next phase after Discord.
+- **KakaoTalk** (future): Deferred due to business channel requirements.
 
 ### Report Generation & Pipeline
 The system implements a multi-stage report pipeline designed for efficiency and cost optimization:
@@ -113,6 +120,7 @@ A 3-layer memory architecture for persistent user preferences and knowledge:
 - `SESSION_SECRET`
 - `CLAUDE_MODEL`
 - `APP_BASE_URL`
+- `TELEGRAM_BOT_TOKEN` (for Telegram integration)
 
 ### Third-Party Services
 - Anthropic Claude API
@@ -120,6 +128,7 @@ A 3-layer memory architecture for persistent user preferences and knowledge:
 - SQLite
 - RSS Feeds
 - Replit Auth
+- Telegram Bot API (optional)
 
 ### Key NPM Packages
 - `drizzle-orm`, `drizzle-kit`

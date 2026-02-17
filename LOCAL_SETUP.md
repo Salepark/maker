@@ -243,6 +243,52 @@ taskkill /F /IM node.exe
 
 ---
 
+## STEP 5 - Telegram Bot Setup (Optional)
+
+You can control your Maker bots via Telegram on desktop. Unlike the cloud version (which uses webhooks), the desktop version uses **polling mode** — no public URL or port forwarding needed.
+
+### How It Works
+
+| Mode | Method | When |
+|------|--------|------|
+| Cloud (PostgreSQL) | Webhook — Telegram pushes updates to your server | Automatic |
+| Desktop (SQLite) | Polling — App pulls updates from Telegram every 30s | Automatic |
+
+### Setup Steps
+
+1. Open Telegram and search for **@BotFather**
+2. Send `/newbot` and follow the prompts to create a bot
+3. Copy the bot token (looks like `123456:ABC-DEF...`)
+4. In Maker desktop, go to **Settings** > **Telegram**
+5. Paste the token and click **Save**
+6. Click **Generate Link Code** — you'll get a 6-character code
+7. Open your new Telegram bot and send `/link YOUR_CODE`
+
+You should see "Account linked successfully!" — now you can send commands like `list bots` or `봇 목록` directly in Telegram.
+
+### Desktop-Specific Details
+
+- Polling starts automatically when a bot token is saved
+- No webhook, firewall, or port forwarding configuration needed
+- Token is stored encrypted in the local SQLite database
+- Removing the token immediately stops polling
+- Pending Telegram updates are cleared on each restart to avoid duplicate messages
+
+### Telegram Commands
+
+| Command | Description |
+|---------|-------------|
+| `/link CODE` | Link your Maker account |
+| `/unlink` | Unlink your account |
+| `/help` | Show available commands |
+| `list bots` / `봇 목록` | List your bots |
+| `run now` / `지금 실행` | Run the active bot |
+| `status` / `상태` | Check bot status |
+| `pause` / `일시정지` | Pause the active bot |
+| `resume` / `재개` | Resume a paused bot |
+
+---
+
 ## Executable Testing Checklist
 
 After launching the built executable, verify the following:
@@ -256,6 +302,10 @@ After launching the built executable, verify the following:
 | SQLite file created | |
 | Data persists after restart | |
 | Fast Report works offline | |
+| Telegram: Save bot token in Settings | |
+| Telegram: Generate link code | |
+| Telegram: `/link CODE` in Telegram bot | |
+| Telegram: Send command via Telegram | |
 
 ---
 
@@ -282,6 +332,8 @@ maker/
 │   ├── build.ts              # Cloud build script
 │   └── build-desktop.ts      # Desktop build script (server + client + Electron)
 ├── server/
+│   ├── adapters/
+│   │   └── telegram.ts       # Telegram adapter (webhook + polling dual-mode)
 │   ├── db.ts                 # DB driver selector (PostgreSQL / SQLite)
 │   ├── init-sqlite.ts        # SQLite table initialization
 │   └── storage-sqlite.ts     # SQLite-specific storage implementation

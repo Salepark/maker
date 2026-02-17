@@ -5,6 +5,7 @@ import {
   presets, profiles, profileSources, outputs, outputItems,
   bots, botSettings, sourceBotLinks, llmProviders, jobRuns,
   permissions, auditLogs, reportMetrics, ruleMemories,
+  telegramLinks, linkCodes, appSettings,
 } from "../shared/schema.sqlite";
 import type {
   Source, Item, Analysis, Draft, Post, Report,
@@ -758,7 +759,7 @@ export class SqliteStorage implements IStorage {
     const cutoff = new Date(Date.now() - lookbackHours * 60 * 60 * 1000);
 
     const conditions = [
-      eq(items.status, "analyzed"),
+      inArray(items.status, ["analyzed", "drafted", "approved"]),
       inArray(items.sourceId, sourceIds),
       gte(items.publishedAt, cutoff),
     ];
@@ -1348,6 +1349,14 @@ export class SqliteStorage implements IStorage {
     return (run as any) || null;
   }
 
+  async getLastJobRunByBotKey(userId: string, botKey: string): Promise<JobRun | null> {
+    const [run] = await db.select().from(jobRuns)
+      .where(and(eq(jobRuns.userId, userId), eq(jobRuns.botKey, botKey)))
+      .orderBy(desc(jobRuns.startedAt))
+      .limit(1);
+    return (run as any) || null;
+  }
+
   async listPermissions(userId: string, scope: string, scopeId: number | null): Promise<Permission[]> {
     const conditions = [eq(permissions.userId, userId), eq(permissions.scope, scope)];
     if (scopeId != null) {
@@ -1499,5 +1508,73 @@ export class SqliteStorage implements IStorage {
       merged[rule.key] = rule.valueJson;
     }
     return merged;
+  }
+
+  async getTelegramLinkByUserId(userId: string): Promise<any> {
+    const [row] = await db.select().from(telegramLinks).where(eq(telegramLinks.userId, userId)).limit(1);
+    return row || null;
+  }
+
+  async getTelegramLinkByChatId(chatId: string): Promise<any> {
+    const [row] = await db.select().from(telegramLinks).where(eq(telegramLinks.telegramChatId, chatId)).limit(1);
+    return row || null;
+  }
+
+  async createTelegramLink(data: { userId: string; telegramChatId: string; telegramUsername?: string; threadId: number }): Promise<any> {
+    const existingByChatId = await this.getTelegramLinkByChatId(data.telegramChatId);
+    if (existingByChatId && existingByChatId.userId !== data.userId) {
+      await db.delete(telegramLinks).where(eq(telegramLinks.telegramChatId, data.telegramChatId));
+    }
+    const existingByUser = await this.getTelegramLinkByUserId(data.userId);
+    if (existingByUser) {
+      await db.delete(telegramLinks).where(eq(telegramLinks.userId, data.userId));
+    }
+    const [row] = await db.insert(telegramLinks).values({
+      userId: data.userId,
+      telegramChatId: data.telegramChatId,
+      telegramUsername: data.telegramUsername || null,
+      threadId: data.threadId,
+    }).returning();
+    return row;
+  }
+
+  async deleteTelegramLink(userId: string): Promise<void> {
+    await db.delete(telegramLinks).where(eq(telegramLinks.userId, userId));
+  }
+
+  async createLinkCode(userId: string, platform: string): Promise<string> {
+    const code = Array.from({ length: 6 }, () => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(Math.random() * 31)]).join("");
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    await db.insert(linkCodes).values({ userId, code, platform, expiresAt });
+    return code;
+  }
+
+  async consumeLinkCode(code: string): Promise<{ userId: string; platform: string } | null> {
+    const [row] = await db.select().from(linkCodes)
+      .where(and(eq(linkCodes.code, code), isNull(linkCodes.usedAt), gte(linkCodes.expiresAt, new Date())))
+      .limit(1);
+    if (!row) return null;
+    await db.update(linkCodes).set({ usedAt: new Date() }).where(eq(linkCodes.id, row.id));
+    return { userId: row.userId, platform: row.platform };
+  }
+
+  async getAppSetting(key: string): Promise<string | null> {
+    const [row] = await db.select().from(appSettings).where(eq(appSettings.key, key)).limit(1);
+    if (!row) return null;
+    return decrypt(row.valueEncrypted);
+  }
+
+  async setAppSetting(key: string, value: string): Promise<void> {
+    const encrypted = encrypt(value);
+    const [existing] = await db.select().from(appSettings).where(eq(appSettings.key, key)).limit(1);
+    if (existing) {
+      await db.update(appSettings).set({ valueEncrypted: encrypted, updatedAt: new Date() }).where(eq(appSettings.key, key));
+    } else {
+      await db.insert(appSettings).values({ key, valueEncrypted: encrypted });
+    }
+  }
+
+  async deleteAppSetting(key: string): Promise<void> {
+    await db.delete(appSettings).where(eq(appSettings.key, key));
   }
 }

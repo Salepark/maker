@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useLanguage } from "@/lib/language-provider";
-import { Settings as SettingsIcon, Play, Pause, RefreshCw, Zap, Clock, Plus, Trash2, Key, Loader2, Pencil } from "lucide-react";
+import { Settings as SettingsIcon, Play, Pause, RefreshCw, Zap, Clock, Plus, Trash2, Key, Loader2, Pencil, MessageCircle, Copy, Unlink, ExternalLink, Check } from "lucide-react";
 
 interface SchedulerStatus {
   isRunning: boolean;
@@ -148,6 +148,242 @@ export default function Settings() {
     setApiKey("");
     setBaseUrl("");
     setDefaultModel("");
+  }
+
+  function TelegramCard() {
+    const [linkCode, setLinkCode] = useState<string | null>(null);
+    const [copied, setCopied] = useState(false);
+    const [botToken, setBotToken] = useState("");
+    const [showTokenInput, setShowTokenInput] = useState(false);
+
+    const { data: tgStatus, isLoading: tgLoading } = useQuery<{
+      linked: boolean;
+      telegramUsername: string | null;
+      linkedAt: string | null;
+      botConfigured: boolean;
+      tokenSource: string | null;
+    }>({
+      queryKey: ["/api/telegram/status"],
+    });
+
+    const saveTokenMutation = useMutation({
+      mutationFn: () => apiRequest("PUT", "/api/telegram/bot-token", { token: botToken }),
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["/api/telegram/status"] });
+        toast({ title: t("settings.telegram.tokenSaved") });
+        setBotToken("");
+        setShowTokenInput(false);
+      },
+      onError: () => {
+        toast({ title: t("settings.telegram.tokenSaveFailed"), variant: "destructive" });
+      },
+    });
+
+    const removeTokenMutation = useMutation({
+      mutationFn: () => apiRequest("DELETE", "/api/telegram/bot-token"),
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["/api/telegram/status"] });
+        toast({ title: t("settings.telegram.tokenDeleted") });
+      },
+    });
+
+    const generateCodeMutation = useMutation({
+      mutationFn: () => apiRequest("POST", "/api/telegram/link-code").then((r: any) => r.json()),
+      onSuccess: (data: any) => {
+        setLinkCode(data.code);
+      },
+      onError: () => {
+        toast({ title: t("settings.telegram.codeFailed"), variant: "destructive" });
+      },
+    });
+
+    const unlinkMutation = useMutation({
+      mutationFn: () => apiRequest("DELETE", "/api/telegram/unlink"),
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["/api/telegram/status"] });
+        toast({ title: t("settings.telegram.unlinked") });
+      },
+    });
+
+    const copyCode = () => {
+      if (linkCode) {
+        navigator.clipboard.writeText(`/link ${linkCode}`);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+    };
+
+    function TokenInputSection() {
+      return (
+        <div className="p-4 rounded-md border space-y-3">
+          <h3 className="font-medium text-sm">{t("settings.telegram.setupGuideTitle")}</h3>
+          <div className="text-xs text-muted-foreground space-y-1">
+            <p>{t("settings.telegram.setupGuide1")}</p>
+            <p>{t("settings.telegram.setupGuide2")}</p>
+            <p>{t("settings.telegram.setupGuide3")}</p>
+            <p>{t("settings.telegram.setupGuide4")}</p>
+            <p>{t("settings.telegram.setupGuide5")}</p>
+            <p>{t("settings.telegram.setupGuide6")}</p>
+            <p>{t("settings.telegram.setupGuide7")}</p>
+          </div>
+          <div className="space-y-2 pt-1">
+            <Label className="text-xs">{t("settings.telegram.botTokenLabel")}</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                type="password"
+                value={botToken}
+                onChange={(e) => setBotToken(e.target.value)}
+                placeholder={t("settings.telegram.botTokenPlaceholder")}
+                className="flex-1 font-mono text-sm"
+                data-testid="input-telegram-bot-token"
+              />
+              <Button
+                size="sm"
+                onClick={() => saveTokenMutation.mutate()}
+                disabled={saveTokenMutation.isPending || botToken.trim().length < 10}
+                data-testid="button-save-telegram-token"
+              >
+                {saveTokenMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                ) : (
+                  <Check className="h-4 w-4 mr-1" />
+                )}
+                {t("settings.telegram.saveToken")}
+              </Button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function TokenStatusSection() {
+      return (
+        <div className="flex items-center justify-between gap-4 p-4 rounded-md border flex-wrap">
+          <div>
+            <h3 className="font-medium text-sm">{t("settings.telegram.tokenConfigured")}</h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              {tgStatus?.tokenSource === "settings"
+                ? t("settings.telegram.tokenSourceSettings")
+                : t("settings.telegram.tokenSourceEnv")}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            {tgStatus?.tokenSource === "settings" && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => removeTokenMutation.mutate()}
+                disabled={removeTokenMutation.isPending}
+                data-testid="button-remove-telegram-token"
+              >
+                <Trash2 className="h-4 w-4 mr-1" />
+                {t("settings.telegram.removeToken")}
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowTokenInput(!showTokenInput)}
+              data-testid="button-change-telegram-token"
+            >
+              <Pencil className="h-4 w-4 mr-1" />
+              {t("settings.telegram.changeToken")}
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <Card data-testid="card-telegram-settings">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <MessageCircle className="h-5 w-5" />
+            {t("settings.telegram.title")}
+          </CardTitle>
+          <CardDescription>{t("settings.telegram.subtitle")}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {tgLoading ? (
+            <Skeleton className="h-16 w-full" />
+          ) : !tgStatus?.botConfigured ? (
+            <TokenInputSection />
+          ) : (
+            <div className="space-y-3">
+              <TokenStatusSection />
+              {showTokenInput && <TokenInputSection />}
+
+              {tgStatus?.linked ? (
+                <>
+                  <div className="flex items-center justify-between gap-4 p-4 rounded-md border flex-wrap">
+                    <div>
+                      <h3 className="font-medium text-sm">{t("settings.telegram.linked")}</h3>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {tgStatus.telegramUsername && `@${tgStatus.telegramUsername}`}
+                        {tgStatus.linkedAt && ` · ${new Date(tgStatus.linkedAt).toLocaleDateString()}`}
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => unlinkMutation.mutate()}
+                      disabled={unlinkMutation.isPending}
+                      data-testid="button-unlink-telegram"
+                    >
+                      <Unlink className="h-4 w-4 mr-1" />
+                      {t("settings.telegram.unlink")}
+                    </Button>
+                  </div>
+                  <div className="p-4 rounded-md border space-y-2" data-testid="telegram-commands-guide">
+                    <h3 className="font-medium text-sm">{t("settings.telegram.commands")}</h3>
+                    <div className="text-xs text-muted-foreground space-y-1">
+                      <p><code className="bg-muted px-1 rounded">{t("settings.telegram.cmdStart")}</code></p>
+                      <p><code className="bg-muted px-1 rounded">{t("settings.telegram.cmdHelp")}</code></p>
+                      <p><code className="bg-muted px-1 rounded">{t("settings.telegram.cmdUnlink")}</code></p>
+                      <p className="pt-1">{t("settings.telegram.cmdNatural")}</p>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="p-4 rounded-md border space-y-3">
+                  <h3 className="font-medium text-sm">{t("settings.telegram.howToLink")}</h3>
+                  <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
+                    <li>{t("settings.telegram.step1")}</li>
+                    <li>{t("settings.telegram.step2")}</li>
+                    <li>{t("settings.telegram.step3")}</li>
+                  </ol>
+
+                  {linkCode ? (
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 p-2 rounded-md bg-muted text-sm font-mono" data-testid="text-link-code">
+                        /link {linkCode}
+                      </code>
+                      <Button size="sm" variant="outline" onClick={copyCode} data-testid="button-copy-link-code">
+                        {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      size="sm"
+                      onClick={() => generateCodeMutation.mutate()}
+                      disabled={generateCodeMutation.isPending}
+                      data-testid="button-generate-link-code"
+                    >
+                      {generateCodeMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                      ) : (
+                        <Key className="h-4 w-4 mr-1" />
+                      )}
+                      {t("settings.telegram.generateCode")}
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
   }
 
   function startEdit(provider: LlmProviderSafe) {
@@ -318,6 +554,8 @@ export default function Settings() {
           )}
         </CardContent>
       </Card>
+
+      <TelegramCard />
 
       <Card>
         <CardHeader>

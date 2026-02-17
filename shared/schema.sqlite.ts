@@ -335,3 +335,36 @@ export const ruleMemories = sqliteTable("rule_memories", {
   uniqueIndex("rule_memories_scope_key_unique").on(table.userId, table.scope, table.scopeId, table.key),
   index("idx_rule_memories_user_scope").on(table.userId, table.scope, table.scopeId),
 ]);
+
+export const telegramLinks = sqliteTable("telegram_links", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id").notNull().references(() => users.id),
+  telegramChatId: text("telegram_chat_id").notNull(),
+  telegramUsername: text("telegram_username"),
+  threadId: integer("thread_id").references(() => chatThreads.id),
+  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
+}, (table) => [
+  uniqueIndex("telegram_links_chat_id_unique_sqlite").on(table.telegramChatId),
+  index("idx_telegram_links_user_sqlite").on(table.userId),
+]);
+
+export const linkCodes = sqliteTable("link_codes", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id").notNull().references(() => users.id),
+  code: text("code").notNull().unique(),
+  platform: text("platform").notNull(),
+  expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+  usedAt: integer("used_at", { mode: "timestamp_ms" }),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
+}, (table) => [
+  index("idx_link_codes_code_sqlite").on(table.code),
+  index("idx_link_codes_user_sqlite").on(table.userId),
+]);
+
+export const appSettings = sqliteTable("app_settings", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  key: text("key").notNull().unique(),
+  valueEncrypted: text("value_encrypted").notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
+});
