@@ -1,156 +1,104 @@
-# Maker Philosophy — Control First
+# Control Model
 
-## Maker is a Control-Centered AI Operating Layer
+Maker is built around a structured control architecture.
 
-AI is becoming more powerful.
-
-But power without control becomes dependency.
-
-Maker exists to ensure that individuals remain in control of AI-driven automation.
+This document explains how control is enforced technically.
 
 ---
 
-## Why Maker Exists
+## 1. Permission Engine
 
-Most AI tools today follow this pattern:
+Every executable action passes through a 3-state policy layer:
 
-Prompt → LLM → Output
+- AUTO_ALLOWED
+- APPROVAL_REQUIRED
+- DENIED
 
-They optimize for intelligence, speed, and creativity.
+No LLM call, file access, or network action bypasses this layer.
 
-But they do not optimize for:
-
-- Execution transparency
-- Data governance
-- Permission control
-- Auditability
-- Long-term operational stability
-
-AI is powerful.
-But it is not yet operationally reliable.
-
-Maker was built to solve this gap.
+Permission scope:
+- Per Bot
+- Global
+- One-time approval
 
 ---
 
-## Control Over Intelligence
+## 2. LLM Egress Control
 
-Maker is not designed to make AI smarter.
+Outgoing data to LLM providers is explicitly governed:
 
-Maker is designed to make AI controllable.
+- Metadata Only
+- Full Content
+- Denied
 
-In Maker:
-
-- Humans design the decision structure
-- AI executes within defined boundaries
-- Policies define what is allowed
-- Logs record what actually happened
-- Permissions govern what can be accessed
-- Memory is structured and inspectable
-
-AI is not the authority.
-The user is.
+The system never silently transmits user data.
 
 ---
 
-## Core Principles
+## 3. Structured Pipeline Architecture
 
-### 1. AI Must Be Observable
+Execution flow is deterministic:
 
-Every execution must be traceable:
+Collect → Analyze → Structure → Approve → Schedule
 
-- What ran?
-- What data was used?
-- What LLM was called?
-- What was sent externally?
-- What memory was injected?
+Each stage is:
 
-No black boxes.
-
----
-
-### 2. Data Sovereignty Is Non-Negotiable
-
-- Local-first architecture
-- Explicit LLM egress control
-- File access permission gates
-- Human-in-the-loop approval modes
-
-Your data belongs to you.
+- Logged
+- Observable
+- Interruptible
+- Timeout protected
 
 ---
 
-### 3. Automation Must Be Reversible
+## 4. Memory Model
 
-Automation without rollback is dangerous.
+Long-term memory is explicit, not implicit.
 
-Maker ensures:
+- Stored in rule_memories table
+- Scoped per user
+- Governed by MEMORY_WRITE permission
+- Editable, removable, inspectable
 
-- Execution logs
-- Diagnosable failures
-- Permission scopes
-- Immediate cancellation capability
-
----
-
-### 4. AI Is a Tool, Not an Authority
-
-AI should execute.
-Humans should define.
-
-Maker separates:
-
-- Design layer
-- Execution engine
-- Policy layer
-- Memory layer
-- Permission layer
+AI does not "secretly remember."
+Memory is structured and controllable.
 
 ---
 
-## What Maker Is Not
+## 5. Local OS Integration (Desktop Mode)
 
-Maker is not:
+In desktop mode:
 
-- A chatbot wrapper
-- A prompt marketplace
-- A bot selling platform
-- A growth-hacking automation tool
+- SQLite local storage
+- File access behind permission wall
+- Calendar access permission-bound
+- Optional external connectors
 
-Maker is a personal automation operating system.
-
----
-
-## Open Source Direction
-
-Maker Core is licensed under AGPL-3.0.
-
-We believe:
-
-- Control systems must be inspectable.
-- Execution engines must be transparent.
-- Permission logic must be verifiable.
-- Automation infrastructure should not be opaque.
-
-If you care about AI governance at the individual level,
-Maker is for you.
+Local privileges are never enabled by default.
 
 ---
 
-## Join Us
+## 6. Observability
+
+Maker tracks:
+
+- Execution status
+- Timeout events
+- Failure diagnostics
+- Permission approvals
+- Audit logs
+
+AI execution is transparent infrastructure.
+
+---
+
+## Design Goal
+
+We are not building autonomous agents.
 
 We are building:
 
-- A permission-based AI execution engine
-- A structured memory layer
-- A local-first automation system
-- A policy-driven AI architecture
+A permission-governed AI execution layer.
 
-If you believe AI must remain controllable,
-we welcome contributors.
+Control is not a feature.
 
----
-
-Maker  
-Build Your Automation.  
-Control Your AI.
+It is the foundation.
