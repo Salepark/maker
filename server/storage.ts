@@ -282,11 +282,16 @@ export class DatabaseStorage implements IStorage {
       stats.lastCollectAt = lastCollect[0].insertedAt.toISOString();
     }
 
-    const lastAnalyze = await db
+    let lastAnalyzeQuery = db
       .select({ createdAt: analysis.createdAt })
-      .from(analysis)
-      .orderBy(desc(analysis.createdAt))
-      .limit(1);
+      .from(analysis);
+    if (userId) {
+      lastAnalyzeQuery = lastAnalyzeQuery
+        .innerJoin(items, eq(analysis.itemId, items.id))
+        .innerJoin(sources, eq(items.sourceId, sources.id))
+        .where(eq(sources.userId, userId)) as any;
+    }
+    const lastAnalyze = await (lastAnalyzeQuery as any).orderBy(desc(analysis.createdAt)).limit(1);
     
     if (lastAnalyze.length > 0 && lastAnalyze[0].createdAt) {
       stats.lastAnalyzeAt = lastAnalyze[0].createdAt.toISOString();
