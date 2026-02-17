@@ -7,6 +7,7 @@ We are building controllable AI.
 
 See: [docs/CONTROL_MODEL.md](docs/CONTROL_MODEL.md)
 [docs/PHILOSOPHY.md](docs/PHILOSOPHY.md)
+[docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)
 
 ---
 
