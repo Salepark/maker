@@ -82,7 +82,7 @@ npm run build:desktop && npm run pack:desktop  # Build installer
 
 Maker exists to help individuals design and control their own automation workflows.
 
-Read the full philosophy: [`docs/PHILOSOPHY_EN.md`](docs/PHILOSOPHY_EN.md)
+Read the full philosophy: [`docs/PHILOSOPHY.md`](docs/PHILOSOPHY.md)
 
 ---
 
