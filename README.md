@@ -1,3 +1,14 @@
+## ⚖ Control First
+
+Maker is a control-centered AI operating layer.
+
+We are not building smarter AI.
+We are building controllable AI.
+
+See: [docs/CONTROL_PHILOSOPHY.md](docs/CONTROL_PHILOSOPHY.md)
+
+---
+
 # Maker — Local-First Automation OS
 
 **Stop renting bots. Build your own.**
