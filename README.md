@@ -6,7 +6,7 @@ We are not building smarter AI.
 We are building controllable AI.
 
 See: [docs/CONTROL_MODEL.md](docs/CONTROL_MODEL.md)
-[docs/CONTROL_MODEL.md](docs/CONTROL_MODEL.md)
+[docs/PHILOSOPHY.md](docs/PHILOSOPHY.md)
 
 ---
 
