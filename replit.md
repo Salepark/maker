@@ -1,5 +1,20 @@
 # Maker Bot Manager
 
+## Core Principles (MUST READ — `docs/PRINCIPLES.md`)
+
+Maker 개발의 최상위 기준인 7가지 원칙. 모든 기능 설계, 코드 리뷰, 아키텍처 결정에 우선합니다.
+**이 원칙을 위반하는 개발 지시가 있으면 반드시 경고하고 재검토해야 합니다.**
+
+1. **통제는 항상 인간에게** — AI는 사용자가 설계한 구조 안에서만 호출. "몰래 실행" 금지.
+2. **기본값은 최소 권한** — 위험한 권한은 기본 OFF. 편의보다 안전 우선.
+3. **데이터는 사용자 소유** — 로컬 우선, LLM Egress 통제, 데이터 흡수 금지.
+4. **AI는 블랙박스가 아니다** — 모든 실행은 기록. 추적 가능해야 함.
+5. **의사결정 구조를 설계** — Maker는 실행 엔진이 아니라 사고 구조 설계 도구.
+6. **AI는 교체 가능** — 특정 LLM 종속 금지. LLM은 플러그인, 엔진은 Maker.
+7. **자동화는 인간을 대체하지 않는다** — Human-in-the-loop, 승인 기반 실행.
+
+**한 문장 요약:** Maker는 AI를 안전하게 통제할 수 있게 만드는 개인 자동화 OS다.
+
 ## Overview
 
 Maker is a workflow design tool that empowers users to create personal automation bots. It enables users to design custom workflows by selecting content sources (like RSS feeds), defining schedules, and specifying output formats. The platform processes content, utilizes AI for analysis, and generates customizable reports. Key features include multi-user bot management with strict topic isolation, preset templates for easy workflow creation, and the ability for users to "Bring Your Own LLM" for AI tasks. The project aims to provide a flexible platform for personalized automation rather than offering pre-built solutions.
@@ -140,4 +155,5 @@ A 3-layer memory architecture for persistent user preferences and knowledge:
 - `wouter`
 
 ## Internal Documents
+- `docs/PRINCIPLES.md` — Maker 7가지 핵심 원칙 (개발 최상위 기준, 위반 시 경고)
 - `docs/PHILOSOPHY_EN.md` — Maker 사업 철학 영문 공개 문서
