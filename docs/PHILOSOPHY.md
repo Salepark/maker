@@ -1,72 +1,115 @@
 # Maker Philosophy
 
-> **We don't trust AI. We trust the user's right to control it.**
+> We don’t trust AI.  
+> We trust the user’s right to control it.
 
 ---
 
-## What is Maker?
+## What Maker Is
 
-Maker is not another AI automation tool.
-It is a **personal automation operating system for the AI era**.
+Maker is a control-centered AI automation engine.
 
-There are plenty of AI tools. But there is no operating system for them yet.
-Maker fills that gap.
+It is not another chatbot.
+It is not another autonomous agent framework.
+
+Maker is an execution layer where:
+
+- Humans design the structure
+- AI executes inside that structure
+- Permissions define the boundaries
+
+---
+
+## The Problem We See
+
+Most AI systems today fall into two categories:
+
+1. Prompt-based tools (question → answer)
+2. Autonomous agents (AI decides what to do)
+
+Both approaches miss something critical:
+
+**Control architecture.**
+
+AI systems are getting more powerful,
+but users have less visibility and less control.
+
+Maker exists to reverse that direction.
 
 ---
 
 ## 5 Core Principles
 
-### 1. Control always belongs to the user
-AI acts only with permission. Automation runs only with approval.
+### 1. Control Before Capability
+Power without boundaries is dangerous.
+Every AI action must be permission-scoped.
 
-### 2. Results are always guaranteed
-No more staring at "Running..." screens. **Fast-first. Always.**
+### 2. Human-in-the-Loop by Design
+Automation assists. Humans approve.
 
-### 3. Data belongs to the user
-SaaS absorbs your data. Maker keeps it right beside you.
+### 3. Local First
+Data ownership is fundamental.
+Cloud is optional. Control is not.
 
-### 4. Automation assists, never replaces
-Automation supports human decision-making. AI is a tool, not a boss.
+### 4. Observable Execution
+Nothing runs silently.
+Every action is logged.
+Every decision is traceable.
 
-### 5. Nothing is hidden
-Everything collected, analyzed, and transmitted is recorded. That's why audit logs exist.
-
----
-
-## 4 Design Principles
-
-| Principle | Meaning |
-|-----------|---------|
-| **Local First** | Your data stays on your machine |
-| **Permission by Design** | AI always asks before it acts |
-| **Fast-First Execution** | Results are delivered instantly |
-| **Human-in-Control** | Automated, but humans stay in charge |
+### 5. Replaceable Intelligence
+LLMs are swappable modules.
+No vendor lock-in. BYO LLM.
 
 ---
 
-## Why This Philosophy?
+## What We Are Building
 
-The AI market today has two extremes:
-- AI does everything autonomously
-- Tools that only connect services
+We are building:
 
-Maker is not in the middle. Maker says:
-
-> **AI is powerful. That's exactly why it must be controlled.**
-
-Features can be copied. Speed can be matched.
-But the **"control-first AI OS"** position is not easy to replicate.
+- A permission-based AI execution engine
+- A structured pipeline architecture (Collect → Analyze → Structure → Approve)
+- A local-first automation OS
+- A system where AI is governed, not trusted
 
 ---
 
-## Product Direction
+## Why This Matters
 
-1. Push the local permission model to the end
-2. Maintain strong data egress controls
-3. Never run anything silently without approval
-4. Ensure 100% reliability on fast reports
+AI will not be rare.
+It will be everywhere.
+
+The real question is not:
+
+> "How powerful is your AI?"
+
+The real question is:
+
+> "Who controls it?"
+
+Maker’s answer is simple:
+
+**The user does.**
 
 ---
 
-> Maker doesn't make AI more powerful.
-> **Maker makes AI safe to use.**
+## For Contributors
+
+If you believe:
+
+- AI should be inspectable
+- Automation should be permission-bound
+- Systems should be observable, not magical
+- Users should own their execution layer
+
+You are in the right place.
+
+Start with:
+- docs/CONTROL_MODEL.md
+- server/policy/
+- server/pipeline/
+
+---
+
+Maker does not try to make AI smarter.
+
+Maker makes AI governable.
