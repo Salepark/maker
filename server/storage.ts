@@ -95,6 +95,8 @@ export interface IStorage {
 
   // Sources (updated for userId support)
   listSources(userId: string, topic?: string): Promise<Source[]>;
+  listSourceTemplates(topic?: string): Promise<Source[]>;
+  installSourceTemplates(userId: string, sourceIds: number[]): Promise<Source[]>;
   getUserSource(id: number, userId: string): Promise<Source | undefined>;
   createUserSource(userId: string, data: Omit<InsertSource, 'userId'>): Promise<Source>;
   updateUserSource(userId: string, sourceId: number, patch: Partial<InsertSource>): Promise<Source | undefined>;
@@ -810,9 +812,8 @@ export class DatabaseStorage implements IStorage {
   // SOURCES (with userId support)
   // ============================================
   async listSources(userId: string, topic?: string): Promise<Source[]> {
-    // Return: system default sources (userId is null) + user's sources
     const conditions = [
-      or(isNull(sources.userId), eq(sources.userId, userId))
+      eq(sources.userId, userId)
     ];
     
     if (topic) {
@@ -824,6 +825,54 @@ export class DatabaseStorage implements IStorage {
       .from(sources)
       .where(and(...conditions))
       .orderBy(desc(sources.isDefault), sources.name);
+  }
+
+  async listSourceTemplates(topic?: string): Promise<Source[]> {
+    const conditions = [
+      eq(sources.isDefault, true),
+      isNull(sources.userId),
+    ];
+    if (topic) {
+      conditions.push(eq(sources.topic, topic));
+    }
+    return db
+      .select()
+      .from(sources)
+      .where(and(...conditions))
+      .orderBy(sources.topic, sources.name);
+  }
+
+  async installSourceTemplates(userId: string, sourceIds: number[]): Promise<Source[]> {
+    const templates = await db
+      .select()
+      .from(sources)
+      .where(and(eq(sources.isDefault, true), isNull(sources.userId), inArray(sources.id, sourceIds)));
+
+    const installed: Source[] = [];
+    for (const tmpl of templates) {
+      const existing = await db
+        .select()
+        .from(sources)
+        .where(and(eq(sources.userId, userId), eq(sources.url, tmpl.url)))
+        .limit(1);
+      if (existing.length > 0) {
+        installed.push(existing[0]);
+        continue;
+      }
+      const [newSource] = await db.insert(sources).values({
+        name: tmpl.name,
+        url: tmpl.url,
+        type: tmpl.type,
+        topic: tmpl.topic,
+        trustLevel: tmpl.trustLevel,
+        region: tmpl.region,
+        userId,
+        isDefault: false,
+        enabled: true,
+      }).returning();
+      installed.push(newSource);
+    }
+    return installed;
   }
 
   async getUserSource(id: number, userId: string): Promise<Source | undefined> {
@@ -1392,20 +1441,23 @@ export class DatabaseStorage implements IStorage {
         filtersJson: { minImportanceScore: 0, maxRiskLevel: 100 },
       });
 
-      const defaultSources = await db
+      const templateSources = await db
         .select()
         .from(sources)
-        .where(and(eq(sources.isDefault, true), eq(sources.topic, botDef.key)));
+        .where(and(eq(sources.isDefault, true), isNull(sources.userId), eq(sources.topic, botDef.key)));
 
-      if (defaultSources.length > 0) {
-        await db.insert(sourceBotLinks).values(
-          defaultSources.map(s => ({
-            botId: bot.id,
-            sourceId: s.id,
-            weight: 3,
-            isEnabled: true,
-          }))
-        );
+      if (templateSources.length > 0) {
+        const userSources = await this.installSourceTemplates(userId, templateSources.map(s => s.id));
+        if (userSources.length > 0) {
+          await db.insert(sourceBotLinks).values(
+            userSources.map(s => ({
+              botId: bot.id,
+              sourceId: s.id,
+              weight: 3,
+              isEnabled: true,
+            }))
+          );
+        }
       }
 
       const matchingPreset = await db.select().from(presets).where(eq(presets.key, botDef.key === "investing" ? "daily_market_brief" : botDef.key === "ai_art" ? "news_briefing" : botDef.key)).limit(1);

@@ -188,10 +188,38 @@ export async function registerRoutes(
 
   app.get("/api/sources", isAuthenticated, async (req, res) => {
     try {
-      const sources = await storage.getSources();
-      res.json(sources);
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+      const topic = req.query.topic as string | undefined;
+      const userSources = await storage.listSources(userId, topic);
+      res.json(userSources);
     } catch (error) {
       handleApiError(res, error, "Failed to get sources");
+    }
+  });
+
+  app.get("/api/source-templates", isAuthenticated, async (req, res) => {
+    try {
+      const topic = req.query.topic as string | undefined;
+      const templates = await storage.listSourceTemplates(topic);
+      res.json(templates);
+    } catch (error) {
+      handleApiError(res, error, "Failed to get source templates");
+    }
+  });
+
+  app.post("/api/source-templates/install", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+      const { sourceIds } = req.body;
+      if (!Array.isArray(sourceIds) || sourceIds.length === 0) {
+        return res.status(400).json({ error: "sourceIds array required" });
+      }
+      const installed = await storage.installSourceTemplates(userId, sourceIds);
+      res.json({ installed, count: installed.length });
+    } catch (error) {
+      handleApiError(res, error, "Failed to install source templates");
     }
   });
 

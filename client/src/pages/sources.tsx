@@ -46,7 +46,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Rss, Plus, Trash2, RefreshCw, ExternalLink, Power, PowerOff, Shield, Globe } from "lucide-react";
+import { Rss, Plus, Trash2, RefreshCw, ExternalLink, Power, PowerOff, Shield, Globe, Download, ChevronDown, ChevronUp, Check, Package } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import { useLanguage } from "@/lib/language-provider";
 import { usePermissionApproval } from "@/lib/permission-request-context";
@@ -106,10 +107,21 @@ async function rawApiRequest(method: string, url: string, data?: unknown): Promi
   });
 }
 
+interface TemplateSource {
+  id: number;
+  name: string;
+  url: string;
+  topic: string;
+  trustLevel: string;
+  region: string;
+}
+
 export default function Sources() {
   const { toast } = useToast();
   const { t } = useLanguage();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [selectedTemplates, setSelectedTemplates] = useState<Set<number>>(new Set());
   const { requestApproval } = usePermissionApproval();
 
   const form = useForm<SourceFormValues>({
@@ -126,6 +138,29 @@ export default function Sources() {
 
   const { data: sources, isLoading } = useQuery<Source[]>({
     queryKey: ["/api/sources"],
+  });
+
+  const { data: templates } = useQuery<TemplateSource[]>({
+    queryKey: ["/api/source-templates"],
+    enabled: showTemplates,
+  });
+
+  const availableTemplates = (templates ?? []).filter(
+    tmpl => !sources?.some(s => s.url === tmpl.url)
+  );
+
+  const installMutation = useMutation({
+    mutationFn: async (sourceIds: number[]) => {
+      return apiRequest("POST", "/api/source-templates/install", { sourceIds });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
+      setSelectedTemplates(new Set());
+      toast({ title: t("sources.templates.installed") });
+    },
+    onError: () => {
+      toast({ title: t("sources.templates.installFailed"), variant: "destructive" });
+    },
   });
 
   const createMutation = useMutation({
@@ -486,17 +521,153 @@ export default function Sources() {
               <Rss className="h-16 w-16 mx-auto mb-4 opacity-50" />
               <p className="text-lg font-medium">{t("sources.noSources")}</p>
               <p className="text-sm mt-1">{t("sources.noSourcesHint")}</p>
-              <Button
-                className="mt-4"
-                onClick={() => setIsDialogOpen(true)}
-                data-testid="button-add-first-source"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                {t("sources.addFirst")}
-              </Button>
+              <div className="flex items-center justify-center gap-3 mt-4 flex-wrap">
+                <Button
+                  onClick={() => setIsDialogOpen(true)}
+                  data-testid="button-add-first-source"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  {t("sources.addFirst")}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowTemplates(true)}
+                  data-testid="button-browse-templates-empty"
+                >
+                  <Package className="h-4 w-4 mr-2" />
+                  {t("sources.templates.browse")}
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader
+          className="cursor-pointer"
+          onClick={() => setShowTemplates(!showTemplates)}
+          data-testid="button-toggle-templates"
+        >
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              <CardTitle className="text-lg">{t("sources.templates.title")}</CardTitle>
+            </div>
+            <div className="flex items-center gap-2">
+              {showTemplates ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </div>
+          </div>
+          <CardDescription>{t("sources.templates.subtitle")}</CardDescription>
+        </CardHeader>
+        {showTemplates && (
+          <CardContent>
+            {templates && templates.length > 0 ? (
+              <>
+                <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      if (selectedTemplates.size === availableTemplates.length) {
+                        setSelectedTemplates(new Set());
+                      } else {
+                        setSelectedTemplates(new Set(availableTemplates.map(t => t.id)));
+                      }
+                    }}
+                    data-testid="button-select-all-templates"
+                  >
+                    {selectedTemplates.size === availableTemplates.length && availableTemplates.length > 0
+                      ? t("sources.templates.deselectAll")
+                      : t("sources.templates.selectAll")}
+                  </Button>
+                  {selectedTemplates.size > 0 && (
+                    <Button
+                      size="sm"
+                      onClick={() => installMutation.mutate(Array.from(selectedTemplates))}
+                      disabled={installMutation.isPending}
+                      data-testid="button-install-selected"
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      {installMutation.isPending
+                        ? t("sources.templates.installing")
+                        : t("sources.templates.installSelected", { count: String(selectedTemplates.size) })}
+                    </Button>
+                  )}
+                </div>
+                {Object.entries(
+                  templates.reduce<Record<string, TemplateSource[]>>((acc, tmpl) => {
+                    const topic = tmpl.topic;
+                    if (!acc[topic]) acc[topic] = [];
+                    acc[topic].push(tmpl);
+                    return acc;
+                  }, {})
+                ).map(([topic, topicTemplates]) => (
+                  <div key={topic} className="mb-4">
+                    <h4 className="text-sm font-medium text-muted-foreground mb-2">
+                      {t(`sources.topic.${topic}`)}
+                    </h4>
+                    <div className="space-y-2">
+                      {topicTemplates.map((tmpl) => {
+                        const alreadyInstalled = sources?.some(s => s.url === tmpl.url);
+                        return (
+                          <div
+                            key={tmpl.id}
+                            className={`flex items-center gap-3 p-3 rounded-md border ${alreadyInstalled ? "opacity-50" : "hover-elevate"}`}
+                            data-testid={`template-source-${tmpl.id}`}
+                          >
+                            {alreadyInstalled ? (
+                              <Check className="h-4 w-4 text-green-500 shrink-0" />
+                            ) : (
+                              <Checkbox
+                                checked={selectedTemplates.has(tmpl.id)}
+                                onCheckedChange={(checked) => {
+                                  const next = new Set(selectedTemplates);
+                                  if (checked) next.add(tmpl.id);
+                                  else next.delete(tmpl.id);
+                                  setSelectedTemplates(next);
+                                }}
+                                data-testid={`checkbox-template-${tmpl.id}`}
+                              />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-sm font-medium">{tmpl.name}</span>
+                                {alreadyInstalled && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    {t("sources.templates.alreadyInstalled")}
+                                  </Badge>
+                                )}
+                              </div>
+                              <span className="text-xs text-muted-foreground truncate block">{tmpl.url}</span>
+                            </div>
+                            {!alreadyInstalled && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => installMutation.mutate([tmpl.id])}
+                                disabled={installMutation.isPending}
+                                data-testid={`button-install-template-${tmpl.id}`}
+                              >
+                                <Download className="h-3 w-3 mr-1" />
+                                {t("sources.templates.install")}
+                              </Button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <Package className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p className="text-sm">{t("sources.templates.noTemplates")}</p>
+              </div>
+            )}
+          </CardContent>
+        )}
       </Card>
     </div>
   );
