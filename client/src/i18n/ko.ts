@@ -373,6 +373,10 @@ export const ko: Record<string, string> = {
   "settings.testAccount.switchedBack": "내 계정으로 돌아왔습니다",
   "settings.testAccount.switchFailed": "계정 전환 실패",
 
+  "settings.reviewerAccount.switchToReviewer": "리뷰어로 전환",
+  "settings.reviewerAccount.currentlyReviewer": "현재 리뷰어로 보고 있습니다. 신규 사용자와 동일한 빈 상태입니다.",
+  "settings.reviewerAccount.switchedToReviewer": "리뷰어 계정으로 전환됨",
+
   "sources.title": "소스",
   "sources.subtitle": "RSS 피드 및 콘텐츠 소스 관리",
   "sources.addSource": "소스 추가",

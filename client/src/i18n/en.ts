@@ -373,6 +373,10 @@ export const en: Record<string, string> = {
   "settings.testAccount.switchedBack": "Returned to your account",
   "settings.testAccount.switchFailed": "Account switch failed",
 
+  "settings.reviewerAccount.switchToReviewer": "Switch to Reviewer",
+  "settings.reviewerAccount.currentlyReviewer": "You are currently viewing as a reviewer. This is a fresh new-user experience.",
+  "settings.reviewerAccount.switchedToReviewer": "Switched to reviewer account",
+
   "sources.title": "Sources",
   "sources.subtitle": "Manage RSS feeds and content sources",
   "sources.addSource": "Add Source",

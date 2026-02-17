@@ -35,6 +35,7 @@ interface LlmProviderSafe {
 }
 
 const TEST_ACCOUNT_ID = "test_clean_account";
+const REVIEWER_ACCOUNT_ID = "reviewer_account";
 
 export default function Settings() {
   const { toast } = useToast();
@@ -49,12 +50,26 @@ export default function Settings() {
   const [defaultModel, setDefaultModel] = useState("");
 
   const isTestAccount = user?.id === TEST_ACCOUNT_ID;
+  const isReviewerAccount = user?.id === REVIEWER_ACCOUNT_ID;
+  const isSwitchedAccount = isTestAccount || isReviewerAccount;
 
   const switchToTestMutation = useMutation({
     mutationFn: () => apiRequest("POST", "/api/auth/switch-test"),
     onSuccess: () => {
       queryClient.invalidateQueries();
       toast({ title: t("settings.testAccount.switchedToTest") });
+      window.location.reload();
+    },
+    onError: () => {
+      toast({ title: t("settings.testAccount.switchFailed"), variant: "destructive" });
+    },
+  });
+
+  const switchToReviewerMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/auth/switch-reviewer"),
+    onSuccess: () => {
+      queryClient.invalidateQueries();
+      toast({ title: t("settings.reviewerAccount.switchedToReviewer") });
       window.location.reload();
     },
     onError: () => {
@@ -717,12 +732,14 @@ export default function Settings() {
           <CardDescription>{t("settings.testAccount.desc")}</CardDescription>
         </CardHeader>
         <CardContent>
-          {isTestAccount ? (
+          {isSwitchedAccount ? (
             <div className="space-y-3">
               <div className="flex items-center gap-2 p-3 rounded-md bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800">
                 <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
                 <p className="text-sm text-amber-800 dark:text-amber-200">
-                  {t("settings.testAccount.currentlyTest")}
+                  {isTestAccount
+                    ? t("settings.testAccount.currentlyTest")
+                    : t("settings.reviewerAccount.currentlyReviewer")}
                 </p>
               </div>
               <Button
@@ -740,19 +757,34 @@ export default function Settings() {
               </Button>
             </div>
           ) : (
-            <Button
-              variant="outline"
-              onClick={() => switchToTestMutation.mutate()}
-              disabled={switchToTestMutation.isPending}
-              data-testid="button-switch-test"
-            >
-              {switchToTestMutation.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <ArrowLeftRight className="h-4 w-4 mr-2" />
-              )}
-              {t("settings.testAccount.switchToTest")}
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={() => switchToTestMutation.mutate()}
+                disabled={switchToTestMutation.isPending}
+                data-testid="button-switch-test"
+              >
+                {switchToTestMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <ArrowLeftRight className="h-4 w-4 mr-2" />
+                )}
+                {t("settings.testAccount.switchToTest")}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => switchToReviewerMutation.mutate()}
+                disabled={switchToReviewerMutation.isPending}
+                data-testid="button-switch-reviewer"
+              >
+                {switchToReviewerMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <ArrowLeftRight className="h-4 w-4 mr-2" />
+                )}
+                {t("settings.reviewerAccount.switchToReviewer")}
+              </Button>
+            </div>
           )}
         </CardContent>
       </Card>
