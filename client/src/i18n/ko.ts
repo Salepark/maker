@@ -364,6 +364,15 @@ export const ko: Record<string, string> = {
   "settings.scheduler.jobStarted": "{{job}} 작업 시작됨",
   "settings.scheduler.jobFailed": "작업 실행 실패",
 
+  "settings.testAccount.title": "테스트 계정",
+  "settings.testAccount.desc": "빈 테스트 계정으로 전환하여 데이터 격리를 확인할 수 있습니다. 원래 세션은 보존됩니다.",
+  "settings.testAccount.switchToTest": "테스트 계정으로 전환",
+  "settings.testAccount.switchBack": "내 계정으로 돌아가기",
+  "settings.testAccount.currentlyTest": "현재 테스트 계정으로 보고 있습니다. 이곳의 모든 데이터는 실제 계정과 분리되어 있습니다.",
+  "settings.testAccount.switchedToTest": "테스트 계정으로 전환됨",
+  "settings.testAccount.switchedBack": "내 계정으로 돌아왔습니다",
+  "settings.testAccount.switchFailed": "계정 전환 실패",
+
   "sources.title": "소스",
   "sources.subtitle": "RSS 피드 및 콘텐츠 소스 관리",
   "sources.addSource": "소스 추가",

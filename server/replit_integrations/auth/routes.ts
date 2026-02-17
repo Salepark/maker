@@ -1,24 +1,14 @@
 import type { Express } from "express";
 import { authStorage } from "./storage";
 import { isAuthenticated } from "./replitAuth";
-import { storage } from "../../storage";
 
-const DEMO_USER_ID = "demo_reviewer_001";
-const DEMO_USERNAME = "reviewer";
-const DEMO_PASSWORD = "maker2025";
+const TEST_ACCOUNT_ID = "test_clean_account";
 
 export function registerAuthRoutes(app: Express): void {
   app.get("/api/auth/user", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await authStorage.getUser(userId);
-
-      try {
-        await storage.ensureDefaultBots(userId);
-      } catch (e) {
-        console.error("Error ensuring default bots:", e);
-      }
-
       res.json(user);
     } catch (error) {
       console.error("Error fetching user:", error);
@@ -26,47 +16,79 @@ export function registerAuthRoutes(app: Express): void {
     }
   });
 
-  app.post("/api/demo-login", async (req, res) => {
+  app.post("/api/auth/switch-test", isAuthenticated, async (req: any, res) => {
     try {
-      const { username, password } = req.body;
-      if (username !== DEMO_USERNAME || password !== DEMO_PASSWORD) {
-        return res.status(401).json({ message: "Invalid credentials" });
+      const originalUserId = req.user.claims.sub;
+
+      if (originalUserId === TEST_ACCOUNT_ID) {
+        return res.status(400).json({ message: "Already on test account" });
       }
 
       await authStorage.upsertUser({
-        id: DEMO_USER_ID,
-        email: "reviewer@maker.demo",
-        firstName: "Reviewer",
+        id: TEST_ACCOUNT_ID,
+        email: "test@maker.clean",
+        firstName: "Test",
         lastName: "Account",
         profileImageUrl: null,
       });
 
-      const demoUser: any = {
+      const originalClaims = { ...req.user.claims };
+      const testUser: any = {
         claims: {
-          sub: DEMO_USER_ID,
-          email: "reviewer@maker.demo",
-          first_name: "Reviewer",
+          sub: TEST_ACCOUNT_ID,
+          email: "test@maker.clean",
+          first_name: "Test",
           last_name: "Account",
         },
-        expires_at: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60,
+        expires_at: Math.floor(Date.now() / 1000) + 24 * 60 * 60,
+        _originalClaims: originalClaims,
       };
 
-      req.login(demoUser, (err: any) => {
+      req.login(testUser, (err: any) => {
         if (err) {
-          console.error("Demo login session error:", err);
-          return res.status(500).json({ message: "Session creation failed" });
+          return res.status(500).json({ message: "Switch failed" });
         }
         req.session.save((saveErr: any) => {
           if (saveErr) {
-            console.error("Demo login session save error:", saveErr);
             return res.status(500).json({ message: "Session save failed" });
           }
-          res.json({ success: true });
+          res.json({ success: true, testUserId: TEST_ACCOUNT_ID });
         });
       });
     } catch (error) {
-      console.error("Demo login error:", error);
-      res.status(500).json({ message: "Demo login failed" });
+      console.error("Switch to test account error:", error);
+      res.status(500).json({ message: "Switch failed" });
+    }
+  });
+
+  app.post("/api/auth/switch-back", isAuthenticated, async (req: any, res) => {
+    try {
+      const currentUserId = req.user.claims.sub;
+      const originalClaims = req.user._originalClaims;
+
+      if (currentUserId !== TEST_ACCOUNT_ID || !originalClaims) {
+        return res.status(400).json({ message: "Not on test account" });
+      }
+
+      const restoredUser: any = {
+        claims: originalClaims,
+        expires_at: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60,
+      };
+
+      req.login(restoredUser, (err: any) => {
+        if (err) {
+          return res.status(500).json({ message: "Switch back failed" });
+        }
+        req.session.save((saveErr: any) => {
+          if (saveErr) {
+            return res.status(500).json({ message: "Session save failed" });
+          }
+          res.json({ success: true, userId: originalClaims.sub });
+        });
+      });
+    } catch (error) {
+      console.error("Switch back error:", error);
+      res.status(500).json({ message: "Switch back failed" });
     }
   });
 }

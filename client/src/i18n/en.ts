@@ -364,6 +364,15 @@ export const en: Record<string, string> = {
   "settings.scheduler.jobStarted": "{{job}} job started",
   "settings.scheduler.jobFailed": "Failed to run job",
 
+  "settings.testAccount.title": "Test Account",
+  "settings.testAccount.desc": "Switch to an empty test account to verify data isolation. Your original session is preserved.",
+  "settings.testAccount.switchToTest": "Switch to Test Account",
+  "settings.testAccount.switchBack": "Return to My Account",
+  "settings.testAccount.currentlyTest": "You are currently viewing as a test account. All data here is isolated from your real account.",
+  "settings.testAccount.switchedToTest": "Switched to test account",
+  "settings.testAccount.switchedBack": "Returned to your account",
+  "settings.testAccount.switchFailed": "Account switch failed",
+
   "sources.title": "Sources",
   "sources.subtitle": "Manage RSS feeds and content sources",
   "sources.addSource": "Add Source",
