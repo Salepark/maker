@@ -5,7 +5,8 @@ Maker is a control-centered AI operating layer.
 We are not building smarter AI.
 We are building controllable AI.
 
-See: [docs/CONTROL_PHILOSOPHY.md](docs/CONTROL_PHILOSOPHY.md)
+See: [docs/CONTROL_MODEL.md](docs/CONTROL_MODEL.md)
+[docs/CONTROL_MODEL.md](docs/CONTROL_MODEL.md)
 
 ---
 
