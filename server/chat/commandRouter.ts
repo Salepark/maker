@@ -247,7 +247,7 @@ export interface PipelineStepResult {
   data?: any;
 }
 
-const PIPELINE_RESPONSE_TIMEOUT_MS = 25_000;
+const PIPELINE_RESPONSE_TIMEOUT_MS = 120_000;
 
 type RaceResult<T> =
   | { timedOut: false; result: T }

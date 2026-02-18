@@ -185,8 +185,8 @@ export default function Reports() {
 
   const generateMutation = useMutation({
     mutationFn: async (params: { profileId?: number; botId?: number }) => {
-      const CLIENT_ABSOLUTE_TIMEOUT_MS = 30000;
-      const CLIENT_STALL_TOAST_MS = 12000;
+      const CLIENT_ABSOLUTE_TIMEOUT_MS = 130_000;
+      const CLIENT_STALL_TOAST_MS = 30_000;
 
       const controller = new AbortController();
       const absoluteTimer = setTimeout(() => controller.abort(), CLIENT_ABSOLUTE_TIMEOUT_MS);

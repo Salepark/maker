@@ -536,7 +536,7 @@ export async function registerRoutes(
         return res.status(404).json({ ok: false, error: "Profile not found" });
       }
 
-      const SERVER_TIMEOUT_MS = 25000;
+      const SERVER_TIMEOUT_MS = 120_000;
       const resultPromise = runReportNow(profileId, userId);
       const timeoutPromise = new Promise<null>((resolve) =>
         setTimeout(() => resolve(null), SERVER_TIMEOUT_MS)

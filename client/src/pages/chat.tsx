@@ -567,7 +567,7 @@ export default function Chat() {
 
   useEffect(() => {
     if (!pipelineRunning) return;
-    const STALL_THRESHOLD_MS = 12_000;
+    const STALL_THRESHOLD_MS = 60_000;
     const interval = setInterval(() => {
       if (lastProgressTime > 0) {
         const stallDuration = Date.now() - lastProgressTime;
@@ -576,12 +576,12 @@ export default function Chat() {
           toast({
             title: isKo ? "파이프라인 완료" : "Pipeline finished",
             description: isKo
-              ? "빠른 브리핑이 제공되었습니다. 심화 분석은 백그라운드에서 계속됩니다."
-              : "Quick briefing delivered. Deep analysis continues in the background.",
+              ? "리포트 생성이 백그라운드에서 계속됩니다. Reports 페이지에서 확인하세요."
+              : "Report generation continues in the background. Check the Reports page.",
           });
         }
       }
-    }, 2000);
+    }, 5000);
     return () => clearInterval(interval);
   }, [pipelineRunning, lastProgressTime, isKo, toast]);
 
@@ -595,7 +595,7 @@ export default function Chat() {
           ? "파이프라인이 시간 초과되었습니다. Reports 페이지에서 결과를 확인하세요."
           : "Pipeline timed out. Check the Reports page for any results.",
       });
-    }, 30000);
+    }, 130_000);
     return () => clearTimeout(timeout);
   }, [pipelineRunning, isKo, toast]);
 
