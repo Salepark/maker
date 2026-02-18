@@ -3,8 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Bot, Layers, Rss, Settings, Zap, ArrowRight, TrendingUp, BookOpen, Building2, Newspaper, ChevronDown, Key, MessageSquare, PenTool, Laptop, Store, ShoppingCart, LogIn, User, Monitor, Users, Landmark, Check, Shield, ShieldCheck, RefreshCw, Wifi, WifiOff, Eye, Clock, FileText, ExternalLink, Github, ClipboardList } from "lucide-react";
+import { Bot, Layers, Rss, Settings, Zap, ArrowRight, TrendingUp, BookOpen, Building2, Newspaper, ChevronDown, Key, MessageSquare, PenTool, Laptop, Store, ShoppingCart, LogIn, User, Monitor, Users, Landmark, Check, Shield, ShieldCheck, RefreshCw, WifiOff, Eye, Clock, ExternalLink, Github, ClipboardList } from "lucide-react";
 import { ShareButton } from "@/components/share-button";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -98,33 +97,6 @@ function DemoLoginForm() {
             {loading ? t("landing.demo.loggingIn") : t("landing.demo.loginButton")}
           </Button>
         </form>
-      </CardContent>
-    </Card>
-  );
-}
-
-function SampleReportCard({ type }: { type: "market" | "research" }) {
-  const { t } = useLanguage();
-  const prefix = `landing.sampleReport.${type}`;
-  return (
-    <Card className="overflow-visible" data-testid={`card-sample-report-${type}`}>
-      <CardContent className="pt-6 space-y-4">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <h3 className="font-semibold">{t(`${prefix}.title`)}</h3>
-          <Badge variant="secondary" data-testid={`badge-report-${type}`}>{t(`${prefix}.badge`)}</Badge>
-        </div>
-        <ul className="space-y-2.5">
-          {[1, 2, 3].map((i) => (
-            <li key={i} className="flex items-start gap-2 text-sm" data-testid={`text-report-${type}-item-${i}`}>
-              <FileText className="h-3.5 w-3.5 shrink-0 mt-0.5 text-primary" />
-              <span className="text-muted-foreground">{t(`${prefix}.item${i}`)}</span>
-            </li>
-          ))}
-        </ul>
-        <div className="pt-2 border-t border-border space-y-1.5">
-          <p className="text-xs text-primary font-medium" data-testid={`text-report-${type}-trend`}>{t(`${prefix}.trend`)}</p>
-          <p className="text-xs text-muted-foreground" data-testid={`text-report-${type}-sources`}>{t(`${prefix}.sources`)}</p>
-        </div>
       </CardContent>
     </Card>
   );
@@ -290,22 +262,6 @@ export default function Landing() {
               </div>
               <DemoLoginForm />
             </div>
-          </div>
-        </section>
-
-        {/* ===== SAMPLE REPORTS ===== */}
-        <section className="max-w-6xl mx-auto px-6 py-16" data-testid="section-sample-reports">
-          <h2 className="text-2xl font-bold text-center mb-4">{t("landing.sampleReport.title")}</h2>
-          <p className="text-center text-muted-foreground mb-4 max-w-lg mx-auto">
-            {t("landing.sampleReport.subtitle")}
-          </p>
-          <p className="text-center text-xs text-muted-foreground mb-10 flex items-center justify-center gap-1.5">
-            <Clock className="h-3.5 w-3.5" />
-            {t("landing.sampleReport.daily")}
-          </p>
-          <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-            <SampleReportCard type="market" />
-            <SampleReportCard type="research" />
           </div>
         </section>
 
