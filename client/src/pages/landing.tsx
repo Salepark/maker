@@ -110,19 +110,23 @@ function SampleReportCard({ type }: { type: "market" | "research" | "promotion" 
     <Card className="overflow-visible" data-testid={`card-sample-report-${type}`}>
       <CardContent className="pt-6 space-y-4">
         <div className="flex items-center justify-between gap-2 flex-wrap">
-          <h3 className="font-semibold">{t(`${prefix}.title`)}</h3>
+          <h3 className="font-semibold text-sm">{t(`${prefix}.title`)}</h3>
           <Badge variant="secondary" data-testid={`badge-report-${type}`}>{t(`${prefix}.badge`)}</Badge>
+        </div>
+        <div className="rounded-md bg-muted/50 p-3" data-testid={`text-report-${type}-summary`}>
+          <p className="text-xs font-medium mb-1 text-foreground">{t("landing.sampleReport.executiveSummary")}</p>
+          <p className="text-xs text-muted-foreground leading-relaxed">{t(`${prefix}.summary`)}</p>
         </div>
         <ul className="space-y-2.5">
           {[1, 2, 3].map((i) => (
             <li key={i} className="flex items-start gap-2 text-sm" data-testid={`text-report-${type}-item-${i}`}>
               <FileText className="h-3.5 w-3.5 shrink-0 mt-0.5 text-primary" />
-              <span className="text-muted-foreground">{t(`${prefix}.item${i}`)}</span>
+              <span className="text-muted-foreground text-xs">{t(`${prefix}.item${i}`)}</span>
             </li>
           ))}
         </ul>
         <div className="pt-2 border-t border-border space-y-1.5">
-          <p className="text-xs text-primary font-medium" data-testid={`text-report-${type}-trend`}>{t(`${prefix}.trend`)}</p>
+          <p className="text-xs text-primary font-medium" data-testid={`text-report-${type}-outlook`}>{t(`${prefix}.outlook`)}</p>
           <p className="text-xs text-muted-foreground" data-testid={`text-report-${type}-sources`}>{t(`${prefix}.sources`)}</p>
         </div>
       </CardContent>

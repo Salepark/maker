@@ -459,16 +459,64 @@ function getMarkdownInstructions(level: string): string {
 - Use only simple dashes (-) for lists
 - Write in flowing sentences. It should read like a "briefing," not a "document"
 - No emojis or special symbols. Use only plain text and dashes (-)`;
+    case "professional":
+      return `Write as a professional business report suitable for executive review. Strict rules:
+- Use proper markdown heading hierarchy: # for report title, ## for major sections, ### for subsections
+- Report title format: "# [Category] Briefing | YYYY.MM.DD"
+- Required structure order (if sections are enabled):
+  1. Executive Summary (## 핵심 요약) — 3 bullet points max, business impact focus, no filler
+  2. Analysis sections (## [Section Title]) — each with situation context + business interpretation, not just facts
+  3. Implications & Outlook (## 시사점 및 전망) — forward-looking impact and monitoring points
+  4. Sources (## 출처) — source list with URLs
+- Tone: analytical, authoritative, suitable for reporting to senior management
+- Each analysis point must explain WHY it matters to the business, not just WHAT happened
+- Use bold (**) sparingly for emphasis on key figures or critical terms only
+- No emojis, no casual language, no exclamation marks
+- Write in complete sentences with clear logical flow between points
+- Each section should have substantive analysis, not just bullet-point summaries`;
     default:
       return "Use standard markdown: freely use headings, bold, lists, etc.";
   }
 }
 
-function getSectionInstructions(sections: ReportConfig["sections"], topic: string): string {
+function getSectionInstructions(sections: ReportConfig["sections"], topic: string, markdownLevel?: string): string {
   const defaultSections = { tldr: true, drivers: true, risk: true, checklist: true, sources: true };
   const s = { ...defaultSections, ...sections };
+  const isProfessional = markdownLevel === "professional";
+
+  const professionalSectionMaps: Record<string, Record<string, string>> = {
+    investing: {
+      tldr: "핵심 요약 (Executive Summary) — 3 bullet points: today's market impact, key driver, risk level",
+      drivers: "주요 동향 분석 (Market Analysis) — For each issue: situation + why it matters + business impact. Cover macro, sector, cross-market linkages",
+      risk: "리스크 레이더 (Risk Assessment) — Key risks with probability assessment and potential impact scope",
+      checklist: "시사점 및 전망 (Implications & Outlook) — Forward-looking analysis, monitoring points, expected developments",
+      sources: "출처 (Sources) — Source list with URLs",
+    },
+    research_watch: {
+      tldr: "핵심 요약 (Executive Summary) — 3 bullet points: most impactful findings, field implications",
+      drivers: "주요 연구 분석 (Research Analysis) — For each paper/finding: what was discovered + why it matters + practical implications",
+      risk: "주의 사항 (Limitations & Considerations) — Methodology concerns, replication status, adoption barriers",
+      checklist: "시사점 및 전망 (Implications & Outlook) — Industry impact, future research directions, application opportunities",
+      sources: "출처 (Sources) — Source list with URLs",
+    },
+    website_promotion: {
+      tldr: "핵심 요약 (Executive Summary) — 3 bullet points: best posting opportunities found, expected reach",
+      drivers: "커뮤니티 분석 및 게시 제안 (Community Analysis & Posting Suggestions) — For each community: current hot topics, where your content fits, draft title + talking points",
+      risk: "타이밍 및 주의사항 (Timing & Considerations) — Best posting times, community rules to follow, what to avoid",
+      checklist: "시사점 및 전망 (Implications & Action Plan) — Priority actions, content calendar suggestions, follow-up monitoring points",
+      sources: "출처 (Sources) — Source list with URLs",
+    },
+  };
+
+  const professionalDefaultMap = {
+    tldr: "핵심 요약 (Executive Summary) — 3 bullet points max, business impact focus",
+    drivers: "주요 동향 분석 (Key Analysis) — For each topic: situation context + business interpretation + implications",
+    risk: "리스크 및 주의사항 (Risks & Considerations) — Key risks and concerns with impact assessment",
+    checklist: "시사점 및 전망 (Implications & Outlook) — Forward-looking analysis and monitoring points",
+    sources: "출처 (Sources) — Source list with URLs",
+  };
   
-  const sectionMaps: Record<string, Record<string, string>> = {
+  const standardSectionMaps: Record<string, Record<string, string>> = {
     investing: {
       tldr: "TL;DR (One-line summary of today)",
       drivers: "Market Drivers (3~5 Key Issues) + Cross-Market View",
@@ -484,14 +532,17 @@ function getSectionInstructions(sections: ReportConfig["sections"], topic: strin
       sources: "Sources (Source List)",
     },
   };
-  const defaultSectionMap = {
+  const standardDefaultMap = {
     tldr: "TL;DR (One-line summary of today)",
     drivers: "Key Developments (3~5 Key Topics)",
     risk: "Risks & Cautions",
     checklist: "Action Items / Checkpoints",
     sources: "Sources (Source List)",
   };
-  const sectionMap = sectionMaps[topic] || defaultSectionMap;
+
+  const sectionMap = isProfessional
+    ? (professionalSectionMaps[topic] || professionalDefaultMap)
+    : (standardSectionMaps[topic] || standardDefaultMap);
 
   const includedSections = Object.entries(sectionMap)
     .filter(([key]) => s[key as keyof typeof s])
@@ -575,6 +626,13 @@ const TOPIC_META: Record<string, { label: string; role: string; focus: string; d
     focus: "productivity tips, operational know-how, practical ideas, tool recommendations, and workflow improvements for solo operators and small teams.",
     disclaimer: "This report summarizes productivity and work-related insights.",
   },
+  website_promotion: {
+    label: "Promotion Strategy Brief",
+    role: "a digital marketing strategist and community engagement specialist",
+    focus: "community discussions relevant to your product/service, posting opportunities, audience sentiment, content gaps, and draft posting suggestions with platform-specific talking points. Prioritize actionable promotion opportunities over general trends.",
+    disclaimer: "This report provides promotion strategy suggestions. All posting decisions should be reviewed by the user before execution.",
+    excludeFilter: "Exclude generic motivational content, spam tactics, and growth-hacking shortcuts. Focus on genuine community engagement opportunities and authentic content strategies.",
+  },
 };
 
 export function getTopicLabel(topic: string): string {
@@ -623,8 +681,13 @@ function buildInvestingBriefPromptWithConfig(items: any[], date: string, config?
     confidence: item.confidence,
   }));
 
+  const isProfessional = markdownLevel === "professional";
+  const headerFormat = isProfessional ? `# Daily Market Brief | ${date}` : `Daily Market Brief - ${date}`;
+
   return `You are a senior macro & markets research analyst.
-Write a daily market brief for investors based only on the provided analyzed items.
+${isProfessional
+  ? "Write a professional business report for executive review based only on the provided analyzed items. This report should be suitable for presenting to senior management. Prioritize analytical depth, business impact assessment, and strategic interpretation over simple fact listing."
+  : "Write a daily market brief for investors based only on the provided analyzed items."}
 Prioritize credibility, macro context, policy impact, and cross-market linkages.
 Avoid hype, price predictions, and trading advice.
 Use neutral, analytical tone.
@@ -633,7 +696,7 @@ User Settings:
 ${getVerbosityInstructions(verbosity)}
 ${getMarkdownInstructions(markdownLevel)}
 
-${getSectionInstructions(sections, "investing")}
+${getSectionInstructions(sections, "investing", markdownLevel)}
 ${buildUserRulesBlock(userRules)}
 Important - Data Filtering:
 The following content must be excluded from the input data:
@@ -652,7 +715,7 @@ Today's date: ${date}
 
 Output Format (must be in English):
 
-Daily Market Brief - ${date}
+${headerFormat}
 
 This report is for informational purposes only and does not constitute investment advice.
 
@@ -661,9 +724,10 @@ This report is for informational purposes only and does not constitute investmen
 Writing Rules:
 - No investment directives/definitive statements like "buy," "sell," "will rise," "will fall"
 - Use conditional/scenario language like "may," "there is a possibility"
-- Focus on explaining "why the market is reacting to this news"
+- Focus on explaining "why the market is reacting to this news" and its business implications
 - Prioritize policy/rates/capital flows/risk
 - Clearly distinguish facts / interpretation / risk
+${isProfessional ? "- Each issue must include: (1) what happened, (2) why it matters, (3) expected business impact\n- Write in complete analytical paragraphs, not just bullet-point lists\n- Provide forward-looking assessment in the implications section" : ""}
 - Reduce weight for items with risk_flags like rumor, low_credibility, opinion_only
 - Do not promote items with low confidence to key issues
 - No exaggerated, emotional, or clickbait tone`;
@@ -687,16 +751,20 @@ function buildGenericBriefPrompt(items: any[], date: string, topic: string, conf
   }));
 
   const filterBlock = meta.excludeFilter ? `\nImportant - Data Filtering:\n${meta.excludeFilter}\n` : "";
+  const isProfessional = markdownLevel === "professional";
+  const headerFormat = isProfessional ? `# ${meta.label} | ${date}` : `${meta.label} - ${date}`;
 
   return `You are ${meta.role}.
-Your goal is to write a Daily Brief summarizing ${meta.focus}
+${isProfessional
+  ? `Your goal is to write a professional business report suitable for executive review, covering ${meta.focus} This report should demonstrate analytical depth and strategic interpretation, not just summarize facts. Each point must explain business implications.`
+  : `Your goal is to write a Daily Brief summarizing ${meta.focus}`}
 Include sources (URLs) and avoid exaggeration/speculation/definitive statements.
 
 User Settings:
 ${getVerbosityInstructions(verbosity)}
 ${getMarkdownInstructions(markdownLevel)}
 
-${getSectionInstructions(sections, topic)}
+${getSectionInstructions(sections, topic, markdownLevel)}
 ${buildUserRulesBlock(userRules)}
 ${filterBlock}
 Input Data:
@@ -708,7 +776,7 @@ Today's date: ${date}
 
 Output Format:
 
-${meta.label} - ${date}
+${headerFormat}
 
 ${meta.disclaimer}
 
@@ -718,6 +786,11 @@ Writing Rules:
 - Provide practical, actionable insights
 - Balance coverage of developments and their implications
 - Write factually without exaggeration
+${isProfessional ? `- Structure each analysis point as: (1) what happened, (2) why it matters, (3) business impact or action needed
+- Write in complete analytical paragraphs with logical flow, not just bullet-point lists
+- Executive Summary must be exactly 3 concise bullet points focused on business impact
+- Implications section must be forward-looking with specific monitoring points
+- Maintain authoritative, professional tone suitable for senior management review` : ""}
 - Reduce weight for items with risk_flags like rumor, low_credibility, opinion_only
 - Do not promote items with low confidence to key issues`;
 }

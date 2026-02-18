@@ -1,6 +1,6 @@
 import { storage } from "../storage";
 import { callLLM, callLLMWithConfig, callLLMWithTimeout, hasSystemLLMKey, type LLMConfig } from "../llm/client";
-import { buildDailyBriefPrompt, ReportConfig } from "../llm/prompts";
+import { buildDailyBriefPrompt, ReportConfig, getTopicLabel } from "../llm/prompts";
 import { analyzeNewItemsBySourceIds } from "./analyze_items";
 import { startRun, endRunOk, endRunError, endRunSkipped } from "./runLogger";
 import { collectFromSourceIds } from "../services/rss";
@@ -478,23 +478,34 @@ export async function generateFastReport(params: FastReportParams): Promise<Repo
   const keywordSummary = extractKeywords(titles, 5);
   const sourceDistribution = computeSourceDistribution(recentItems);
 
+  const topicLabel = getTopicLabel(topic);
+  const dateFormatted = now.toLocaleDateString("en-CA", { timeZone: timezone });
+
   const lines: string[] = [];
-  lines.push(`# ${profileName}`);
-  lines.push(`> ${today} ${timeStr} 기준`);
+  lines.push(`# ${topicLabel} | ${dateFormatted}`);
+  lines.push(`> ${today} ${timeStr} 기준 | ${profileName}`);
   lines.push("");
 
+  lines.push("## 핵심 요약 (Executive Summary)");
+  lines.push("");
   if (recentItems.length > 0) {
     const totalSources = Object.keys(sourceDistribution).length;
-    lines.push(`**${totalSources}개 소스**에서 총 **${recentItems.length}건**의 자료를 수집했습니다.`);
+    lines.push(`- **${totalSources}개 소스**에서 총 **${recentItems.length}건**의 자료를 수집했습니다.`);
+    const topKeywords = Object.keys(keywordSummary).slice(0, 3);
+    if (topKeywords.length > 0) {
+      lines.push(`- 주요 키워드: **${topKeywords.join("**, **")}**`);
+    }
+    lines.push("- 심화 분석이 백그라운드에서 진행 중입니다.");
   } else if (collectResult.totalCollected > 0) {
-    lines.push(`${collectResult.sourcesProcessed}개 소스에서 **${collectResult.totalCollected}건**의 새 자료를 수집했습니다.`);
+    lines.push(`- ${collectResult.sourcesProcessed}개 소스에서 **${collectResult.totalCollected}건**의 새 자료를 수집했습니다.`);
+    lines.push("- 심화 분석이 백그라운드에서 진행 중입니다.");
   } else {
-    lines.push("현재 수집된 자료가 없습니다. 소스 연결을 확인해주세요.");
+    lines.push("- 현재 수집된 자료가 없습니다. 소스 연결을 확인해주세요.");
   }
   lines.push("");
 
   if (recentItems.length > 0) {
-    lines.push("## 주요 항목");
+    lines.push("## 주요 동향 (Key Highlights)");
     lines.push("");
     const displayItems = recentItems.slice(0, 10);
     for (const item of displayItems) {
@@ -505,26 +516,26 @@ export async function generateFastReport(params: FastReportParams): Promise<Repo
     }
     lines.push("");
 
+    lines.push("## 소스별 분포 (Source Distribution)");
+    lines.push("");
+    for (const [name, cnt] of Object.entries(sourceDistribution)) {
+      lines.push(`- ${name}: ${cnt}건`);
+    }
+    lines.push("");
+
     const kwEntries = Object.entries(keywordSummary);
     if (kwEntries.length > 0) {
-      lines.push("## 키워드 요약");
+      lines.push("## 키워드 요약 (Keywords)");
       lines.push("");
       for (const [kw, cnt] of kwEntries) {
         lines.push(`- **${kw}**: ${cnt}회`);
       }
       lines.push("");
     }
-
-    lines.push("## 소스별 분포");
-    lines.push("");
-    for (const [name, cnt] of Object.entries(sourceDistribution)) {
-      lines.push(`- ${name}: ${cnt}건`);
-    }
-    lines.push("");
   }
 
   lines.push("---");
-  lines.push("*메이커는 먼저 빠른 브리핑을 제공합니다. 심화 분석은 백그라운드에서 진행되며, 완료되면 자동으로 업데이트됩니다.*");
+  lines.push("*이 리포트는 초기 브리핑입니다. AI 기반 심화 분석이 백그라운드에서 진행되며, 완료되면 자동으로 업데이트됩니다.*");
 
   const content = lines.join("\n");
 
@@ -534,7 +545,7 @@ export async function generateFastReport(params: FastReportParams): Promise<Repo
     presetId,
     topic,
     outputType: "report",
-    title: `${profileName} — 초기 브리핑 (${timeStr})`,
+    title: `${topicLabel} | ${dateFormatted} — 초기 브리핑`,
     contentText: content,
     reportStage: "fast",
     periodStart,

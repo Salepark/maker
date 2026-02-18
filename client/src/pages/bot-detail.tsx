@@ -123,7 +123,7 @@ export default function BotDetail() {
   const [scheduleRule, setScheduleRule] = useState("DAILY");
   const [scheduleTimeLocal, setScheduleTimeLocal] = useState("21:00");
   const [verbosity, setVerbosity] = useState("normal");
-  const [markdownLevel, setMarkdownLevel] = useState("minimal");
+  const [markdownLevel, setMarkdownLevel] = useState("professional");
   const [sections, setSections] = useState({
     tldr: true, drivers: true, risk: true, checklist: true, sources: true,
   });
@@ -299,7 +299,7 @@ export default function BotDetail() {
     ? `${botSettings.scheduleRule === "DAILY" ? t("botDetail.schedule.daily2") : botSettings.scheduleRule === "WEEKDAYS" ? t("botDetail.schedule.weekdays2") : t("botDetail.schedule.weekends2")} ${botSettings.scheduleTimeLocal}`
     : null;
   const formatLabel = botSettings
-    ? `${botSettings.markdownLevel === "minimal" ? t("botDetail.format.conversational2") : t("botDetail.format.structured2")} / ${botSettings.verbosity === "short" ? t("botDetail.format.short2") : botSettings.verbosity === "detailed" ? t("botDetail.format.detailed2") : t("botDetail.format.normal2")}`
+    ? `${botSettings.markdownLevel === "professional" ? t("botDetail.format.professional2") : botSettings.markdownLevel === "minimal" ? t("botDetail.format.conversational2") : t("botDetail.format.structured2")} / ${botSettings.verbosity === "short" ? t("botDetail.format.short2") : botSettings.verbosity === "detailed" ? t("botDetail.format.detailed2") : t("botDetail.format.normal2")}`
     : null;
 
   const sectionLabelMap: Record<string, string> = {
@@ -530,6 +530,7 @@ export default function BotDetail() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="professional">{t("botDetail.format.professional")}</SelectItem>
                   <SelectItem value="minimal">{t("botDetail.format.conversational")}</SelectItem>
                   <SelectItem value="normal">{t("botDetail.format.structured")}</SelectItem>
                 </SelectContent>
