@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Layers, Rss, Settings, Zap, ArrowRight, TrendingUp, BookOpen, Building2, Newspaper, ChevronDown, Key, MessageSquare, PenTool, Laptop, Store, ShoppingCart, LogIn, User, Monitor, Users, Landmark, Check, Shield, ShieldCheck, RefreshCw, WifiOff, Eye, Clock, FileText, ExternalLink, Github, ClipboardList } from "lucide-react";
+import { Bot, Layers, Rss, Settings, Zap, ArrowRight, TrendingUp, BookOpen, Building2, Newspaper, ChevronDown, Key, MessageSquare, PenTool, Laptop, Store, ShoppingCart, LogIn, User, Monitor, Users, Landmark, Check, Shield, ShieldCheck, RefreshCw, WifiOff, Eye, Clock, FileText, ExternalLink, Github, ClipboardList, Globe } from "lucide-react";
 import { ShareButton } from "@/components/share-button";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -103,7 +103,7 @@ function DemoLoginForm() {
   );
 }
 
-function SampleReportCard({ type }: { type: "market" | "research" }) {
+function SampleReportCard({ type }: { type: "market" | "research" | "promotion" }) {
   const { t } = useLanguage();
   const prefix = `landing.sampleReport.${type}`;
   return (
@@ -135,6 +135,7 @@ export default function Landing() {
   const [showAllUseCases, setShowAllUseCases] = useState(false);
 
   const useCases = [
+    { icon: Globe, title: t("landing.useCase.websitePromotion"), description: t("landing.useCase.websitePromotionDesc") },
     { icon: TrendingUp, title: t("landing.useCase.dailyMarketBrief"), description: t("landing.useCase.dailyMarketBriefDesc") },
     { icon: BookOpen, title: t("landing.useCase.researchPaperTracker"), description: t("landing.useCase.researchPaperTrackerDesc") },
     { icon: Building2, title: t("landing.useCase.competitorSignalMonitor"), description: t("landing.useCase.competitorSignalMonitorDesc") },
@@ -303,7 +304,8 @@ export default function Landing() {
             <Clock className="h-3.5 w-3.5" />
             {t("landing.sampleReport.daily")}
           </p>
-          <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            <SampleReportCard type="promotion" />
             <SampleReportCard type="market" />
             <SampleReportCard type="research" />
           </div>
