@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Bot, Layers, Rss, Settings, Zap, ArrowRight, TrendingUp, BookOpen, Building2, Newspaper, ChevronDown, Key, MessageSquare, PenTool, Laptop, Store, ShoppingCart, LogIn, User, Monitor, Users, Landmark, Check } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Bot, Layers, Rss, Settings, Zap, ArrowRight, TrendingUp, BookOpen, Building2, Newspaper, ChevronDown, Key, MessageSquare, PenTool, Laptop, Store, ShoppingCart, LogIn, User, Monitor, Users, Landmark, Check, Shield, RefreshCw, Wifi, WifiOff, Eye, Clock, FileText, ExternalLink, Github } from "lucide-react";
 import { ShareButton } from "@/components/share-button";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -102,61 +103,51 @@ function DemoLoginForm() {
   );
 }
 
+function SampleReportCard({ type }: { type: "market" | "research" }) {
+  const { t } = useLanguage();
+  const prefix = `landing.sampleReport.${type}`;
+  return (
+    <Card className="overflow-visible" data-testid={`card-sample-report-${type}`}>
+      <CardContent className="pt-6 space-y-4">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <h3 className="font-semibold">{t(`${prefix}.title`)}</h3>
+          <Badge variant="secondary" data-testid={`badge-report-${type}`}>{t(`${prefix}.badge`)}</Badge>
+        </div>
+        <ul className="space-y-2.5">
+          {[1, 2, 3].map((i) => (
+            <li key={i} className="flex items-start gap-2 text-sm" data-testid={`text-report-${type}-item-${i}`}>
+              <FileText className="h-3.5 w-3.5 shrink-0 mt-0.5 text-primary" />
+              <span className="text-muted-foreground">{t(`${prefix}.item${i}`)}</span>
+            </li>
+          ))}
+        </ul>
+        <div className="pt-2 border-t border-border space-y-1.5">
+          <p className="text-xs text-primary font-medium" data-testid={`text-report-${type}-trend`}>{t(`${prefix}.trend`)}</p>
+          <p className="text-xs text-muted-foreground" data-testid={`text-report-${type}-sources`}>{t(`${prefix}.sources`)}</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function Landing() {
   const { t } = useLanguage();
+  const [showAllUseCases, setShowAllUseCases] = useState(false);
 
   const useCases = [
-    {
-      icon: TrendingUp,
-      title: t("landing.useCase.dailyMarketBrief"),
-      description: t("landing.useCase.dailyMarketBriefDesc"),
-    },
-    {
-      icon: BookOpen,
-      title: t("landing.useCase.researchPaperTracker"),
-      description: t("landing.useCase.researchPaperTrackerDesc"),
-    },
-    {
-      icon: Building2,
-      title: t("landing.useCase.competitorSignalMonitor"),
-      description: t("landing.useCase.competitorSignalMonitorDesc"),
-    },
-    {
-      icon: Newspaper,
-      title: t("landing.useCase.communityResearch"),
-      description: t("landing.useCase.communityResearchDesc"),
-    },
-    {
-      icon: PenTool,
-      title: t("landing.useCase.contentIdeas"),
-      description: t("landing.useCase.contentIdeasDesc"),
-    },
-    {
-      icon: Laptop,
-      title: t("landing.useCase.workProductivity"),
-      description: t("landing.useCase.workProductivityDesc"),
-    },
-    {
-      icon: Store,
-      title: t("landing.useCase.onlineBusiness"),
-      description: t("landing.useCase.onlineBusinessDesc"),
-    },
-    {
-      icon: ShoppingCart,
-      title: t("landing.useCase.koreaMarketplace"),
-      description: t("landing.useCase.koreaMarketplaceDesc"),
-    },
-    {
-      icon: MessageSquare,
-      title: t("landing.useCase.chatControl"),
-      description: t("landing.useCase.chatControlDesc"),
-    },
-    {
-      icon: Key,
-      title: t("landing.useCase.byoLlm"),
-      description: t("landing.useCase.byoLlmDesc"),
-    },
+    { icon: TrendingUp, title: t("landing.useCase.dailyMarketBrief"), description: t("landing.useCase.dailyMarketBriefDesc") },
+    { icon: BookOpen, title: t("landing.useCase.researchPaperTracker"), description: t("landing.useCase.researchPaperTrackerDesc") },
+    { icon: Building2, title: t("landing.useCase.competitorSignalMonitor"), description: t("landing.useCase.competitorSignalMonitorDesc") },
+    { icon: Newspaper, title: t("landing.useCase.communityResearch"), description: t("landing.useCase.communityResearchDesc") },
+    { icon: PenTool, title: t("landing.useCase.contentIdeas"), description: t("landing.useCase.contentIdeasDesc") },
+    { icon: Laptop, title: t("landing.useCase.workProductivity"), description: t("landing.useCase.workProductivityDesc") },
+    { icon: Store, title: t("landing.useCase.onlineBusiness"), description: t("landing.useCase.onlineBusinessDesc") },
+    { icon: ShoppingCart, title: t("landing.useCase.koreaMarketplace"), description: t("landing.useCase.koreaMarketplaceDesc") },
+    { icon: MessageSquare, title: t("landing.useCase.chatControl"), description: t("landing.useCase.chatControlDesc") },
+    { icon: Key, title: t("landing.useCase.byoLlm"), description: t("landing.useCase.byoLlmDesc") },
   ];
+
+  const visibleUseCases = showAllUseCases ? useCases : useCases.slice(0, 4);
 
   const faqItems = [
     { q: t("landing.faq.q1"), a: t("landing.faq.a1") },
@@ -169,13 +160,14 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted">
+      {/* Nav — kept as-is with Bot icon */}
       <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-background/80 border-b border-border">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Bot className="h-6 w-6 text-primary" />
             <span className="font-semibold text-lg">Maker</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <ShareButton />
             <LanguageSwitcher />
             <ThemeToggle />
@@ -187,6 +179,7 @@ export default function Landing() {
       </nav>
 
       <main className="pt-24 pb-16">
+        {/* ===== HERO: Typography + One-liner + Stats ===== */}
         <section className="max-w-6xl mx-auto px-6 pt-12 pb-6" data-testid="section-hero-type">
           <div className="select-none" style={{ lineHeight: 0.95, letterSpacing: "-0.03em" }}>
             <div
@@ -204,8 +197,26 @@ export default function Landing() {
               maker.am
             </div>
           </div>
+          <p className="mt-6 text-lg text-muted-foreground max-w-2xl" data-testid="text-hero-oneliner">
+            {t("landing.hero.oneLiner")}
+          </p>
+          <div className="mt-6 flex items-center gap-6 flex-wrap">
+            <div className="flex items-center gap-2 text-sm font-medium" data-testid="text-hero-stat-templates">
+              <Layers className="h-4 w-4 text-primary" />
+              <span>{t("landing.hero.stat1")}</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm font-medium" data-testid="text-hero-stat-setup">
+              <Clock className="h-4 w-4 text-primary" />
+              <span>{t("landing.hero.stat2")}</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm font-medium" data-testid="text-hero-stat-data">
+              <Shield className="h-4 w-4 text-primary" />
+              <span>{t("landing.hero.stat3")}</span>
+            </div>
+          </div>
         </section>
 
+        {/* ===== HERO: CTA + Pipeline + Demo Login ===== */}
         <section className="max-w-6xl mx-auto px-6 py-12">
           <div className="grid lg:grid-cols-2 gap-12 items-start">
             <div className="space-y-6">
@@ -217,11 +228,17 @@ export default function Landing() {
               <p className="text-lg text-muted-foreground max-w-lg" data-testid="text-hero-subtitle">
                 {t("landing.hero.subtitle")}
               </p>
-              <div className="flex flex-wrap gap-4">
+              <div className="flex flex-wrap gap-3">
                 <Button size="lg" asChild data-testid="button-get-started">
                   <a href="/api/login">
                     {t("landing.hero.getStarted")}
                     <ArrowRight className="h-4 w-4 ml-2" />
+                  </a>
+                </Button>
+                <Button size="lg" variant="outline" asChild data-testid="button-download-desktop">
+                  <a href="https://github.com/Salepark/maker/releases/latest" target="_blank" rel="noopener noreferrer">
+                    <Monitor className="h-4 w-4 mr-2" />
+                    {t("landing.hero.downloadDesktop")}
                   </a>
                 </Button>
               </div>
@@ -272,6 +289,49 @@ export default function Landing() {
           </div>
         </section>
 
+        {/* ===== SAMPLE REPORTS ===== */}
+        <section className="max-w-6xl mx-auto px-6 py-16" data-testid="section-sample-reports">
+          <h2 className="text-2xl font-bold text-center mb-4">{t("landing.sampleReport.title")}</h2>
+          <p className="text-center text-muted-foreground mb-4 max-w-lg mx-auto">
+            {t("landing.sampleReport.subtitle")}
+          </p>
+          <p className="text-center text-xs text-muted-foreground mb-10 flex items-center justify-center gap-1.5">
+            <Clock className="h-3.5 w-3.5" />
+            {t("landing.sampleReport.daily")}
+          </p>
+          <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+            <SampleReportCard type="market" />
+            <SampleReportCard type="research" />
+          </div>
+        </section>
+
+        {/* ===== WHY MAKER ===== */}
+        <section className="max-w-6xl mx-auto px-6 py-16" data-testid="section-why-maker">
+          <h2 className="text-2xl font-bold text-center mb-4">{t("landing.whyMaker.title")}</h2>
+          <p className="text-center text-muted-foreground mb-12 max-w-lg mx-auto">
+            {t("landing.whyMaker.subtitle")}
+          </p>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              { icon: Shield, titleKey: "landing.whyMaker.dataOwnership", descKey: "landing.whyMaker.dataOwnershipDesc" },
+              { icon: RefreshCw, titleKey: "landing.whyMaker.swapAI", descKey: "landing.whyMaker.swapAIDesc" },
+              { icon: WifiOff, titleKey: "landing.whyMaker.worksOffline", descKey: "landing.whyMaker.worksOfflineDesc" },
+              { icon: Eye, titleKey: "landing.whyMaker.humanControl", descKey: "landing.whyMaker.humanControlDesc" },
+            ].map((item) => (
+              <Card key={item.titleKey} className="hover-elevate" data-testid={`card-why-${item.titleKey.split(".").pop()}`}>
+                <CardContent className="pt-6 space-y-3">
+                  <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <item.icon className="h-6 w-6 text-primary" />
+                  </div>
+                  <h3 className="font-semibold text-sm">{t(item.titleKey)}</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{t(item.descKey)}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </section>
+
+        {/* ===== HOW IT WORKS ===== */}
         <section className="max-w-6xl mx-auto px-6 py-16">
           <h2 className="text-2xl font-bold text-center mb-4" data-testid="text-how-it-works">{t("landing.howItWorks.title")}</h2>
           <p className="text-center text-muted-foreground mb-12 max-w-lg mx-auto">
@@ -316,13 +376,14 @@ export default function Landing() {
           </div>
         </section>
 
+        {/* ===== USE CASES (collapsible) ===== */}
         <section className="max-w-6xl mx-auto px-6 py-16">
           <h2 className="text-2xl font-bold text-center mb-4" data-testid="text-use-cases">{t("landing.useCases.title")}</h2>
           <p className="text-center text-muted-foreground mb-12 max-w-lg mx-auto">
             {t("landing.useCases.subtitle")}
           </p>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {useCases.map((uc) => (
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {visibleUseCases.map((uc) => (
               <Card key={uc.title} className="hover-elevate" data-testid={`card-usecase-${uc.title.toLowerCase().replace(/\s+/g, "-")}`}>
                 <CardContent className="pt-6 space-y-3">
                   <div className="h-10 w-10 rounded-md bg-primary/10 flex items-center justify-center">
@@ -334,8 +395,43 @@ export default function Landing() {
               </Card>
             ))}
           </div>
+          {useCases.length > 4 && (
+            <div className="mt-8 text-center">
+              <Button
+                variant="outline"
+                onClick={() => setShowAllUseCases(!showAllUseCases)}
+                data-testid="button-toggle-use-cases"
+              >
+                {showAllUseCases ? t("landing.useCases.showLess") : t("landing.useCases.showMore")}
+                <ChevronDown className={`h-4 w-4 ml-2 transition-transform ${showAllUseCases ? "rotate-180" : ""}`} />
+              </Button>
+            </div>
+          )}
         </section>
 
+        {/* ===== OPEN SOURCE ===== */}
+        <section className="max-w-3xl mx-auto px-6 py-12" data-testid="section-open-source">
+          <Card>
+            <CardContent className="pt-6 flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
+              <div className="h-14 w-14 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <Github className="h-7 w-7 text-primary" />
+              </div>
+              <div className="flex-1 space-y-1">
+                <h3 className="font-semibold" data-testid="text-open-source-title">{t("landing.openSource.title")}</h3>
+                <p className="text-sm text-muted-foreground" data-testid="text-open-source-desc">{t("landing.openSource.desc")}</p>
+              </div>
+              <Button variant="outline" asChild className="shrink-0" data-testid="button-github">
+                <a href="https://github.com/Salepark/maker" target="_blank" rel="noopener noreferrer">
+                  <Github className="h-4 w-4 mr-2" />
+                  {t("landing.openSource.github")}
+                  <ExternalLink className="h-3.5 w-3.5 ml-2" />
+                </a>
+              </Button>
+            </CardContent>
+          </Card>
+        </section>
+
+        {/* ===== FAQ ===== */}
         <section className="max-w-3xl mx-auto px-6 py-16" data-testid="section-faq">
           <h2 className="text-2xl font-bold text-center mb-4">{t("landing.faq.title")}</h2>
           <p className="text-center text-muted-foreground mb-8">
@@ -350,6 +446,7 @@ export default function Landing() {
           </Card>
         </section>
 
+        {/* ===== PRICING ===== */}
         <section className="max-w-6xl mx-auto px-6 py-16" data-testid="section-pricing">
           <h2 className="text-2xl font-bold text-center mb-2">{t("landing.pricing.title")}</h2>
           <p className="text-center text-muted-foreground mb-12">{t("landing.pricing.subtitle")}</p>
@@ -422,6 +519,7 @@ export default function Landing() {
           </div>
         </section>
 
+        {/* ===== PHILOSOPHY ===== */}
         <section className="max-w-3xl mx-auto px-6 py-12 text-center" data-testid="section-philosophy">
           <p className="text-lg italic text-muted-foreground leading-relaxed">
             {t("landing.philosophy.line1")}
@@ -430,17 +528,26 @@ export default function Landing() {
           </p>
         </section>
 
+        {/* ===== BOTTOM CTA (Dual) ===== */}
         <section className="max-w-3xl mx-auto px-6 py-12 text-center">
           <h2 className="text-2xl font-bold mb-4">{t("landing.cta.title")}</h2>
           <p className="text-muted-foreground mb-6">
             {t("landing.cta.subtitle")}
           </p>
-          <Button size="lg" asChild data-testid="button-cta-bottom">
-            <a href="/api/login">
-              {t("landing.cta.button")}
-              <ArrowRight className="h-4 w-4 ml-2" />
-            </a>
-          </Button>
+          <div className="flex flex-wrap justify-center gap-4">
+            <Button size="lg" asChild data-testid="button-cta-bottom">
+              <a href="/api/login">
+                {t("landing.cta.button")}
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </a>
+            </Button>
+            <Button size="lg" variant="outline" asChild data-testid="button-cta-download">
+              <a href="https://github.com/Salepark/maker/releases/latest" target="_blank" rel="noopener noreferrer">
+                <Monitor className="h-4 w-4 mr-2" />
+                {t("landing.hero.downloadDesktop")}
+              </a>
+            </Button>
+          </div>
         </section>
       </main>
 
