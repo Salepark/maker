@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Layers, Rss, Settings, Zap, ArrowRight, TrendingUp, BookOpen, Building2, Newspaper, ChevronDown, Key, MessageSquare, PenTool, Laptop, Store, ShoppingCart, LogIn, User, Monitor, Users, Landmark, Check, Shield, RefreshCw, Wifi, WifiOff, Eye, Clock, FileText, ExternalLink, Github } from "lucide-react";
+import { Bot, Layers, Rss, Settings, Zap, ArrowRight, TrendingUp, BookOpen, Building2, Newspaper, ChevronDown, Key, MessageSquare, PenTool, Laptop, Store, ShoppingCart, LogIn, User, Monitor, Users, Landmark, Check, Shield, ShieldCheck, RefreshCw, Wifi, WifiOff, Eye, Clock, FileText, ExternalLink, Github, ClipboardList } from "lucide-react";
 import { ShareButton } from "@/components/share-button";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -205,13 +205,17 @@ export default function Landing() {
               <Layers className="h-4 w-4 text-primary" />
               <span>{t("landing.hero.stat1")}</span>
             </div>
-            <div className="flex items-center gap-2 text-sm font-medium" data-testid="text-hero-stat-setup">
-              <Clock className="h-4 w-4 text-primary" />
+            <div className="flex items-center gap-2 text-sm font-medium" data-testid="text-hero-stat-approval">
+              <ShieldCheck className="h-4 w-4 text-primary" />
               <span>{t("landing.hero.stat2")}</span>
             </div>
             <div className="flex items-center gap-2 text-sm font-medium" data-testid="text-hero-stat-data">
               <Shield className="h-4 w-4 text-primary" />
               <span>{t("landing.hero.stat3")}</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm font-medium" data-testid="text-hero-stat-logged">
+              <ClipboardList className="h-4 w-4 text-primary" />
+              <span>{t("landing.hero.stat4")}</span>
             </div>
           </div>
         </section>
@@ -276,7 +280,7 @@ export default function Landing() {
                     </div>
                   </div>
                   <div className="flex items-center gap-3 p-4 bg-background rounded-md border border-border">
-                    <Zap className="h-8 w-8 text-primary" />
+                    <ShieldCheck className="h-8 w-8 text-primary" />
                     <div>
                       <div className="font-medium">{t("landing.hero.aiAnalysis")}</div>
                       <div className="text-sm text-muted-foreground">{t("landing.hero.aiAnalysisDesc")}</div>
@@ -365,7 +369,7 @@ export default function Landing() {
             <Card className="hover-elevate">
               <CardContent className="pt-6 space-y-3">
                 <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Bot className="h-6 w-6 text-primary" />
+                  <ShieldCheck className="h-6 w-6 text-primary" />
                 </div>
                 <h3 className="font-semibold">{t("landing.howItWorks.step3Title")}</h3>
                 <p className="text-sm text-muted-foreground">
