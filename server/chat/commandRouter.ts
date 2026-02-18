@@ -247,18 +247,24 @@ export interface PipelineStepResult {
   data?: any;
 }
 
-const PIPELINE_HARD_TIMEOUT_MS = 25_000;
+const PIPELINE_RESPONSE_TIMEOUT_MS = 25_000;
 
-class PipelineTimeoutError extends Error {
-  constructor() { super("Pipeline timeout"); this.name = "PipelineTimeoutError"; }
-}
+type RaceResult<T> =
+  | { timedOut: false; result: T }
+  | { timedOut: true; pendingPromise: Promise<T> };
 
-function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+function raceTimeout<T>(promise: Promise<T>, ms: number): Promise<RaceResult<T>> {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new PipelineTimeoutError()), ms);
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        resolve({ timedOut: true, pendingPromise: promise });
+      }
+    }, ms);
     promise.then(
-      (v) => { clearTimeout(timer); resolve(v); },
-      (e) => { clearTimeout(timer); reject(e); },
+      (v) => { if (!settled) { settled = true; clearTimeout(timer); resolve({ timedOut: false, result: v }); } },
+      (e) => { if (!settled) { settled = true; clearTimeout(timer); reject(e); } },
     );
   });
 }
@@ -553,13 +559,21 @@ async function execPipelineRun(
     meta: { scheduleTimeLocal: args.scheduleTimeLocal, lang },
   });
 
+  const innerPromise = execPipelineRunInner(userId, cmd, onStepComplete);
+  let race: RaceResult<ExecutionResult>;
   try {
-    const result = await withTimeout(
-      execPipelineRunInner(userId, cmd, onStepComplete),
-      PIPELINE_HARD_TIMEOUT_MS,
-      "pipeline_run",
-    );
+    race = await raceTimeout(innerPromise, PIPELINE_RESPONSE_TIMEOUT_MS);
+  } catch (error: any) {
+    await endRunError(runId, {
+      errorCode: "PIPELINE_ERROR",
+      errorMessage: String(error?.message || error).slice(0, 200),
+      errorDetailJson: { stack: String(error?.stack || "").slice(0, 500) },
+    });
+    throw error;
+  }
 
+  if (!race.timedOut) {
+    const result = race.result;
     if (result.ok) {
       const reportStep = result.result?.steps?.find((s: any) => s.step === "report" && s.ok);
       await endRunOk(runId, {
@@ -573,36 +587,54 @@ async function execPipelineRun(
         errorMessage: result.assistantMessage?.slice(0, 200) || "Pipeline failed",
       });
     }
-
     return result;
-  } catch (error: any) {
-    if (error instanceof PipelineTimeoutError) {
-      await endRunTimeout(runId, "Pipeline hard timeout (25s)");
-      if (onStepComplete) {
-        await onStepComplete({
-          step: "timeout",
-          ok: true,
-          message: ko
-            ? "시간이 초과되어 빠른 브리핑만 제공했습니다.\n심화 분석은 백그라운드에서 계속 진행됩니다.\n\nReports 페이지에서 확인하세요."
-            : "Pipeline timed out — quick briefing has been delivered.\nDeep analysis continues in the background.\n\nCheck the Reports page for updates.",
-        });
-      }
-      return {
-        ok: true,
-        assistantMessage: ko
-          ? "시간이 초과되어 빠른 브리핑만 제공했습니다.\n심화 분석은 백그라운드에서 계속 진행됩니다.\n\nReports 페이지에서 확인하세요."
-          : "Pipeline timed out — quick briefing has been delivered.\nDeep analysis continues in the background.\n\nCheck the Reports page for updates.",
-        executed: cmd,
-        result: { timedOut: true },
-      };
-    }
-    await endRunError(runId, {
-      errorCode: "PIPELINE_ERROR",
-      errorMessage: String(error.message || error).slice(0, 200),
-      errorDetailJson: { stack: String(error.stack || "").slice(0, 500) },
-    });
-    throw error;
   }
+
+  await endRunTimeout(runId, "Pipeline response timeout (25s) — work continues in background");
+
+  race.pendingPromise.then(
+    (result) => {
+      console.log(`[Pipeline:Background] Pipeline completed in background for '${cmd.botKey || "unknown"}'`);
+      if (result.ok) {
+        const reportStep = result.result?.steps?.find((s: any) => s.step === "report" && s.ok);
+        endRunOk(runId, {
+          outputId: reportStep?.data?.reportId,
+          reportStage: "fast",
+          itemsCollected: reportStep?.data?.itemsCount,
+        }).catch(e => console.error("[Pipeline:Background] Failed to log run success:", e));
+      } else {
+        endRunError(runId, {
+          errorCode: "PIPELINE_BG_FAILED",
+          errorMessage: result.assistantMessage?.slice(0, 200) || "Pipeline failed in background",
+        }).catch(e => console.error("[Pipeline:Background] Failed to log run error:", e));
+      }
+    },
+    (error) => {
+      console.error(`[Pipeline:Background] Pipeline failed in background:`, error);
+      endRunError(runId, {
+        errorCode: "PIPELINE_BG_ERROR",
+        errorMessage: String(error?.message || error).slice(0, 200),
+      }).catch(e => console.error("[Pipeline:Background] Failed to log run error:", e));
+    },
+  );
+
+  if (onStepComplete) {
+    await onStepComplete({
+      step: "timeout",
+      ok: true,
+      message: ko
+        ? "파이프라인 시간이 초과되었습니다.\n수집 및 리포트 생성이 백그라운드에서 계속 진행 중입니다.\n\n잠시 후 Reports 페이지에서 확인하세요."
+        : "Pipeline timed out.\nCollection and report generation continue in the background.\n\nCheck the Reports page in a few minutes.",
+    });
+  }
+  return {
+    ok: true,
+    assistantMessage: ko
+      ? "파이프라인 시간이 초과되었습니다.\n수집 및 리포트 생성이 백그라운드에서 계속 진행 중입니다.\n\n잠시 후 Reports 페이지에서 확인하세요."
+      : "Pipeline timed out.\nCollection and report generation continue in the background.\n\nCheck the Reports page in a few minutes.",
+    executed: cmd,
+    result: { timedOut: true },
+  };
 }
 
 async function execPauseBot(userId: string, cmd: ChatCommand): Promise<ExecutionResult> {
