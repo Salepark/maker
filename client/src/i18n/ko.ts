@@ -53,7 +53,7 @@ export const ko: Record<string, string> = {
   "landing.pricing.web.f3": "빠른 브리핑 & 리포트",
   "landing.pricing.web.f4": "데이터는 클라우드",
   "landing.pricing.web.button": "웹에서 시작하기",
-  "landing.pricing.local.name": "Local Edition — Personal",
+  "landing.pricing.local.name": "Local Edition — Personal (오픈소스)",
   "landing.pricing.local.price": "Local Edition",
   "landing.pricing.local.desc": "당신의 컴퓨터에서 실행",
   "landing.pricing.local.f1": "모든 데이터 로컬",

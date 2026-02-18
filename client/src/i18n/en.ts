@@ -53,7 +53,7 @@ export const en: Record<string, string> = {
   "landing.pricing.web.f3": "Quick briefings & reports",
   "landing.pricing.web.f4": "Data stored in cloud",
   "landing.pricing.web.button": "Start Online",
-  "landing.pricing.local.name": "Local Edition — Personal",
+  "landing.pricing.local.name": "Local Edition — Personal (Open Source)",
   "landing.pricing.local.price": "Local Edition",
   "landing.pricing.local.desc": "Runs on your computer",
   "landing.pricing.local.f1": "All data stays local",
