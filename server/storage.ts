@@ -1326,6 +1326,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteBot(id: number, userId: string): Promise<void> {
+    const bot = await this.getBot(id, userId);
+    if (!bot) throw new Error("Bot not found or access denied");
+
+    await db.delete(jobRuns).where(eq(jobRuns.botId, id));
+    await db.delete(reportMetrics).where(eq(reportMetrics.profileId, id));
     await db.delete(bots).where(and(eq(bots.id, id), eq(bots.userId, userId)));
   }
 
