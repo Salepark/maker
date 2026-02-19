@@ -311,52 +311,52 @@ function buildStatusReport(
   const lines: string[] = [];
   lines.push(`# ${profileName} — ${today}`);
   lines.push("");
-  lines.push(`> 상태 리포트`);
+  lines.push(`> Status Report`);
   lines.push("");
 
   if (recentItems.length === 0) {
-    lines.push("오늘은 연결된 소스에서 새로운 자료가 수집되지 않았습니다.");
+    lines.push("No new items were collected from connected sources today.");
     lines.push("");
-    lines.push("**가능한 원인:**");
-    lines.push("- 소스 피드에 새 게시물이 아직 없음");
-    lines.push("- 소스 URL이 올바르지 않거나 일시적으로 접근 불가");
+    lines.push("**Possible causes:**");
+    lines.push("- No new posts in source feeds yet");
+    lines.push("- Source URL may be incorrect or temporarily unavailable");
     lines.push("");
-    lines.push(`연결된 소스: ${sourceCount}개`);
+    lines.push(`Connected sources: ${sourceCount}`);
   } else {
     const statusCounts: Record<string, number> = {};
     for (const item of recentItems) {
       statusCounts[item.status] = (statusCounts[item.status] || 0) + 1;
     }
 
-    lines.push(`최근 24시간 내 ${recentItems.length}건의 자료가 수집되었습니다.`);
+    lines.push(`${recentItems.length} items collected in the last 24 hours.`);
     lines.push("");
 
     if (statusCounts["new"]) {
-      lines.push(`- 수집 완료 (분석 대기): ${statusCounts["new"]}건`);
+      lines.push(`- Collected (pending analysis): ${statusCounts["new"]}`);
     }
     if (statusCounts["analyzed"]) {
-      lines.push(`- 분석 완료: ${statusCounts["analyzed"]}건`);
+      lines.push(`- Analysis complete: ${statusCounts["analyzed"]}`);
     }
     if (statusCounts["skipped"]) {
-      lines.push(`- 건너뜀: ${statusCounts["skipped"]}건`);
+      lines.push(`- Skipped: ${statusCounts["skipped"]}`);
     }
     lines.push("");
 
-    lines.push("**주요 수집 자료:**");
+    lines.push("**Key collected items:**");
     const displayItems = recentItems.slice(0, 8);
     for (const item of displayItems) {
-      lines.push(`- ${item.title || "(제목 없음)"} (${item.sourceName})`);
+      lines.push(`- ${item.title || "(No title)"} (${item.sourceName})`);
     }
     if (recentItems.length > 8) {
-      lines.push(`- ...외 ${recentItems.length - 8}건`);
+      lines.push(`- ...and ${recentItems.length - 8} more`);
     }
     lines.push("");
-    lines.push("심화 분석은 백그라운드에서 진행되며, 완료되면 자동으로 업데이트됩니다.");
+    lines.push("In-depth analysis is running in the background and will be updated automatically upon completion.");
   }
 
   lines.push("");
   lines.push("---");
-  lines.push("*메이커는 먼저 빠른 브리핑을 제공합니다. 심화 분석은 백그라운드에서 진행되며, 완료되면 자동으로 업데이트됩니다.*");
+  lines.push("*Maker provides a quick briefing first. In-depth analysis runs in the background and updates automatically upon completion.*");
 
   return lines.join("\n");
 }
@@ -455,7 +455,7 @@ export async function generateFastReport(params: FastReportParams): Promise<Repo
   const periodStart = new Date(now.getTime() - lookbackHours * 60 * 60 * 1000);
   const periodEnd = now;
 
-  const today = now.toLocaleDateString("ko-KR", {
+  const today = now.toLocaleDateString("en-US", {
     year: "numeric",
     month: "long",
     day: "numeric",
@@ -463,7 +463,7 @@ export async function generateFastReport(params: FastReportParams): Promise<Repo
     timeZone: timezone,
   });
 
-  const timeStr = now.toLocaleTimeString("ko-KR", {
+  const timeStr = now.toLocaleTimeString("en-US", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
@@ -483,59 +483,59 @@ export async function generateFastReport(params: FastReportParams): Promise<Repo
 
   const lines: string[] = [];
   lines.push(`# ${topicLabel} | ${dateFormatted}`);
-  lines.push(`> ${today} ${timeStr} 기준 | ${profileName}`);
+  lines.push(`> As of ${today} ${timeStr} | ${profileName}`);
   lines.push("");
 
-  lines.push("## 핵심 요약 (Executive Summary)");
+  lines.push("## Executive Summary");
   lines.push("");
   if (recentItems.length > 0) {
     const totalSources = Object.keys(sourceDistribution).length;
-    lines.push(`- **${totalSources}개 소스**에서 총 **${recentItems.length}건**의 자료를 수집했습니다.`);
+    lines.push(`- Collected **${recentItems.length} items** from **${totalSources} sources**.`);
     const topKeywords = Object.keys(keywordSummary).slice(0, 3);
     if (topKeywords.length > 0) {
-      lines.push(`- 주요 키워드: **${topKeywords.join("**, **")}**`);
+      lines.push(`- Top keywords: **${topKeywords.join("**, **")}**`);
     }
-    lines.push("- 심화 분석이 백그라운드에서 진행 중입니다.");
+    lines.push("- In-depth analysis is running in the background.");
   } else if (collectResult.totalCollected > 0) {
-    lines.push(`- ${collectResult.sourcesProcessed}개 소스에서 **${collectResult.totalCollected}건**의 새 자료를 수집했습니다.`);
-    lines.push("- 심화 분석이 백그라운드에서 진행 중입니다.");
+    lines.push(`- Collected **${collectResult.totalCollected} new items** from ${collectResult.sourcesProcessed} sources.`);
+    lines.push("- In-depth analysis is running in the background.");
   } else {
-    lines.push("- 현재 수집된 자료가 없습니다. 소스 연결을 확인해주세요.");
+    lines.push("- No items collected. Please check your source connections.");
   }
   lines.push("");
 
   if (recentItems.length > 0) {
-    lines.push("## 주요 동향 (Key Highlights)");
+    lines.push("## Key Highlights");
     lines.push("");
     const displayItems = recentItems.slice(0, 10);
     for (const item of displayItems) {
-      lines.push(`- **${item.title || "(제목 없음)"}** — ${item.sourceName}`);
+      lines.push(`- **${item.title || "(No title)"}** — ${item.sourceName}`);
     }
     if (recentItems.length > 10) {
-      lines.push(`- ...외 ${recentItems.length - 10}건`);
+      lines.push(`- ...and ${recentItems.length - 10} more`);
     }
     lines.push("");
 
-    lines.push("## 소스별 분포 (Source Distribution)");
+    lines.push("## Source Distribution");
     lines.push("");
     for (const [name, cnt] of Object.entries(sourceDistribution)) {
-      lines.push(`- ${name}: ${cnt}건`);
+      lines.push(`- ${name}: ${cnt} items`);
     }
     lines.push("");
 
     const kwEntries = Object.entries(keywordSummary);
     if (kwEntries.length > 0) {
-      lines.push("## 키워드 요약 (Keywords)");
+      lines.push("## Keywords");
       lines.push("");
       for (const [kw, cnt] of kwEntries) {
-        lines.push(`- **${kw}**: ${cnt}회`);
+        lines.push(`- **${kw}**: ${cnt} times`);
       }
       lines.push("");
     }
   }
 
   lines.push("---");
-  lines.push("*이 리포트는 초기 브리핑입니다. AI 기반 심화 분석이 백그라운드에서 진행되며, 완료되면 자동으로 업데이트됩니다.*");
+  lines.push("*This is an initial briefing. AI-powered in-depth analysis is running in the background and will be updated automatically upon completion.*");
 
   const content = lines.join("\n");
 
@@ -545,7 +545,7 @@ export async function generateFastReport(params: FastReportParams): Promise<Repo
     presetId,
     topic,
     outputType: "report",
-    title: `${topicLabel} | ${dateFormatted} — 초기 브리핑`,
+    title: `${topicLabel} | ${dateFormatted} — Initial Briefing`,
     contentText: content,
     reportStage: "fast",
     periodStart,
@@ -689,7 +689,7 @@ export async function upgradeToFullReport(outputId: number, profileId: number, u
 
   const updated = await storage.updateOutputContent(outputId, {
     contentText: content,
-    title: reportStage === "full" ? `${profile.name} - ${today}` : `${profile.name} — 상태 리포트`,
+    title: reportStage === "full" ? `${profile.name} - ${today}` : `${profile.name} — Status Report`,
     reportStage,
   });
 
@@ -734,7 +734,7 @@ async function buildTrendBlock(profileId: number): Promise<string | null> {
 
   const lines: string[] = [];
   lines.push("---");
-  lines.push("## 7일 변화 요약");
+  lines.push("## 7-Day Trend Summary");
   lines.push("");
 
   let hasChanges = false;
@@ -766,7 +766,7 @@ async function buildTrendBlock(profileId: number): Promise<string | null> {
 
   if (recurringKws.length > 0) {
     lines.push("");
-    lines.push(`반복 등장 키워드: ${recurringKws.join(", ")}`);
+    lines.push(`Recurring keywords: ${recurringKws.join(", ")}`);
     hasChanges = true;
   }
 
@@ -785,7 +785,7 @@ async function buildTrendBlock(profileId: number): Promise<string | null> {
     if (prev && prev.length >= 1) {
       const avg = prev.reduce((a, b) => a + b, 0) / prev.length;
       if (count > avg * 1.3) {
-        lines.push(`- ${src} 비중 증가`);
+        lines.push(`- ${src} share increased`);
         hasChanges = true;
       }
     }

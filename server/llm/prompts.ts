@@ -464,10 +464,10 @@ function getMarkdownInstructions(level: string): string {
 - Use proper markdown heading hierarchy: # for report title, ## for major sections, ### for subsections
 - Report title format: "# [Category] Briefing | YYYY.MM.DD"
 - Required structure order (if sections are enabled):
-  1. Executive Summary (## 핵심 요약) — 3 bullet points max, business impact focus, no filler
+  1. Executive Summary (## Executive Summary) — 3 bullet points max, business impact focus, no filler
   2. Analysis sections (## [Section Title]) — each with situation context + business interpretation, not just facts
-  3. Implications & Outlook (## 시사점 및 전망) — forward-looking impact and monitoring points
-  4. Sources (## 출처) — source list with URLs
+  3. Implications & Outlook (## Implications & Outlook) — forward-looking impact and monitoring points
+  4. Sources (## Sources) — source list with URLs
 - Tone: analytical, authoritative, suitable for reporting to senior management
 - Each analysis point must explain WHY it matters to the business, not just WHAT happened
 - Use bold (**) sparingly for emphasis on key figures or critical terms only
@@ -486,34 +486,34 @@ function getSectionInstructions(sections: ReportConfig["sections"], topic: strin
 
   const professionalSectionMaps: Record<string, Record<string, string>> = {
     investing: {
-      tldr: "핵심 요약 (Executive Summary) — 3 bullet points: today's market impact, key driver, risk level",
-      drivers: "주요 동향 분석 (Market Analysis) — For each issue: situation + why it matters + business impact. Cover macro, sector, cross-market linkages",
-      risk: "리스크 레이더 (Risk Assessment) — Key risks with probability assessment and potential impact scope",
-      checklist: "시사점 및 전망 (Implications & Outlook) — Forward-looking analysis, monitoring points, expected developments",
-      sources: "출처 (Sources) — Source list with URLs",
+      tldr: "Executive Summary — 3 bullet points: today's market impact, key driver, risk level",
+      drivers: "Market Analysis — For each issue: situation + why it matters + business impact. Cover macro, sector, cross-market linkages",
+      risk: "Risk Assessment — Key risks with probability assessment and potential impact scope",
+      checklist: "Implications & Outlook — Forward-looking analysis, monitoring points, expected developments",
+      sources: "Sources — Source list with URLs",
     },
     research_watch: {
-      tldr: "핵심 요약 (Executive Summary) — 3 bullet points: most impactful findings, field implications",
-      drivers: "주요 연구 분석 (Research Analysis) — For each paper/finding: what was discovered + why it matters + practical implications",
-      risk: "주의 사항 (Limitations & Considerations) — Methodology concerns, replication status, adoption barriers",
-      checklist: "시사점 및 전망 (Implications & Outlook) — Industry impact, future research directions, application opportunities",
-      sources: "출처 (Sources) — Source list with URLs",
+      tldr: "Executive Summary — 3 bullet points: most impactful findings, field implications",
+      drivers: "Research Analysis — For each paper/finding: what was discovered + why it matters + practical implications",
+      risk: "Limitations & Considerations — Methodology concerns, replication status, adoption barriers",
+      checklist: "Implications & Outlook — Industry impact, future research directions, application opportunities",
+      sources: "Sources — Source list with URLs",
     },
     website_promotion: {
-      tldr: "핵심 요약 (Executive Summary) — 3 bullet points: best posting opportunities found, expected reach",
-      drivers: "커뮤니티 분석 및 게시 제안 (Community Analysis & Posting Suggestions) — For each community: current hot topics, where your content fits, draft title + talking points",
-      risk: "타이밍 및 주의사항 (Timing & Considerations) — Best posting times, community rules to follow, what to avoid",
-      checklist: "시사점 및 전망 (Implications & Action Plan) — Priority actions, content calendar suggestions, follow-up monitoring points",
-      sources: "출처 (Sources) — Source list with URLs",
+      tldr: "Executive Summary — 3 bullet points: best posting opportunities found, expected reach",
+      drivers: "Community Analysis & Posting Suggestions — For each community: current hot topics, where your content fits, draft title + talking points",
+      risk: "Timing & Considerations — Best posting times, community rules to follow, what to avoid",
+      checklist: "Implications & Action Plan — Priority actions, content calendar suggestions, follow-up monitoring points",
+      sources: "Sources — Source list with URLs",
     },
   };
 
   const professionalDefaultMap = {
-    tldr: "핵심 요약 (Executive Summary) — 3 bullet points max, business impact focus",
-    drivers: "주요 동향 분석 (Key Analysis) — For each topic: situation context + business interpretation + implications",
-    risk: "리스크 및 주의사항 (Risks & Considerations) — Key risks and concerns with impact assessment",
-    checklist: "시사점 및 전망 (Implications & Outlook) — Forward-looking analysis and monitoring points",
-    sources: "출처 (Sources) — Source list with URLs",
+    tldr: "Executive Summary — 3 bullet points max, business impact focus",
+    drivers: "Key Analysis — For each topic: situation context + business interpretation + implications",
+    risk: "Risks & Considerations — Key risks and concerns with impact assessment",
+    checklist: "Implications & Outlook — Forward-looking analysis and monitoring points",
+    sources: "Sources — Source list with URLs",
   };
   
   const standardSectionMaps: Record<string, Record<string, string>> = {
@@ -617,7 +617,7 @@ const TOPIC_META: Record<string, { label: string; role: string; focus: string; d
     label: "Korea Marketplace Research Report",
     role: "a market research analyst specializing in Korean open marketplaces (Coupang, Naver SmartStore) and small-to-mid seller strategy",
     focus: "recurring customer complaints, pricing pressure signals, review-based improvement opportunities, seller operational pain points, and niche demand gaps. Prioritize practical, execution-ready insights. Do not promote products, guarantee profits, or use motivational language. Tone: calm, analytical, judgment-focused.",
-    disclaimer: "이 리포트는 정보 참고용입니다. 모든 전략적 판단은 사용자가 직접 검토한 후 실행해야 합니다.",
+    disclaimer: "This report is for informational reference only. All strategic decisions should be reviewed by the user before execution.",
     excludeFilter: "Exclude generic motivational content, get-rich-quick schemes, affiliate marketing promotions, and automated selling pitches. Focus on real customer signals, market data, and operational insights from Korean marketplace ecosystems.",
   },
   work_productivity: {
