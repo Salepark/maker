@@ -94,6 +94,8 @@ export interface IStorage {
   cloneProfile(id: number, userId: string): Promise<Profile | undefined>;
 
   // Sources (updated for userId support)
+  claimOrphanedSources(userId: string): Promise<number>;
+  getUserSourceIds(userId: string): Promise<number[]>;
   listSources(userId: string, topic?: string): Promise<Source[]>;
   listSourceTemplates(topic?: string): Promise<Source[]>;
   installSourceTemplates(userId: string, sourceIds: number[]): Promise<Source[]>;
@@ -227,6 +229,11 @@ export interface IStorage {
 
 export class DatabaseStorage implements IStorage {
   async getStats(userId?: string) {
+    let userSourceIds: number[] | null = null;
+    if (userId) {
+      userSourceIds = await this.getUserSourceIds(userId);
+    }
+    
     let statsQuery = db
       .select({
         status: items.status,
@@ -234,8 +241,10 @@ export class DatabaseStorage implements IStorage {
       })
       .from(items);
     
-    if (userId) {
-      statsQuery = statsQuery.innerJoin(sources, eq(items.sourceId, sources.id)).where(eq(sources.userId, userId)) as any;
+    if (userSourceIds && userSourceIds.length > 0) {
+      statsQuery = statsQuery.where(inArray(items.sourceId, userSourceIds)) as any;
+    } else if (userId) {
+      statsQuery = statsQuery.where(sql`1 = 0`) as any;
     }
 
     const result = await (statsQuery as any).groupBy(items.status);
@@ -273,8 +282,10 @@ export class DatabaseStorage implements IStorage {
     let lastCollectQuery = db
       .select({ insertedAt: items.insertedAt })
       .from(items);
-    if (userId) {
-      lastCollectQuery = lastCollectQuery.innerJoin(sources, eq(items.sourceId, sources.id)).where(eq(sources.userId, userId)) as any;
+    if (userSourceIds && userSourceIds.length > 0) {
+      lastCollectQuery = lastCollectQuery.where(inArray(items.sourceId, userSourceIds)) as any;
+    } else if (userId) {
+      lastCollectQuery = lastCollectQuery.where(sql`1 = 0`) as any;
     }
     const lastCollect = await (lastCollectQuery as any).orderBy(desc(items.insertedAt)).limit(1);
     
@@ -285,11 +296,12 @@ export class DatabaseStorage implements IStorage {
     let lastAnalyzeQuery = db
       .select({ createdAt: analysis.createdAt })
       .from(analysis);
-    if (userId) {
+    if (userSourceIds && userSourceIds.length > 0) {
       lastAnalyzeQuery = lastAnalyzeQuery
         .innerJoin(items, eq(analysis.itemId, items.id))
-        .innerJoin(sources, eq(items.sourceId, sources.id))
-        .where(eq(sources.userId, userId)) as any;
+        .where(inArray(items.sourceId, userSourceIds)) as any;
+    } else if (userId) {
+      lastAnalyzeQuery = lastAnalyzeQuery.where(sql`1 = 0`) as any;
     }
     const lastAnalyze = await (lastAnalyzeQuery as any).orderBy(desc(analysis.createdAt)).limit(1);
     
@@ -342,7 +354,12 @@ export class DatabaseStorage implements IStorage {
       conditions.push(eq(items.status, status));
     }
     if (userId) {
-      conditions.push(eq(sources.userId, userId));
+      const userSourceIds = await this.getUserSourceIds(userId);
+      if (userSourceIds.length > 0) {
+        conditions.push(inArray(items.sourceId, userSourceIds));
+      } else {
+        conditions.push(sql`1 = 0`);
+      }
     }
 
     let query = db
@@ -371,6 +388,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getRecentItems(limit: number = 10, userId?: string): Promise<(Item & { sourceName: string })[]> {
+    let userSourceIds: number[] | null = null;
+    if (userId) {
+      userSourceIds = await this.getUserSourceIds(userId);
+    }
+
     let query = db
       .select({
         item: items,
@@ -381,8 +403,10 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(items.insertedAt))
       .limit(limit);
 
-    if (userId) {
-      query = query.where(eq(sources.userId, userId)) as any;
+    if (userSourceIds && userSourceIds.length > 0) {
+      query = query.where(inArray(items.sourceId, userSourceIds)) as any;
+    } else if (userId) {
+      query = query.where(sql`1 = 0`) as any;
     }
 
     const result = await query;
@@ -399,7 +423,12 @@ export class DatabaseStorage implements IStorage {
       lt(analysis.replyWorthinessScore, 50),
     ];
     if (userId) {
-      conditions.push(eq(sources.userId, userId));
+      const userSourceIds = await this.getUserSourceIds(userId);
+      if (userSourceIds.length > 0) {
+        conditions.push(inArray(items.sourceId, userSourceIds));
+      } else {
+        conditions.push(sql`1 = 0`);
+      }
     }
 
     const result = await db
@@ -435,7 +464,12 @@ export class DatabaseStorage implements IStorage {
   async getItem(id: number, userId?: string): Promise<(Item & { sourceName: string; analysis?: Analysis; drafts: Draft[] }) | undefined> {
     const conditions: any[] = [eq(items.id, id)];
     if (userId) {
-      conditions.push(eq(sources.userId, userId));
+      const userSourceIds = await this.getUserSourceIds(userId);
+      if (userSourceIds.length > 0) {
+        conditions.push(inArray(items.sourceId, userSourceIds));
+      } else {
+        conditions.push(sql`1 = 0`);
+      }
     }
 
     const [itemResult] = await db
@@ -540,7 +574,12 @@ export class DatabaseStorage implements IStorage {
       conditions.push(eq(drafts.adminDecision, decision));
     }
     if (userId) {
-      conditions.push(eq(sources.userId, userId));
+      const userSourceIds = await this.getUserSourceIds(userId);
+      if (userSourceIds.length > 0) {
+        conditions.push(inArray(items.sourceId, userSourceIds));
+      } else {
+        conditions.push(sql`1 = 0`);
+      }
     }
 
     let query = db
@@ -881,6 +920,35 @@ export class DatabaseStorage implements IStorage {
       .from(sources)
       .where(and(...conditions))
       .orderBy(sources.topic, sources.name);
+  }
+
+  async claimOrphanedSources(_userId: string): Promise<number> {
+    return 0;
+  }
+
+  async getUserSourceIds(userId: string): Promise<number[]> {
+    const ownedSources = await db
+      .select({ id: sources.id })
+      .from(sources)
+      .where(eq(sources.userId, userId));
+
+    const userBotIds = await db
+      .select({ id: bots.id })
+      .from(bots)
+      .where(eq(bots.userId, userId));
+
+    if (userBotIds.length === 0) return ownedSources.map(s => s.id);
+
+    const linkedSources = await db
+      .selectDistinct({ sourceId: sourceBotLinks.sourceId })
+      .from(sourceBotLinks)
+      .where(inArray(sourceBotLinks.botId, userBotIds.map(b => b.id)));
+
+    const allIds = new Set([
+      ...ownedSources.map(s => s.id),
+      ...linkedSources.map(s => s.sourceId),
+    ]);
+    return [...allIds];
   }
 
   async installSourceTemplates(userId: string, sourceIds: number[]): Promise<Source[]> {
