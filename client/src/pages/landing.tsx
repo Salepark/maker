@@ -161,7 +161,7 @@ export default function Landing() {
       console.log("API Response:", data);
 
       if (data.success) {
-        alert(`Analysis started! Job ID: ${data.job_id}`);
+        window.location.href = `/demo/progress/${data.job_id}`;
       } else {
         alert("Error: " + data.error);
       }

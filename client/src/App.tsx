@@ -32,6 +32,8 @@ import BotDetail from "@/pages/bot-detail";
 import Landing from "@/pages/landing";
 import Guide from "@/pages/guide";
 import Permissions from "@/pages/permissions";
+import DemoProgress from "@/pages/DemoProgress";
+import DemoReport from "@/pages/DemoReport";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -114,7 +116,13 @@ function AppContent() {
   }
 
   if (!isAuthenticated) {
-    return <Landing />;
+    return (
+      <Switch>
+        <Route path="/demo/progress/:jobId" component={DemoProgress} />
+        <Route path="/demo/report/:jobId" component={DemoReport} />
+        <Route component={Landing} />
+      </Switch>
+    );
   }
 
   return <AuthenticatedApp />;
