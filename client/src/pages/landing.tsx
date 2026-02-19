@@ -137,6 +137,41 @@ function SampleReportCard({ type }: { type: "market" | "research" | "promotion" 
 export default function Landing() {
   const { t } = useLanguage();
   const [showAllUseCases, setShowAllUseCases] = useState(false);
+  const [heroCompany, setHeroCompany] = useState("");
+  const [heroLoading, setHeroLoading] = useState(false);
+
+  const handleHeroAnalyze = async () => {
+    const company = heroCompany.trim();
+    if (!company) {
+      alert("Please enter a company name!");
+      return;
+    }
+
+    console.log("Analysis started:", company);
+    setHeroLoading(true);
+
+    try {
+      const response = await fetch("/api/demo/quick-analysis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ company }),
+      });
+
+      const data = await response.json();
+      console.log("API Response:", data);
+
+      if (data.success) {
+        alert(`Analysis started! Job ID: ${data.job_id}`);
+      } else {
+        alert("Error: " + data.error);
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      alert("A network error occurred.");
+    } finally {
+      setHeroLoading(false);
+    }
+  };
 
   const useCases = [
     { icon: Globe, title: t("landing.useCase.websitePromotion"), description: t("landing.useCase.websitePromotionDesc") },
@@ -209,15 +244,19 @@ export default function Landing() {
               <div className="flex gap-4 mb-5">
                 <Input
                   type="text"
+                  value={heroCompany}
+                  onChange={(e) => setHeroCompany(e.target.value)}
                   placeholder="e.g. Tesla, Apple, Netflix"
                   className="flex-1"
                   data-testid="input-hero-company"
                 />
                 <Button
+                  onClick={handleHeroAnalyze}
+                  disabled={heroLoading}
                   style={{ background: "#667eea" }}
                   data-testid="button-hero-analyze"
                 >
-                  {t("landing.hero.getStarted")}
+                  {heroLoading ? "Analyzing..." : t("landing.hero.getStarted")}
                 </Button>
               </div>
               <p className="text-sm text-emerald-600 dark:text-emerald-400 m-0 flex items-center justify-center gap-4 flex-wrap" data-testid="text-hero-benefits">
