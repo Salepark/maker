@@ -74,7 +74,7 @@ process.on("unhandledRejection", (reason) => {
     initSqliteTables();
   }
 
-  const demoRouter = require('./routes/demo');
+  const { default: demoRouter } = await import('./routes/demo.js');
   app.use('/api/demo', demoRouter);
 
   await registerRoutes(httpServer, app);
