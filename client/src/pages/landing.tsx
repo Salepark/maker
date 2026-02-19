@@ -184,43 +184,47 @@ export default function Landing() {
       </nav>
 
       <main className="pt-24 pb-16">
-        {/* ===== HERO: Typography + One-liner + Stats ===== */}
-        <section className="max-w-6xl mx-auto px-6 pt-12 pb-6" data-testid="section-hero-type">
-          <div className="select-none" style={{ lineHeight: 0.95, letterSpacing: "-0.03em" }}>
-            <div
-              className="font-black text-foreground"
-              style={{ fontSize: "clamp(3rem, 12vw, 10rem)" }}
-              data-testid="text-hero-iammaker"
+        {/* ===== HERO: 5-Minute Demo CTA ===== */}
+        <section
+          className="pt-12 pb-6"
+          style={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" }}
+          data-testid="section-hero-demo"
+        >
+          <div className="max-w-6xl mx-auto px-6 text-center">
+            <h1
+              className="text-white font-extrabold mb-6"
+              style={{ fontSize: "clamp(1.8rem, 5vw, 3rem)" }}
+              data-testid="text-hero-headline"
             >
-              I.am.maker
-            </div>
-            <div
-              className="mt-2 font-black text-background bg-foreground px-3 py-1"
-              style={{ fontSize: "clamp(3rem, 12vw, 10rem)" }}
-              data-testid="text-hero-makeram"
-            >
-              maker.am
-            </div>
-          </div>
-          <p className="mt-6 text-lg text-muted-foreground max-w-2xl" data-testid="text-hero-oneliner">
-            {t("landing.hero.oneLiner")}
-          </p>
-          <div className="mt-6 flex items-center gap-6 flex-wrap">
-            <div className="flex items-center gap-2 text-sm font-medium" data-testid="text-hero-stat-templates">
-              <Layers className="h-4 w-4 text-primary" />
-              <span>{t("landing.hero.stat1")}</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm font-medium" data-testid="text-hero-stat-approval">
-              <ShieldCheck className="h-4 w-4 text-primary" />
-              <span>{t("landing.hero.stat2")}</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm font-medium" data-testid="text-hero-stat-data">
-              <Shield className="h-4 w-4 text-primary" />
-              <span>{t("landing.hero.stat3")}</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm font-medium" data-testid="text-hero-stat-logged">
-              <ClipboardList className="h-4 w-4 text-primary" />
-              <span>{t("landing.hero.stat4")}</span>
+              AI analyzes your competitors
+              <br />
+              <span className="text-yellow-300">in just 5 minutes</span>
+            </h1>
+            <p className="text-white/90 text-lg mb-10 max-w-xl mx-auto" data-testid="text-hero-subheadline">
+              No complex setup needed. Just enter a company name.
+              <br />
+              <strong>10x easier than OpenClaw</strong>
+            </p>
+            <div className="bg-white/95 dark:bg-background/95 rounded-2xl p-8 max-w-xl mx-auto">
+              <div className="flex gap-4 mb-5">
+                <Input
+                  type="text"
+                  placeholder="e.g. Tesla, Apple, Netflix"
+                  className="flex-1"
+                  data-testid="input-hero-company"
+                />
+                <Button
+                  style={{ background: "#667eea" }}
+                  data-testid="button-hero-analyze"
+                >
+                  {t("landing.hero.getStarted")}
+                </Button>
+              </div>
+              <p className="text-sm text-emerald-600 dark:text-emerald-400 m-0 flex items-center justify-center gap-4 flex-wrap" data-testid="text-hero-benefits">
+                <span className="flex items-center gap-1"><Check className="h-3.5 w-3.5" /> Free trial</span>
+                <span className="flex items-center gap-1"><Check className="h-3.5 w-3.5" /> No signup required</span>
+                <span className="flex items-center gap-1"><Check className="h-3.5 w-3.5" /> Done in 5 min</span>
+              </p>
             </div>
           </div>
         </section>
