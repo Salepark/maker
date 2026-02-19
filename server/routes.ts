@@ -231,11 +231,15 @@ export async function registerRoutes(
   app.post("/api/sources", isAuthenticated, async (req, res) => {
     try {
       if (!(await enforcePermission(req, res, "SOURCE_WRITE", "create_source"))) return;
+      const userId = (req as any).user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
       const { name, url, type = "rss", topic = "general", trustLevel = "medium", region = "global" } = req.body;
       if (!name || !url) {
         return res.status(400).json({ error: "Name and URL are required" });
       }
-      const source = await storage.createSource({ name, url, type, topic, trustLevel, region });
+      const source = await storage.createSource({ name, url, type, topic, trustLevel, region, userId });
       res.status(201).json(source);
     } catch (error: any) {
       if (error.code === "23505") {
