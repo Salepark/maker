@@ -1,6 +1,6 @@
 import { storage } from "../storage";
 import { callLLM, callLLMWithConfig, callLLMWithTimeout, hasSystemLLMKey, type LLMConfig } from "../llm/client";
-import { buildDailyBriefPrompt, ReportConfig, getTopicLabel } from "../llm/prompts";
+import { buildDailyBriefPrompt, buildCompetitorWatchStructuredPrompt, ReportConfig, getTopicLabel } from "../llm/prompts";
 import { analyzeNewItemsBySourceIds } from "./analyze_items";
 import { startRun, endRunOk, endRunError, endRunSkipped } from "./runLogger";
 import { collectFromSourceIds } from "../services/rss";
@@ -662,14 +662,36 @@ export async function upgradeToFullReport(outputId: number, profileId: number, u
       console.warn(`[ReportJob] Failed to fetch user rules:`, e);
     }
 
-    const prompt = buildDailyBriefPrompt(briefItems, today, profile.topic, config, userRules);
+    const isCompetitorWatch = profile.topic === "competitor_watch";
+    let structuredData: any = undefined;
+
+    const prompt = isCompetitorWatch
+      ? buildCompetitorWatchStructuredPrompt(briefItems, today, config, userRules)
+      : buildDailyBriefPrompt(briefItems, today, profile.topic, config, userRules);
+
     const llmResult = await callLLMWithTimeout(
       () => callLLMForProfile(prompt, profile.userId, profile.topic),
       60000
     );
     if (llmResult) {
-      content = llmResult;
-      reportStage = "full";
+      if (isCompetitorWatch) {
+        try {
+          let jsonStr = llmResult.trim();
+          const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+          if (jsonMatch) jsonStr = jsonMatch[0];
+          structuredData = JSON.parse(jsonStr);
+          content = structuredData.executiveSummary || llmResult;
+          reportStage = "full";
+          console.log(`[ReportJob] Competitor watch structured report generated successfully`);
+        } catch (parseErr) {
+          console.warn(`[ReportJob] Failed to parse structured JSON, falling back to markdown:`, parseErr);
+          content = llmResult;
+          reportStage = "full";
+        }
+      } else {
+        content = llmResult;
+        reportStage = "full";
+      }
 
       try {
         const trendBlock = await buildTrendBlock(profileId);
@@ -691,6 +713,7 @@ export async function upgradeToFullReport(outputId: number, profileId: number, u
     contentText: content,
     title: reportStage === "full" ? `${profile.name} - ${today}` : `${profile.name} — Status Report`,
     reportStage,
+    ...(structuredData ? { structuredData } : {}),
   });
 
   if (!updated) {

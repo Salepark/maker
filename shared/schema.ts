@@ -393,6 +393,7 @@ export const outputs = pgTable(
 
     title: text("title").notNull(),
     contentText: text("content_text").notNull(),
+    structuredData: jsonb("structured_data"),
     reportStage: text("report_stage").notNull().default("full"),
 
     periodStart: timestamp("period_start", { withTimezone: true }).notNull(),

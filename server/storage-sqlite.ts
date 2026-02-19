@@ -993,7 +993,7 @@ export class SqliteStorage implements IStorage {
     return (rows[0] as any) ?? null;
   }
 
-  async updateOutputContent(outputId: number, patch: { contentText: string; title: string; reportStage: string }): Promise<Output | null> {
+  async updateOutputContent(outputId: number, patch: { contentText: string; title: string; reportStage: string; structuredData?: any }): Promise<Output | null> {
     const [updated] = await db
       .update(outputs)
       .set({ ...patch, updatedAt: new Date() })

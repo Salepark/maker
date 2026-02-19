@@ -195,6 +195,7 @@ export const outputs = sqliteTable("outputs", {
   outputType: text("output_type").notNull(),
   title: text("title").notNull(),
   contentText: text("content_text").notNull(),
+  structuredData: text("structured_data", { mode: "json" }),
   reportStage: text("report_stage").notNull().default("full"),
   periodStart: integer("period_start", { mode: "timestamp_ms" }).notNull(),
   periodEnd: integer("period_end", { mode: "timestamp_ms" }).notNull(),

@@ -794,3 +794,77 @@ ${isProfessional ? `- Structure each analysis point as: (1) what happened, (2) w
 - Reduce weight for items with risk_flags like rumor, low_credibility, opinion_only
 - Do not promote items with low confidence to key issues`;
 }
+
+export function buildCompetitorWatchStructuredPrompt(items: any[], date: string, config?: ReportConfig, userRules?: Record<string, any>): string {
+  const verbosity = config?.verbosity || "normal";
+  const meta = getTopicMeta("competitor_watch");
+
+  const itemsData = items.map((item) => ({
+    title: item.title,
+    source: item.source,
+    url: item.url,
+    key_takeaway: item.key_takeaway,
+    why_it_matters: item.why_it_matters,
+    category: item.category,
+    risk_flags: item.risk_flags,
+    confidence: item.confidence,
+  }));
+
+  const verbosityHint = verbosity === "short"
+    ? "Keep all text concise. Each bullet 1-2 sentences max."
+    : verbosity === "detailed"
+    ? "Provide rich analysis with context for each point."
+    : "Balance brevity and detail.";
+
+  return `You are ${meta.role}.
+Your task is to produce a structured competitive intelligence report in JSON format based on the collected items below.
+${verbosityHint}
+${buildUserRulesBlock(userRules)}
+Input Data (collected articles/posts from the past 24-72 hours):
+
+${JSON.stringify(itemsData, null, 2)}
+
+Today's date: ${date}
+
+Output ONLY valid JSON with this exact structure (no markdown, no extra text):
+{
+  "companyOverview": {
+    "industry": "Primary industry/sector based on the collected data",
+    "keyPlayers": ["Company A", "Company B", "Company C"],
+    "marketContext": "1-2 sentence market context summary"
+  },
+  "executiveSummary": "3-5 sentence summary of the most important competitive developments",
+  "swot": {
+    "strengths": ["3 strengths observed from the data"],
+    "weaknesses": ["3 weaknesses or vulnerabilities identified"],
+    "opportunities": ["3 opportunities spotted from trends"],
+    "threats": ["3 threats or competitive risks"]
+  },
+  "news": [
+    {
+      "title": "Article title",
+      "source": "Source name",
+      "url": "URL if available",
+      "date": "ISO date string",
+      "sentiment": "positive|neutral|negative",
+      "summary": "2-3 sentence summary with business impact"
+    }
+  ],
+  "insights": [
+    "Insight 1: specific, data-backed observation with business implication",
+    "Insight 2: ...",
+    "Insight 3: ...",
+    "Insight 4: ...",
+    "Insight 5: ..."
+  ]
+}
+
+Rules:
+- news array: include up to 5 most important articles from the input data. Assign sentiment based on business impact.
+- swot: derive from actual collected data, not generic statements. Reference specific articles/trends.
+- insights: must be specific and actionable, referencing data from the input.
+- companyOverview.keyPlayers: list the main companies/competitors mentioned in the data.
+- If the data is insufficient for a section, provide your best analysis with a note about limited data.
+- All output must be in English.
+- Do not include any text outside the JSON object.`;
+}

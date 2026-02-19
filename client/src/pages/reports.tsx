@@ -6,10 +6,37 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { FileText, Plus, Loader2, Bot, RefreshCw, Copy, Download, Check } from "lucide-react";
+import {
+  FileText, Plus, Loader2, Bot, RefreshCw, Copy, Download, Check,
+  TrendingUp, TrendingDown, Target, AlertTriangle, Newspaper, Lightbulb, Building2,
+} from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/lib/language-provider";
+
+interface CompetitorStructuredData {
+  companyOverview?: {
+    industry?: string;
+    keyPlayers?: string[];
+    marketContext?: string;
+  };
+  executiveSummary?: string;
+  swot?: {
+    strengths: string[];
+    weaknesses: string[];
+    opportunities: string[];
+    threats: string[];
+  };
+  news?: Array<{
+    title: string;
+    source: string;
+    url?: string;
+    date?: string;
+    sentiment: "positive" | "neutral" | "negative";
+    summary: string;
+  }>;
+  insights?: string[];
+}
 
 interface Report {
   id: number;
@@ -20,6 +47,7 @@ interface Report {
   outputType: string;
   title: string;
   contentText: string;
+  structuredData?: CompetitorStructuredData | null;
   reportStage: string;
   periodStart: string;
   periodEnd: string;
@@ -88,6 +116,200 @@ function getStageLabelKey(stage: string): string | null {
     case "full": return "reports.stage.full";
     default: return null;
   }
+}
+
+function CompetitorWatchReport({ data, t }: { data: CompetitorStructuredData; t: (key: string) => string }) {
+  const sentimentBg = (s: string) => {
+    if (s === "positive") return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300";
+    if (s === "negative") return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300";
+    return "bg-muted text-muted-foreground";
+  };
+
+  const swotSections = [
+    {
+      key: "strengths" as const,
+      label: t("structuredReport.swot.strengths"),
+      icon: TrendingUp,
+      items: data.swot?.strengths || [],
+      color: "text-emerald-600 dark:text-emerald-400",
+      bg: "bg-emerald-50 dark:bg-emerald-950/20",
+      border: "border-emerald-200 dark:border-emerald-800",
+    },
+    {
+      key: "weaknesses" as const,
+      label: t("structuredReport.swot.weaknesses"),
+      icon: TrendingDown,
+      items: data.swot?.weaknesses || [],
+      color: "text-red-600 dark:text-red-400",
+      bg: "bg-red-50 dark:bg-red-950/20",
+      border: "border-red-200 dark:border-red-800",
+    },
+    {
+      key: "opportunities" as const,
+      label: t("structuredReport.swot.opportunities"),
+      icon: Target,
+      items: data.swot?.opportunities || [],
+      color: "text-blue-600 dark:text-blue-400",
+      bg: "bg-blue-50 dark:bg-blue-950/20",
+      border: "border-blue-200 dark:border-blue-800",
+    },
+    {
+      key: "threats" as const,
+      label: t("structuredReport.swot.threats"),
+      icon: AlertTriangle,
+      items: data.swot?.threats || [],
+      color: "text-amber-600 dark:text-amber-400",
+      bg: "bg-amber-50 dark:bg-amber-950/20",
+      border: "border-amber-200 dark:border-amber-800",
+    },
+  ];
+
+  return (
+    <div className="space-y-6" data-testid="section-structured-report">
+      {data.companyOverview && (
+        <Card data-testid="section-company-overview">
+          <CardHeader className="flex flex-row items-center gap-2 pb-4">
+            <Building2 className="h-5 w-5 text-primary" />
+            <CardTitle className="text-lg">{t("structuredReport.companyOverview")}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {data.companyOverview.industry && (
+              <div>
+                <p className="text-xs text-muted-foreground">{t("structuredReport.industry")}</p>
+                <p className="text-sm font-medium">{data.companyOverview.industry}</p>
+              </div>
+            )}
+            {data.companyOverview.keyPlayers && data.companyOverview.keyPlayers.length > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">{t("structuredReport.keyPlayers")}</p>
+                <div className="flex flex-wrap gap-1">
+                  {data.companyOverview.keyPlayers.map((player, i) => (
+                    <Badge key={i} variant="secondary" className="text-xs">{player}</Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+            {data.companyOverview.marketContext && (
+              <div>
+                <p className="text-xs text-muted-foreground">{t("structuredReport.marketContext")}</p>
+                <p className="text-sm leading-relaxed">{data.companyOverview.marketContext}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {data.executiveSummary && (
+        <Card data-testid="section-executive-summary">
+          <CardHeader className="flex flex-row items-center gap-2 pb-4">
+            <Lightbulb className="h-5 w-5 text-primary" />
+            <CardTitle className="text-lg">{t("structuredReport.executiveSummary")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm leading-relaxed text-muted-foreground">{data.executiveSummary}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {data.swot && (
+        <div data-testid="section-swot-analysis">
+          <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+            <Target className="h-5 w-5 text-primary" />
+            {t("structuredReport.swotAnalysis")}
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {swotSections.map((section) => (
+              <Card
+                key={section.key}
+                className={`${section.bg} border ${section.border}`}
+                data-testid={`card-swot-${section.key}`}
+              >
+                <CardHeader className="pb-2">
+                  <CardTitle className={`text-sm font-semibold flex items-center gap-2 ${section.color}`}>
+                    <section.icon className="h-4 w-4" />
+                    {section.label}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <ul className="space-y-2">
+                    {section.items.map((item, i) => (
+                      <li key={i} className="text-sm flex items-start gap-2">
+                        <span className={`mt-1.5 h-1.5 w-1.5 rounded-full shrink-0 ${section.color.replace("text-", "bg-")}`} />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {data.news && data.news.length > 0 && (
+        <div data-testid="section-news-analysis">
+          <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+            <Newspaper className="h-5 w-5 text-primary" />
+            {t("structuredReport.latestNews")}
+          </h3>
+          <div className="space-y-3">
+            {data.news.map((article, i) => (
+              <Card key={i} data-testid={`card-news-${i}`}>
+                <CardContent className="py-4">
+                  <div className="flex items-start justify-between gap-3 flex-wrap">
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <h4 className="text-sm font-semibold leading-snug" data-testid={`text-news-title-${i}`}>
+                        {article.url ? (
+                          <a href={article.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                            {article.title}
+                          </a>
+                        ) : article.title}
+                      </h4>
+                      <p className="text-xs text-muted-foreground">
+                        {article.source}
+                        {article.date && <> &middot; {new Date(article.date).toLocaleDateString()}</>}
+                      </p>
+                      <p className="text-sm text-muted-foreground leading-relaxed mt-1">{article.summary}</p>
+                    </div>
+                    <Badge
+                      variant="secondary"
+                      className={`shrink-0 text-xs ${sentimentBg(article.sentiment)}`}
+                      data-testid={`badge-sentiment-${i}`}
+                    >
+                      {t(`structuredReport.sentiment.${article.sentiment}`)}
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {data.insights && data.insights.length > 0 && (
+        <div data-testid="section-key-insights">
+          <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+            <Lightbulb className="h-5 w-5 text-primary" />
+            {t("structuredReport.keyInsights")}
+          </h3>
+          <Card>
+            <CardContent className="py-4">
+              <ol className="space-y-3">
+                {data.insights.map((insight, i) => (
+                  <li key={i} className="flex items-start gap-3" data-testid={`text-insight-${i}`}>
+                    <span className="flex items-center justify-center h-6 w-6 rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0">
+                      {i + 1}
+                    </span>
+                    <p className="text-sm leading-relaxed">{insight}</p>
+                  </li>
+                ))}
+              </ol>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function Reports() {
@@ -479,12 +701,16 @@ export default function Reports() {
                     ) : null;
                   })()}
                 </div>
-                <pre 
-                  className="whitespace-pre-wrap text-sm leading-6 font-sans"
-                  data-testid="text-report-content"
-                >
-                  {selectedReport.contentText}
-                </pre>
+                {selectedReport.structuredData && selectedReport.topic === "competitor_watch" ? (
+                  <CompetitorWatchReport data={selectedReport.structuredData} t={t} />
+                ) : (
+                  <pre 
+                    className="whitespace-pre-wrap text-sm leading-6 font-sans"
+                    data-testid="text-report-content"
+                  >
+                    {selectedReport.contentText}
+                  </pre>
+                )}
               </div>
             )}
           </CardContent>

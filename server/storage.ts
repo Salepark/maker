@@ -137,7 +137,7 @@ export interface IStorage {
   linkOutputItems(outputId: number, itemIds: number[]): Promise<void>;
   listOutputs(params: { userId: string; profileId?: number; from?: Date; to?: Date }): Promise<Output[]>;
   getOutputById(params: { userId: string; outputId: number }): Promise<Output | null>;
-  updateOutputContent(outputId: number, patch: { contentText: string; title: string; reportStage: string }): Promise<Output | null>;
+  updateOutputContent(outputId: number, patch: { contentText: string; title: string; reportStage: string; structuredData?: any }): Promise<Output | null>;
   updateProfileLastRunAt(profileId: number, runAt: Date): Promise<void>;
   getRecentItemsBySourceIds(sourceIds: number[], lookbackHours: number, limit: number): Promise<{ id: number; title: string | null; url: string; status: string; sourceName: string; sourceTopic: string; publishedAt: Date | null }[]>;
 
@@ -1289,7 +1289,7 @@ export class DatabaseStorage implements IStorage {
     return rows[0] ?? null;
   }
 
-  async updateOutputContent(outputId: number, patch: { contentText: string; title: string; reportStage: string }): Promise<Output | null> {
+  async updateOutputContent(outputId: number, patch: { contentText: string; title: string; reportStage: string; structuredData?: any }): Promise<Output | null> {
     const [updated] = await db
       .update(outputs)
       .set({ ...patch, updatedAt: new Date() })
