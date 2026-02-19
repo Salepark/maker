@@ -4,6 +4,80 @@ import { v4 as uuidv4 } from 'uuid';
 const router = express.Router();
 const analysisJobs = new Map();
 
+function simpleSentiment(title, description) {
+  const text = `${title} ${description}`.toLowerCase();
+  const positive = ['growth', 'record', 'profit', 'surge', 'boost', 'gain', 'success', 'award', 'innovation', 'launch', 'partnership', 'expand', 'rise', 'beat', 'strong'];
+  const negative = ['loss', 'decline', 'lawsuit', 'scandal', 'investigation', 'scrutiny', 'risk', 'drop', 'cut', 'layoff', 'fine', 'penalty', 'crash', 'fail', 'downturn', 'recall'];
+  const posCount = positive.filter(w => text.includes(w)).length;
+  const negCount = negative.filter(w => text.includes(w)).length;
+  if (posCount > negCount) return 'positive';
+  if (negCount > posCount) return 'negative';
+  return 'neutral';
+}
+
+async function collectNews(company) {
+  const apiKey = process.env.NEWS_API_KEY;
+  if (!apiKey) {
+    console.log('NEWS_API_KEY not set, using fallback dummy news');
+    return null;
+  }
+
+  try {
+    const q = encodeURIComponent(company);
+    const url = `https://newsapi.org/v2/everything?q=${q}&sortBy=publishedAt&pageSize=3&language=en&apiKey=${apiKey}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+
+    if (!res.ok) {
+      console.error(`NewsAPI error: ${res.status} ${res.statusText}`);
+      return null;
+    }
+
+    const data = await res.json();
+
+    if (!data.articles || data.articles.length === 0) {
+      console.log(`NewsAPI returned no articles for "${company}"`);
+      return null;
+    }
+
+    return data.articles.slice(0, 3).map(article => ({
+      title: article.title || 'Untitled',
+      source: article.source?.name || 'Unknown',
+      date: article.publishedAt || new Date().toISOString(),
+      sentiment: simpleSentiment(article.title || '', article.description || ''),
+      summary: article.description || article.content?.slice(0, 200) || 'No summary available.',
+    }));
+  } catch (err) {
+    console.error('NewsAPI fetch failed:', err.message);
+    return null;
+  }
+}
+
+function getFallbackNews(company) {
+  return [
+    {
+      title: `${company} Announces Record Q4 Revenue Growth`,
+      source: 'Reuters',
+      date: new Date(Date.now() - 86400000).toISOString(),
+      sentiment: 'positive',
+      summary: `${company} reported a 23% increase in Q4 revenue, beating analyst expectations and signaling strong market demand.`,
+    },
+    {
+      title: `${company} Expands Operations to Southeast Asia`,
+      source: 'Bloomberg',
+      date: new Date(Date.now() - 86400000 * 3).toISOString(),
+      sentiment: 'neutral',
+      summary: `The company announced plans to open new offices in Singapore and Vietnam as part of its Asia-Pacific expansion strategy.`,
+    },
+    {
+      title: `${company} Faces Regulatory Scrutiny in EU Markets`,
+      source: 'Financial Times',
+      date: new Date(Date.now() - 86400000 * 5).toISOString(),
+      sentiment: 'negative',
+      summary: `European regulators have opened an investigation into the company's data practices, which could impact operations in the region.`,
+    },
+  ];
+}
+
 router.get('/test', (req, res) => {
   res.json({ success: true, message: 'Demo API is working!' });
 });
@@ -110,7 +184,7 @@ async function processAnalysis(jobId) {
 
     job.currentStep = 'Analyzing news & media...';
     job.steps[1].status = 'processing';
-    await delay(3000);
+    const liveNews = await collectNews(job.company);
     job.steps[1].status = 'completed';
     job.progress = 50;
 
@@ -162,29 +236,7 @@ async function processAnalysis(jobId) {
           'Rising operational and material costs',
         ],
       },
-      news: [
-        {
-          title: `${job.company} Announces Record Q4 Revenue Growth`,
-          source: 'Reuters',
-          date: new Date(Date.now() - 86400000).toISOString(),
-          sentiment: 'positive',
-          summary: `${job.company} reported a 23% increase in Q4 revenue, beating analyst expectations and signaling strong market demand.`,
-        },
-        {
-          title: `${job.company} Expands Operations to Southeast Asia`,
-          source: 'Bloomberg',
-          date: new Date(Date.now() - 86400000 * 3).toISOString(),
-          sentiment: 'neutral',
-          summary: `The company announced plans to open new offices in Singapore and Vietnam as part of its Asia-Pacific expansion strategy.`,
-        },
-        {
-          title: `${job.company} Faces Regulatory Scrutiny in EU Markets`,
-          source: 'Financial Times',
-          date: new Date(Date.now() - 86400000 * 5).toISOString(),
-          sentiment: 'negative',
-          summary: `European regulators have opened an investigation into the company's data practices, which could impact operations in the region.`,
-        },
-      ],
+      news: liveNews || getFallbackNews(job.company),
       insights: [
         `${job.company}'s revenue growth rate of 23% outpaces the industry average of 12%, indicating strong competitive positioning.`,
         `The company's R&D spending accounts for 18% of revenue, significantly higher than the 10% industry benchmark.`,
