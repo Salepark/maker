@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useRoute } from 'wouter';
+import { useLanguage } from '@/lib/language-provider';
+import { LanguageSwitcher } from '@/components/language-switcher';
 
 const DemoProgress = () => {
   const [match, params] = useRoute('/demo/progress/:jobId');
   const [status, setStatus] = useState<any>(null);
+  const { t } = useLanguage();
 
   useEffect(() => {
     if (!params?.jobId) return;
@@ -16,7 +19,6 @@ const DemoProgress = () => {
 
         if (data.status === 'completed') {
           clearInterval(interval);
-          alert('Analysis complete!');
         }
       } catch (error) {
         console.error('Status fetch error:', error);
@@ -26,16 +28,24 @@ const DemoProgress = () => {
     return () => clearInterval(interval);
   }, [params?.jobId]);
 
-  if (!match) return <div>Invalid access.</div>;
+  if (!match) return <div style={{ padding: '40px', textAlign: 'center' }}>{t("demo.progress.invalidAccess")}</div>;
 
   return (
-    <div style={{padding: '40px', textAlign: 'center'}}>
-      <h1>Analyzing...</h1>
+    <div style={{ padding: '40px', textAlign: 'center' }}>
+      <div style={{ position: 'absolute', top: 16, right: 16 }}>
+        <LanguageSwitcher />
+      </div>
+      <h1>{t("demo.progress.title")}</h1>
       {status && (
         <div>
-          <h2>Progress: {status.progress}%</h2>
-          <p>Current step: {status.current_step}</p>
-          <p>Elapsed time: {status.elapsed_time}s</p>
+          <h2>{t("demo.progress.progress")}: {status.progress}%</h2>
+          <p>{t("demo.progress.currentStep")}: {status.current_step}</p>
+          <p>{t("demo.progress.elapsedTime")}: {status.elapsed_time}{t("demo.progress.seconds")}</p>
+          {status.status === 'completed' && (
+            <p style={{ color: 'green', fontWeight: 'bold', marginTop: '16px' }}>
+              {t("demo.progress.complete")}
+            </p>
+          )}
         </div>
       )}
     </div>

@@ -143,7 +143,7 @@ export default function Landing() {
   const handleHeroAnalyze = async () => {
     const company = heroCompany.trim();
     if (!company) {
-      alert("Please enter a company name!");
+      alert(t("demo.hero.emptyInput"));
       return;
     }
 
@@ -167,7 +167,7 @@ export default function Landing() {
       }
     } catch (error) {
       console.error("Error:", error);
-      alert("A network error occurred.");
+      alert(t("demo.hero.networkError"));
     } finally {
       setHeroLoading(false);
     }
@@ -231,14 +231,14 @@ export default function Landing() {
               style={{ fontSize: "clamp(1.8rem, 5vw, 3rem)" }}
               data-testid="text-hero-headline"
             >
-              AI analyzes your competitors
+              {t("demo.hero.headline1")}
               <br />
-              <span className="text-yellow-300">in just 5 minutes</span>
+              <span className="text-yellow-300">{t("demo.hero.headline2")}</span>
             </h1>
             <p className="text-white/90 text-lg mb-10 max-w-xl mx-auto" data-testid="text-hero-subheadline">
-              No complex setup needed. Just enter a company name.
+              {t("demo.hero.subheadline")}
               <br />
-              <strong>10x easier than OpenClaw</strong>
+              <strong>{t("demo.hero.subheadlineBold")}</strong>
             </p>
             <div className="bg-white/95 dark:bg-background/95 rounded-2xl p-8 max-w-xl mx-auto">
               <div className="flex gap-4 mb-5">
@@ -246,7 +246,7 @@ export default function Landing() {
                   type="text"
                   value={heroCompany}
                   onChange={(e) => setHeroCompany(e.target.value)}
-                  placeholder="e.g. Tesla, Apple, Netflix"
+                  placeholder={t("demo.hero.placeholder")}
                   className="flex-1"
                   data-testid="input-hero-company"
                 />
@@ -256,13 +256,13 @@ export default function Landing() {
                   style={{ background: "#667eea" }}
                   data-testid="button-hero-analyze"
                 >
-                  {heroLoading ? "Analyzing..." : t("landing.hero.getStarted")}
+                  {heroLoading ? t("demo.hero.analyzing") : t("demo.hero.analyzeButton")}
                 </Button>
               </div>
               <p className="text-sm text-emerald-600 dark:text-emerald-400 m-0 flex items-center justify-center gap-4 flex-wrap" data-testid="text-hero-benefits">
-                <span className="flex items-center gap-1"><Check className="h-3.5 w-3.5" /> Free trial</span>
-                <span className="flex items-center gap-1"><Check className="h-3.5 w-3.5" /> No signup required</span>
-                <span className="flex items-center gap-1"><Check className="h-3.5 w-3.5" /> Done in 5 min</span>
+                <span className="flex items-center gap-1"><Check className="h-3.5 w-3.5" /> {t("demo.hero.benefitFree")}</span>
+                <span className="flex items-center gap-1"><Check className="h-3.5 w-3.5" /> {t("demo.hero.benefitNoSignup")}</span>
+                <span className="flex items-center gap-1"><Check className="h-3.5 w-3.5" /> {t("demo.hero.benefitTime")}</span>
               </p>
             </div>
           </div>
