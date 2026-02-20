@@ -6,8 +6,10 @@ const analysisJobs = new Map();
 
 function simpleSentiment(title, description) {
   const text = `${title} ${description}`.toLowerCase();
-  const positive = ['growth', 'record', 'profit', 'surge', 'boost', 'gain', 'success', 'award', 'innovation', 'launch', 'partnership', 'expand', 'rise', 'beat', 'strong'];
-  const negative = ['loss', 'decline', 'lawsuit', 'scandal', 'investigation', 'scrutiny', 'risk', 'drop', 'cut', 'layoff', 'fine', 'penalty', 'crash', 'fail', 'downturn', 'recall'];
+  const positive = ['growth', 'record', 'profit', 'surge', 'boost', 'gain', 'success', 'award', 'innovation', 'launch', 'partnership', 'expand', 'rise', 'beat', 'strong',
+    '성장', '기록', '수익', '흑자', '혁신', '출시', '제휴', '확장', '상승', '호실적', '수상'];
+  const negative = ['loss', 'decline', 'lawsuit', 'scandal', 'investigation', 'scrutiny', 'risk', 'drop', 'cut', 'layoff', 'fine', 'penalty', 'crash', 'fail', 'downturn', 'recall',
+    '손실', '하락', '소송', '조사', '리스크', '감소', '해고', '벌금', '위기', '리콜'];
   const posCount = positive.filter(w => text.includes(w)).length;
   const negCount = negative.filter(w => text.includes(w)).length;
   if (posCount > negCount) return 'positive';
@@ -24,7 +26,7 @@ async function collectNews(company) {
 
   try {
     const q = encodeURIComponent(company);
-    const url = `https://newsapi.org/v2/everything?q=${q}&sortBy=publishedAt&pageSize=3&language=en&apiKey=${apiKey}`;
+    const url = `https://newsapi.org/v2/everything?q=${q}&sortBy=publishedAt&pageSize=3&apiKey=${apiKey}`;
     const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
 
     if (!res.ok) {
@@ -40,11 +42,11 @@ async function collectNews(company) {
     }
 
     return data.articles.slice(0, 3).map(article => ({
-      title: article.title || 'Untitled',
-      source: article.source?.name || 'Unknown',
+      title: article.title || '제목 없음',
+      source: article.source?.name || '알 수 없음',
       date: article.publishedAt || new Date().toISOString(),
       sentiment: simpleSentiment(article.title || '', article.description || ''),
-      summary: article.description || article.content?.slice(0, 200) || 'No summary available.',
+      summary: article.description || article.content?.slice(0, 200) || '요약 정보가 없습니다.',
     }));
   } catch (err) {
     console.error('NewsAPI fetch failed:', err.message);
@@ -55,31 +57,31 @@ async function collectNews(company) {
 function getFallbackNews(company) {
   return [
     {
-      title: `${company} Announces Record Q4 Revenue Growth`,
-      source: 'Reuters',
+      title: `${company}, 4분기 매출 사상 최대 기록`,
+      source: '연합뉴스',
       date: new Date(Date.now() - 86400000).toISOString(),
       sentiment: 'positive',
-      summary: `${company} reported a 23% increase in Q4 revenue, beating analyst expectations and signaling strong market demand.`,
+      summary: `${company}가 4분기 매출이 전년 대비 23% 증가하며 시장 기대치를 상회했습니다. 주력 사업부의 성장세가 두드러졌습니다.`,
     },
     {
-      title: `${company} Expands Operations to Southeast Asia`,
-      source: 'Bloomberg',
+      title: `${company}, 동남아 시장 진출 본격화`,
+      source: '한국경제',
       date: new Date(Date.now() - 86400000 * 3).toISOString(),
       sentiment: 'neutral',
-      summary: `The company announced plans to open new offices in Singapore and Vietnam as part of its Asia-Pacific expansion strategy.`,
+      summary: `싱가포르와 베트남에 신규 법인을 설립하고 아시아·태평양 지역 확장 전략을 발표했습니다.`,
     },
     {
-      title: `${company} Faces Regulatory Scrutiny in EU Markets`,
-      source: 'Financial Times',
+      title: `${company}, EU 시장에서 규제 리스크 부각`,
+      source: '매일경제',
       date: new Date(Date.now() - 86400000 * 5).toISOString(),
       sentiment: 'negative',
-      summary: `European regulators have opened an investigation into the company's data practices, which could impact operations in the region.`,
+      summary: `유럽 규제 당국이 데이터 관련 조사에 착수하여 현지 사업에 영향을 미칠 수 있다는 분석이 나왔습니다.`,
     },
   ];
 }
 
 router.get('/test', (req, res) => {
-  res.json({ success: true, message: 'Demo API is working!' });
+  res.json({ success: true, message: '데모 API가 정상 작동 중입니다.' });
 });
 
 router.post('/quick-analysis', async (req, res) => {
@@ -87,7 +89,7 @@ router.post('/quick-analysis', async (req, res) => {
     const { company } = req.body;
 
     if (!company) {
-      return res.status(400).json({ success: false, error: 'Please enter a company name.' });
+      return res.status(400).json({ success: false, error: '기업명을 입력해 주세요.' });
     }
 
     const jobId = uuidv4();
@@ -96,13 +98,13 @@ router.post('/quick-analysis', async (req, res) => {
       company,
       status: 'processing',
       progress: 0,
-      currentStep: 'Preparing analysis...',
+      currentStep: '분석 준비 중...',
       startTime: Date.now(),
       steps: [
-        { name: 'Collecting basic info', status: 'pending' },
-        { name: 'Analyzing news & media', status: 'pending' },
-        { name: 'AI comprehensive analysis', status: 'pending' },
-        { name: 'Generating report', status: 'pending' },
+        { name: '기본 정보 수집', status: 'pending' },
+        { name: '뉴스 및 미디어 분석', status: 'pending' },
+        { name: 'AI 종합 분석', status: 'pending' },
+        { name: '리포트 생성', status: 'pending' },
       ],
       result: null,
     };
@@ -119,7 +121,7 @@ router.post('/quick-analysis', async (req, res) => {
     });
   } catch (error) {
     console.error('Analysis start error:', error);
-    res.status(500).json({ success: false, error: 'Could not start analysis.' });
+    res.status(500).json({ success: false, error: '분석을 시작할 수 없습니다.' });
   }
 });
 
@@ -127,7 +129,7 @@ router.get('/analysis-status/:jobId', (req, res) => {
   const job = analysisJobs.get(req.params.jobId);
 
   if (!job) {
-    return res.status(404).json({ success: false, error: 'Analysis job not found.' });
+    return res.status(404).json({ success: false, error: '분석 작업을 찾을 수 없습니다.' });
   }
 
   const response = {
@@ -144,7 +146,7 @@ router.get('/analysis-status/:jobId', (req, res) => {
   }
 
   if (job.status === 'failed') {
-    response.error = job.error || 'An error occurred during analysis.';
+    response.error = job.error || '분석 중 오류가 발생했습니다.';
   }
 
   res.json(response);
@@ -154,11 +156,11 @@ router.get('/analysis-result/:jobId', (req, res) => {
   const job = analysisJobs.get(req.params.jobId);
 
   if (!job) {
-    return res.status(404).json({ success: false, error: 'Analysis result not found.' });
+    return res.status(404).json({ success: false, error: '분석 결과를 찾을 수 없습니다.' });
   }
 
   if (job.status !== 'completed') {
-    return res.status(400).json({ success: false, error: 'Analysis is not yet complete.' });
+    return res.status(400).json({ success: false, error: '분석이 아직 완료되지 않았습니다.' });
   }
 
   res.json({
@@ -175,84 +177,84 @@ async function processAnalysis(jobId) {
   if (!job) return;
 
   try {
-    job.currentStep = 'Collecting basic info...';
+    job.currentStep = '기본 정보 수집 중...';
     job.steps[0].status = 'processing';
     job.progress = 5;
     await delay(2000);
     job.steps[0].status = 'completed';
     job.progress = 25;
 
-    job.currentStep = 'Analyzing news & media...';
+    job.currentStep = '뉴스 및 미디어 분석 중...';
     job.steps[1].status = 'processing';
     const liveNews = await collectNews(job.company);
     job.steps[1].status = 'completed';
     job.progress = 50;
 
-    job.currentStep = 'AI comprehensive analysis...';
+    job.currentStep = 'GPT-4o 종합 분석 중...';
     job.steps[2].status = 'processing';
     await delay(4000);
     job.steps[2].status = 'completed';
     job.progress = 80;
 
-    job.currentStep = 'Generating report...';
+    job.currentStep = '리포트 생성 중...';
     job.steps[3].status = 'processing';
     await delay(2000);
     job.steps[3].status = 'completed';
     job.progress = 100;
 
     job.status = 'completed';
-    job.currentStep = 'Analysis complete!';
+    job.currentStep = '분석 완료!';
     job.result = {
       basicInfo: {
         name: job.company,
-        industry: 'Technology',
-        ceo: 'John Doe',
-        founded: '2005',
-        headquarters: 'San Francisco, CA',
-        employees: '12,500+',
-        revenue: '$4.2B (2024)',
+        industry: '기술/IT',
+        ceo: '대표이사',
+        founded: '2005년',
+        headquarters: '서울특별시',
+        employees: '12,500명 이상',
+        revenue: '약 5조 6,000억원 (2024)',
         website: `https://www.${job.company.toLowerCase().replace(/\s+/g, '')}.com`,
       },
-      summary: `${job.company} is a leading player in its industry with strong brand recognition and growth potential. The company has demonstrated consistent innovation and market expansion over the past decade.`,
+      summary: `${job.company}는 해당 산업에서 강력한 브랜드 인지도와 성장 잠재력을 보유한 선도 기업입니다. 지난 10년간 꾸준한 기술 혁신과 시장 확장을 통해 업계 내 입지를 공고히 해왔으며, 글로벌 시장에서의 경쟁력을 지속적으로 강화하고 있습니다.`,
       swot: {
         strengths: [
-          'Strong brand recognition and customer loyalty',
-          'Innovative technology and R&D investment',
-          'Significant global market share',
+          '강력한 브랜드 인지도와 높은 고객 충성도',
+          '적극적인 R&D 투자 및 기술 혁신 역량',
+          '글로벌 시장에서의 높은 점유율',
         ],
         weaknesses: [
-          'High pricing relative to competitors',
-          'Supply chain concentration risks',
-          'Heavy dependence on key markets',
+          '경쟁사 대비 높은 가격 구조',
+          '공급망 특정 지역 집중 리스크',
+          '핵심 시장에 대한 높은 의존도',
         ],
         opportunities: [
-          'Expansion into emerging markets',
-          'New product line diversification',
-          'Growing sustainability and ESG trends',
+          '신흥 시장 진출 확대 가능성',
+          '신규 제품 라인 다각화',
+          'ESG 및 지속가능성 트렌드 활용',
         ],
         threats: [
-          'Intensifying competition from new entrants',
-          'Evolving regulatory landscape',
-          'Rising operational and material costs',
+          '신규 경쟁사 진입으로 인한 경쟁 심화',
+          '변화하는 규제 환경 대응 필요',
+          '원자재 및 운영 비용 상승 압박',
         ],
       },
       news: liveNews || getFallbackNews(job.company),
       insights: [
-        `${job.company}'s revenue growth rate of 23% outpaces the industry average of 12%, indicating strong competitive positioning.`,
-        `The company's R&D spending accounts for 18% of revenue, significantly higher than the 10% industry benchmark.`,
-        `Market sentiment analysis shows 67% positive coverage across major financial media outlets.`,
-        `Supply chain diversification efforts have reduced single-source dependency from 45% to 28% year-over-year.`,
-        `Customer retention rate stands at 94%, suggesting high satisfaction and strong brand loyalty.`,
+        `${job.company}의 매출 성장률 23%는 업계 평균 12%를 크게 상회하며, 강력한 경쟁 우위를 보여줍니다.`,
+        `R&D 투자 비중이 매출의 18%로, 업계 평균 10%보다 현저히 높아 기술 혁신에 적극적입니다.`,
+        `주요 경제 매체 기준 시장 감성 분석 결과, 67%가 긍정적 보도로 나타났습니다.`,
+        `공급망 다각화 노력으로 단일 공급원 의존도가 전년 대비 45%에서 28%로 감소했습니다.`,
+        `고객 유지율이 94%로 높은 만족도와 강한 브랜드 충성도를 나타냅니다.`,
       ],
       generatedAt: new Date().toISOString(),
       analysisTime: Math.floor((Date.now() - job.startTime) / 1000),
     };
 
-    console.log(`Analysis complete: ${job.company} (${job.result.analysisTime}s)`);
+    console.log(`분석 완료: ${job.company} (${job.result.analysisTime}초)`);
   } catch (error) {
     job.status = 'failed';
     job.error = error.message;
-    job.currentStep = 'Analysis failed';
+    job.currentStep = '분석 실패';
   }
 }
 

@@ -1050,7 +1050,7 @@ export const ko: Record<string, string> = {
   "demo.report.downloadPdf": "PDF 저장",
   "demo.report.companyInfo": "회사 개요",
   "demo.report.companyInfo.industry": "업종",
-  "demo.report.companyInfo.ceo": "CEO",
+  "demo.report.companyInfo.ceo": "대표이사",
   "demo.report.companyInfo.founded": "설립",
   "demo.report.companyInfo.headquarters": "본사",
   "demo.report.companyInfo.employees": "직원 수",
