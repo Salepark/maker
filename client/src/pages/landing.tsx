@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Layers, Rss, Settings, Zap, ArrowRight, TrendingUp, BookOpen, Building2, Newspaper, ChevronDown, Key, MessageSquare, PenTool, Laptop, Store, ShoppingCart, LogIn, User, Monitor, Users, Landmark, Check, Shield, ShieldCheck, RefreshCw, WifiOff, Eye, Clock, FileText, ExternalLink, Github, ClipboardList, Globe } from "lucide-react";
+import { Bot, Layers, Rss, Settings, Zap, ArrowRight, TrendingUp, BookOpen, Building2, Newspaper, ChevronDown, Key, MessageSquare, PenTool, Laptop, Store, ShoppingCart, LogIn, User, Monitor, Users, Landmark, Check, Shield, ShieldCheck, RefreshCw, WifiOff, Eye, Clock, FileText, ExternalLink, Github, ClipboardList, Globe, Sparkles, BarChart3, Factory, Scale, Ship, UserSearch, Wallet, LineChart, MessageCircle } from "lucide-react";
 import { ShareButton } from "@/components/share-button";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -174,17 +174,17 @@ export default function Landing() {
   };
 
   const useCases = [
-    { icon: Globe, title: t("landing.useCase.websitePromotion"), description: t("landing.useCase.websitePromotionDesc") },
     { icon: TrendingUp, title: t("landing.useCase.dailyMarketBrief"), description: t("landing.useCase.dailyMarketBriefDesc") },
-    { icon: BookOpen, title: t("landing.useCase.researchPaperTracker"), description: t("landing.useCase.researchPaperTrackerDesc") },
     { icon: Building2, title: t("landing.useCase.competitorSignalMonitor"), description: t("landing.useCase.competitorSignalMonitorDesc") },
-    { icon: Newspaper, title: t("landing.useCase.communityResearch"), description: t("landing.useCase.communityResearchDesc") },
-    { icon: PenTool, title: t("landing.useCase.contentIdeas"), description: t("landing.useCase.contentIdeasDesc") },
-    { icon: Laptop, title: t("landing.useCase.workProductivity"), description: t("landing.useCase.workProductivityDesc") },
-    { icon: Store, title: t("landing.useCase.onlineBusiness"), description: t("landing.useCase.onlineBusinessDesc") },
-    { icon: ShoppingCart, title: t("landing.useCase.koreaMarketplace"), description: t("landing.useCase.koreaMarketplaceDesc") },
+    { icon: Factory, title: t("landing.useCase.websitePromotion"), description: t("landing.useCase.websitePromotionDesc") },
+    { icon: Scale, title: t("landing.useCase.researchPaperTracker"), description: t("landing.useCase.researchPaperTrackerDesc") },
+    { icon: Ship, title: t("landing.useCase.communityResearch"), description: t("landing.useCase.communityResearchDesc") },
+    { icon: UserSearch, title: t("landing.useCase.contentIdeas"), description: t("landing.useCase.contentIdeasDesc") },
+    { icon: Wallet, title: t("landing.useCase.workProductivity"), description: t("landing.useCase.workProductivityDesc") },
+    { icon: LineChart, title: t("landing.useCase.onlineBusiness"), description: t("landing.useCase.onlineBusinessDesc") },
+    { icon: MessageCircle, title: t("landing.useCase.koreaMarketplace"), description: t("landing.useCase.koreaMarketplaceDesc") },
     { icon: MessageSquare, title: t("landing.useCase.chatControl"), description: t("landing.useCase.chatControlDesc") },
-    { icon: Key, title: t("landing.useCase.byoLlm"), description: t("landing.useCase.byoLlmDesc") },
+    { icon: Sparkles, title: t("landing.useCase.byoLlm"), description: t("landing.useCase.byoLlmDesc") },
   ];
 
   const visibleUseCases = showAllUseCases ? useCases : useCases.slice(0, 4);
@@ -226,6 +226,12 @@ export default function Landing() {
           data-testid="section-hero-demo"
         >
           <div className="max-w-6xl mx-auto px-6 text-center">
+            <div className="flex items-center justify-center gap-2 mb-4">
+              <Badge className="bg-white/20 text-white border-white/30 hover:bg-white/30 text-sm px-3 py-1" data-testid="badge-gpt4o-hero">
+                <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+                Powered by OpenAI GPT-4o
+              </Badge>
+            </div>
             <h1
               className="text-white font-extrabold mb-6"
               style={{ fontSize: "clamp(1.8rem, 5vw, 3rem)" }}
@@ -287,24 +293,18 @@ export default function Landing() {
                     <ArrowRight className="h-4 w-4 ml-2" />
                   </a>
                 </Button>
-                <Button size="lg" variant="outline" asChild data-testid="button-download-desktop">
-                  <a href="https://github.com/Salepark/maker/releases/latest" target="_blank" rel="noopener noreferrer">
-                    <Monitor className="h-4 w-4 mr-2" />
-                    {t("landing.hero.downloadDesktop")}
-                  </a>
-                </Button>
               </div>
               <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
                 <div className="flex items-center gap-1">
-                  <Layers className="h-4 w-4" />
+                  <Sparkles className="h-4 w-4" />
                   <span>{t("landing.hero.badge1")}</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <Settings className="h-4 w-4" />
+                  <Clock className="h-4 w-4" />
                   <span>{t("landing.hero.badge2")}</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <Zap className="h-4 w-4" />
+                  <MessageSquare className="h-4 w-4" />
                   <span>{t("landing.hero.badge3")}</span>
                 </div>
               </div>
@@ -314,21 +314,21 @@ export default function Landing() {
               <div className="bg-gradient-to-br from-primary/20 to-primary/5 rounded-md p-8 border border-border/50">
                 <div className="space-y-4">
                   <div className="flex items-center gap-3 p-4 bg-background rounded-md border border-border">
-                    <Rss className="h-8 w-8 text-primary" />
+                    <Newspaper className="h-8 w-8 text-primary" />
                     <div>
                       <div className="font-medium">{t("landing.hero.chooseSources")}</div>
                       <div className="text-sm text-muted-foreground">{t("landing.hero.chooseSourcesDesc")}</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 p-4 bg-background rounded-md border border-border">
-                    <Settings className="h-8 w-8 text-primary" />
+                    <Clock className="h-8 w-8 text-primary" />
                     <div>
                       <div className="font-medium">{t("landing.hero.scheduleFormat")}</div>
                       <div className="text-sm text-muted-foreground">{t("landing.hero.scheduleFormatDesc")}</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 p-4 bg-background rounded-md border border-border">
-                    <ShieldCheck className="h-8 w-8 text-primary" />
+                    <Sparkles className="h-8 w-8 text-primary" />
                     <div>
                       <div className="font-medium">{t("landing.hero.aiAnalysis")}</div>
                       <div className="text-sm text-muted-foreground">{t("landing.hero.aiAnalysisDesc")}</div>
@@ -367,8 +367,8 @@ export default function Landing() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
               { icon: Shield, titleKey: "landing.whyMaker.dataOwnership", descKey: "landing.whyMaker.dataOwnershipDesc" },
-              { icon: RefreshCw, titleKey: "landing.whyMaker.swapAI", descKey: "landing.whyMaker.swapAIDesc" },
-              { icon: WifiOff, titleKey: "landing.whyMaker.worksOffline", descKey: "landing.whyMaker.worksOfflineDesc" },
+              { icon: Sparkles, titleKey: "landing.whyMaker.swapAI", descKey: "landing.whyMaker.swapAIDesc" },
+              { icon: RefreshCw, titleKey: "landing.whyMaker.worksOffline", descKey: "landing.whyMaker.worksOfflineDesc" },
               { icon: Eye, titleKey: "landing.whyMaker.humanControl", descKey: "landing.whyMaker.humanControlDesc" },
             ].map((item) => (
               <Card key={item.titleKey} className="hover-elevate" data-testid={`card-why-${item.titleKey.split(".").pop()}`}>
@@ -394,7 +394,7 @@ export default function Landing() {
             <Card className="hover-elevate">
               <CardContent className="pt-6 space-y-3">
                 <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Layers className="h-6 w-6 text-primary" />
+                  <Building2 className="h-6 w-6 text-primary" />
                 </div>
                 <h3 className="font-semibold">{t("landing.howItWorks.step1Title")}</h3>
                 <p className="text-sm text-muted-foreground">
@@ -406,7 +406,7 @@ export default function Landing() {
             <Card className="hover-elevate">
               <CardContent className="pt-6 space-y-3">
                 <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Settings className="h-6 w-6 text-primary" />
+                  <Rss className="h-6 w-6 text-primary" />
                 </div>
                 <h3 className="font-semibold">{t("landing.howItWorks.step2Title")}</h3>
                 <p className="text-sm text-muted-foreground">
@@ -418,7 +418,7 @@ export default function Landing() {
             <Card className="hover-elevate">
               <CardContent className="pt-6 space-y-3">
                 <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <ShieldCheck className="h-6 w-6 text-primary" />
+                  <Sparkles className="h-6 w-6 text-primary" />
                 </div>
                 <h3 className="font-semibold">{t("landing.howItWorks.step3Title")}</h3>
                 <p className="text-sm text-muted-foreground">
@@ -503,45 +503,42 @@ export default function Landing() {
         <section className="max-w-6xl mx-auto px-6 py-16" data-testid="section-pricing">
           <h2 className="text-2xl font-bold text-center mb-2">{t("landing.pricing.title")}</h2>
           <p className="text-center text-muted-foreground mb-12">{t("landing.pricing.subtitle")}</p>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid sm:grid-cols-3 gap-6 max-w-4xl mx-auto">
             {[
               {
                 key: "web",
-                icon: User,
-                color: "bg-blue-400 dark:bg-blue-500",
+                icon: BarChart3,
+                color: "bg-blue-500 dark:bg-blue-600",
                 features: [t("landing.pricing.web.f1"), t("landing.pricing.web.f2"), t("landing.pricing.web.f3"), t("landing.pricing.web.f4")],
-                active: true,
+                popular: false,
               },
               {
                 key: "local",
-                icon: Monitor,
-                color: "bg-emerald-500 dark:bg-emerald-600",
+                icon: TrendingUp,
+                color: "bg-primary",
                 features: [t("landing.pricing.local.f1"), t("landing.pricing.local.f2"), t("landing.pricing.local.f3")],
-                active: true,
-                href: "https://github.com/Salepark/maker/releases/latest",
+                popular: true,
               },
               {
                 key: "teams",
-                icon: Users,
-                color: "bg-orange-400 dark:bg-orange-500",
-                features: [t("landing.pricing.teams.f1"), t("landing.pricing.teams.f2"), t("landing.pricing.teams.f3")],
-                active: false,
-              },
-              {
-                key: "enterprise",
                 icon: Landmark,
                 color: "bg-slate-600 dark:bg-slate-500",
-                features: [t("landing.pricing.enterprise.f1"), t("landing.pricing.enterprise.f2"), t("landing.pricing.enterprise.f3")],
-                active: false,
+                features: [t("landing.pricing.teams.f1"), t("landing.pricing.teams.f2"), t("landing.pricing.teams.f3")],
+                popular: false,
               },
             ].map((plan) => (
-              <Card key={plan.key} className="flex flex-col" data-testid={`card-pricing-${plan.key}`}>
+              <Card key={plan.key} className={`flex flex-col relative ${plan.popular ? "ring-2 ring-primary shadow-lg scale-105" : ""}`} data-testid={`card-pricing-${plan.key}`}>
+                {plan.popular && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                    <Badge className="bg-primary text-primary-foreground px-3">BEST</Badge>
+                  </div>
+                )}
                 <div className={`${plan.color} rounded-t-md flex items-center justify-center py-5`}>
                   <plan.icon className="h-10 w-10 text-white" />
                 </div>
                 <CardContent className="pt-5 pb-6 flex flex-col flex-1 gap-4">
                   <div>
-                    <h3 className="font-bold text-base" data-testid={`text-pricing-price-${plan.key}`}>
+                    <h3 className="font-bold text-lg" data-testid={`text-pricing-price-${plan.key}`}>
                       {t(`landing.pricing.${plan.key}.price`)}
                     </h3>
                     <span className="text-xs text-muted-foreground">{t(`landing.pricing.${plan.key}.name`)}</span>
@@ -550,22 +547,16 @@ export default function Landing() {
                   <ul className="space-y-2 flex-1">
                     {plan.features.map((f) => (
                       <li key={f} className="flex items-start gap-2 text-sm">
-                        <Check className={`h-4 w-4 shrink-0 mt-0.5 ${plan.active ? "text-primary" : "text-muted-foreground"}`} />
+                        <Check className="h-4 w-4 shrink-0 mt-0.5 text-primary" />
                         <span>{f}</span>
                       </li>
                     ))}
                   </ul>
-                  {plan.active ? (
-                    <Button asChild className="w-full" data-testid={`button-pricing-${plan.key}`}>
-                      <a href={plan.href || "/api/login"} target={plan.href ? "_blank" : undefined} rel={plan.href ? "noopener noreferrer" : undefined}>
-                        {t(`landing.pricing.${plan.key}.button`)}
-                      </a>
-                    </Button>
-                  ) : (
-                    <Button variant="secondary" disabled className="w-full" data-testid={`button-pricing-${plan.key}`}>
+                  <Button asChild className={`w-full ${plan.popular ? "" : "variant-outline"}`} variant={plan.popular ? "default" : "outline"} data-testid={`button-pricing-${plan.key}`}>
+                    <a href="/api/login">
                       {t(`landing.pricing.${plan.key}.button`)}
-                    </Button>
-                  )}
+                    </a>
+                  </Button>
                 </CardContent>
               </Card>
             ))}
@@ -592,12 +583,6 @@ export default function Landing() {
               <a href="/api/login">
                 {t("landing.cta.button")}
                 <ArrowRight className="h-4 w-4 ml-2" />
-              </a>
-            </Button>
-            <Button size="lg" variant="outline" asChild data-testid="button-cta-download">
-              <a href="https://github.com/Salepark/maker/releases/latest" target="_blank" rel="noopener noreferrer">
-                <Monitor className="h-4 w-4 mr-2" />
-                {t("landing.hero.downloadDesktop")}
               </a>
             </Button>
           </div>

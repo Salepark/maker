@@ -4,7 +4,8 @@ import { useLanguage } from "@/lib/language-provider";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Card, CardContent } from "@/components/ui/card";
-import { Bot, Loader2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Bot, Loader2, Sparkles } from "lucide-react";
 
 const DemoProgress = () => {
   const [match, params] = useRoute("/demo/progress/:jobId");
@@ -76,6 +77,10 @@ const DemoProgress = () => {
             <h1 className="text-xl font-bold" data-testid="text-progress-title">
               {status?.status === "completed" ? t("demo.progress.complete") : t("demo.progress.title")}
             </h1>
+            <Badge className="bg-gradient-to-r from-[#667eea] to-[#764ba2] text-white border-0 text-xs px-2.5 py-0.5 mx-auto" data-testid="badge-gpt4o-progress">
+              <Sparkles className="h-3 w-3 mr-1" />
+              Powered by GPT-4o
+            </Badge>
 
             <div className="w-full bg-muted rounded-full h-3 overflow-hidden">
               <div

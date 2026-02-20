@@ -27,6 +27,7 @@ import {
   Bot,
   ArrowRight,
   FileDown,
+  Sparkles,
 } from "lucide-react";
 
 interface BasicInfo {
@@ -219,9 +220,15 @@ export default function DemoReport() {
       <main className="max-w-4xl mx-auto px-6 py-8 space-y-8">
         {/* Header */}
         <div className="space-y-2" data-testid="section-report-header">
-          <h1 className="text-2xl sm:text-3xl font-bold" data-testid="text-report-title">
-            {t("demo.report.title")}
-          </h1>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-2xl sm:text-3xl font-bold" data-testid="text-report-title">
+              {t("demo.report.title")}
+            </h1>
+            <Badge className="bg-gradient-to-r from-[#667eea] to-[#764ba2] text-white border-0 text-xs px-2.5 py-1" data-testid="badge-gpt4o-report">
+              <Sparkles className="h-3 w-3 mr-1" />
+              GPT-4o
+            </Badge>
+          </div>
           <div className="flex items-center gap-3 text-sm text-muted-foreground flex-wrap">
             <span>{t("demo.report.generatedAt")}: {new Date(result.generatedAt).toLocaleDateString()}</span>
             <span>{t("demo.report.analysisTime")}: {result.analysisTime}{t("demo.report.secondsUnit")}</span>
