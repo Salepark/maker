@@ -1047,6 +1047,8 @@ export const en: Record<string, string> = {
   "demo.report.retry": "Retry",
   "demo.report.backToHome": "Back to Home",
   "demo.report.newAnalysis": "Analyze Another Company",
+  "demo.report.downloadPdf": "Download PDF",
+  "demo.report.generatingPdf": "Generating PDF...",
   "demo.report.companyInfo": "Company Overview",
   "demo.report.companyInfo.industry": "Industry",
   "demo.report.companyInfo.ceo": "CEO",

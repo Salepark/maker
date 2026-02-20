@@ -1047,6 +1047,8 @@ export const ko: Record<string, string> = {
   "demo.report.retry": "다시 시도",
   "demo.report.backToHome": "홈으로 돌아가기",
   "demo.report.newAnalysis": "다른 회사 분석하기",
+  "demo.report.downloadPdf": "PDF 다운로드",
+  "demo.report.generatingPdf": "PDF 생성 중...",
   "demo.report.companyInfo": "회사 개요",
   "demo.report.companyInfo.industry": "업종",
   "demo.report.companyInfo.ceo": "CEO",
