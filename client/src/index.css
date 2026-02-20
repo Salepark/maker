@@ -293,11 +293,144 @@
     color: black !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+    font-size: 11pt;
+    line-height: 1.5;
   }
+
   .dark {
     color-scheme: light;
   }
+
   * {
     box-shadow: none !important;
+  }
+
+  @page {
+    size: A4;
+    margin: 15mm 18mm;
+  }
+
+  .print\:hidden {
+    display: none !important;
+  }
+
+  [data-testid="section-report-header"] {
+    margin-bottom: 8mm;
+    padding-bottom: 4mm;
+    border-bottom: 2px solid #333;
+  }
+
+  [data-testid="section-report-header"] h1 {
+    font-size: 20pt !important;
+    color: #111 !important;
+  }
+
+  [data-testid="badge-gpt4o-report"] {
+    background: #444 !important;
+    color: white !important;
+    font-size: 8pt !important;
+    padding: 2px 8px !important;
+    border-radius: 4px !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  [data-testid="section-company-info"],
+  [data-testid="section-summary"],
+  [data-testid="section-swot"],
+  [data-testid="section-news"],
+  [data-testid="section-insights"] {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-bottom: 5mm;
+  }
+
+  [data-testid="section-company-info"] [class*="CardHeader"],
+  [data-testid="section-summary"] [class*="CardHeader"] {
+    padding-bottom: 2mm !important;
+  }
+
+  [data-testid^="card-swot-"] {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    border: 1px solid #ccc !important;
+    background: white !important;
+  }
+
+  [data-testid^="card-swot-"] [class*="CardTitle"] {
+    font-size: 10pt !important;
+  }
+
+  [data-testid^="card-swot-strengths"] [class*="CardTitle"] {
+    color: #059669 !important;
+  }
+  [data-testid^="card-swot-weaknesses"] [class*="CardTitle"] {
+    color: #dc2626 !important;
+  }
+  [data-testid^="card-swot-opportunities"] [class*="CardTitle"] {
+    color: #2563eb !important;
+  }
+  [data-testid^="card-swot-threats"] [class*="CardTitle"] {
+    color: #d97706 !important;
+  }
+
+  [data-testid^="card-news-"] {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    border: 1px solid #ddd !important;
+    margin-bottom: 2mm;
+  }
+
+  [data-testid^="badge-sentiment-"] {
+    border: 1px solid #999 !important;
+    font-size: 7pt !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  [data-testid^="text-insight-"] {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  [data-testid="section-cta"] {
+    display: none !important;
+  }
+
+  .min-h-screen {
+    min-height: auto !important;
+  }
+
+  .bg-gradient-to-br {
+    background: white !important;
+  }
+
+  main {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+
+  [class*="Card"] {
+    border: 1px solid #ddd !important;
+    background: white !important;
+  }
+
+  h2 {
+    font-size: 13pt !important;
+    color: #111 !important;
+    margin-top: 4mm !important;
+  }
+
+  p, li, span {
+    color: #333 !important;
+  }
+
+  .text-muted-foreground {
+    color: #555 !important;
+  }
+
+  a {
+    color: #333 !important;
+    text-decoration: none !important;
   }
 }

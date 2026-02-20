@@ -217,9 +217,23 @@ export default function DemoReport() {
         </div>
       </nav>
 
-      <main className="max-w-4xl mx-auto px-6 py-8 space-y-8">
+      <div className="hidden print:block mb-6 pb-4 border-b-2 border-gray-800" data-testid="print-header">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-xs text-gray-500 mb-1">Maker AI Market Briefing</div>
+            <h1 className="text-2xl font-bold text-gray-900">{result.basicInfo.name} — {t("demo.report.title")}</h1>
+          </div>
+          <div className="text-right text-xs text-gray-500">
+            <div>{t("demo.report.generatedAt")}: {new Date(result.generatedAt).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })}</div>
+            <div>{t("demo.report.analysisTime")}: {result.analysisTime}{t("demo.report.secondsUnit")}</div>
+            <div className="mt-1 inline-block bg-gray-800 text-white text-[7pt] px-2 py-0.5 rounded">GPT-4o Powered</div>
+          </div>
+        </div>
+      </div>
+
+      <main className="max-w-4xl mx-auto px-6 py-8 space-y-8 print:max-w-none print:px-0 print:py-0 print:space-y-4">
         {/* Header */}
-        <div className="space-y-2" data-testid="section-report-header">
+        <div className="space-y-2 print:hidden" data-testid="section-report-header">
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-2xl sm:text-3xl font-bold" data-testid="text-report-title">
               {t("demo.report.title")}
@@ -392,6 +406,11 @@ export default function DemoReport() {
           </CardContent>
         </Card>
       </main>
+
+      <div className="hidden print:block mt-8 pt-4 border-t border-gray-300 text-center text-[8pt] text-gray-400" data-testid="print-footer">
+        <p>본 리포트는 Maker AI Market Briefing 서비스에 의해 자동 생성되었습니다. | Powered by OpenAI GPT-4o</p>
+        <p className="mt-1">© {new Date().getFullYear()} Maker — AI 시장 브리핑 서비스 | maker.app</p>
+      </div>
     </div>
   );
 }
