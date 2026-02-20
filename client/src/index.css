@@ -286,3 +286,18 @@
     inset: -1px;
   }
 }
+
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .dark {
+    color-scheme: light;
+  }
+  * {
+    box-shadow: none !important;
+  }
+}

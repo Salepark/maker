@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRoute } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -26,7 +26,7 @@ import {
   Loader2,
   Bot,
   ArrowRight,
-  Download,
+  FileDown,
 } from "lucide-react";
 
 interface BasicInfo {
@@ -76,8 +76,6 @@ export default function DemoReport() {
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [pdfGenerating, setPdfGenerating] = useState(false);
-  const reportRef = useRef<HTMLDivElement>(null);
   const { t } = useLanguage();
 
   const fetchReport = async () => {
@@ -96,30 +94,9 @@ export default function DemoReport() {
     }
   };
 
-  const handleDownloadPdf = useCallback(async () => {
-    if (!reportRef.current || !data) return;
-    setPdfGenerating(true);
-    try {
-      const html2pdf = (await import("html2pdf.js")).default;
-      const companyName = data.result.basicInfo.name.replace(/[^a-zA-Z0-9가-힣]/g, "_");
-      const filename = `Maker_Report_${companyName}_${new Date().toISOString().slice(0, 10)}.pdf`;
-      await html2pdf()
-        .set({
-          margin: [10, 10, 10, 10],
-          filename,
-          image: { type: "jpeg", quality: 0.95 },
-          html2canvas: { scale: 2, useCORS: true, letterRendering: true },
-          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-          pagebreak: { mode: ["avoid-all", "css", "legacy"] },
-        })
-        .from(reportRef.current)
-        .save();
-    } catch (e) {
-      console.error("PDF generation failed:", e);
-    } finally {
-      setPdfGenerating(false);
-    }
-  }, [data]);
+  const handleDownloadPdf = useCallback(() => {
+    window.print();
+  }, []);
 
   useEffect(() => {
     fetchReport();
@@ -210,7 +187,7 @@ export default function DemoReport() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted">
-      <nav className="sticky top-0 z-50 backdrop-blur-md bg-background/80 border-b border-border">
+      <nav className="sticky top-0 z-50 backdrop-blur-md bg-background/80 border-b border-border print:hidden">
         <div className="max-w-4xl mx-auto px-6 py-3 flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-2">
             <Bot className="h-5 w-5 text-primary" />
@@ -221,15 +198,11 @@ export default function DemoReport() {
               variant="outline"
               size="sm"
               onClick={handleDownloadPdf}
-              disabled={pdfGenerating}
+              className="print:hidden"
               data-testid="button-download-pdf"
             >
-              {pdfGenerating ? (
-                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-              ) : (
-                <Download className="h-4 w-4 mr-1" />
-              )}
-              {pdfGenerating ? t("demo.report.generatingPdf") : t("demo.report.downloadPdf")}
+              <FileDown className="h-4 w-4 mr-1" />
+              {t("demo.report.downloadPdf")}
             </Button>
             <LanguageSwitcher />
             <ThemeToggle />
@@ -243,7 +216,7 @@ export default function DemoReport() {
         </div>
       </nav>
 
-      <main ref={reportRef} className="max-w-4xl mx-auto px-6 py-8 space-y-8">
+      <main className="max-w-4xl mx-auto px-6 py-8 space-y-8">
         {/* Header */}
         <div className="space-y-2" data-testid="section-report-header">
           <h1 className="text-2xl sm:text-3xl font-bold" data-testid="text-report-title">
@@ -386,7 +359,7 @@ export default function DemoReport() {
 
         {/* CTA */}
         <Card
-          className="border-2 border-primary/20"
+          className="border-2 border-primary/20 print:hidden"
           style={{ background: "linear-gradient(135deg, #667eea20 0%, #764ba220 100%)" }}
           data-testid="section-cta"
         >
