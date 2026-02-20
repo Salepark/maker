@@ -1018,7 +1018,7 @@ export const ko: Record<string, string> = {
   "memory.ruleCount": "{{count}}개 규칙",
 
   "demo.hero.headline1": "AI가 당신의 경쟁사를",
-  "demo.hero.headline2": "5분만에 분석합니다",
+  "demo.hero.headline2": "1분 안에 분석합니다",
   "demo.hero.subheadline": "복잡한 설정 없이, 회사명 하나만 입력하세요.",
   "demo.hero.subheadlineBold": "OpenClaw보다 10배 쉽습니다",
   "demo.hero.placeholder": "예: Tesla, Apple, Netflix",
@@ -1026,7 +1026,7 @@ export const ko: Record<string, string> = {
   "demo.hero.analyzing": "분석 중...",
   "demo.hero.benefitFree": "완전 무료 체험",
   "demo.hero.benefitNoSignup": "가입 불필요",
-  "demo.hero.benefitTime": "5분 내 완료",
+  "demo.hero.benefitTime": "1분 내 완료",
   "demo.hero.emptyInput": "회사명을 입력해주세요!",
   "demo.hero.networkError": "네트워크 오류가 발생했습니다.",
 

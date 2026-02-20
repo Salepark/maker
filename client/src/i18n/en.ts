@@ -1018,7 +1018,7 @@ export const en: Record<string, string> = {
   "memory.ruleCount": "{{count}} rules",
 
   "demo.hero.headline1": "AI analyzes your competitors",
-  "demo.hero.headline2": "in just 5 minutes",
+  "demo.hero.headline2": "in under 1 minute",
   "demo.hero.subheadline": "No complex setup needed. Just enter a company name.",
   "demo.hero.subheadlineBold": "10x easier than OpenClaw",
   "demo.hero.placeholder": "e.g. Tesla, Apple, Netflix",
@@ -1026,7 +1026,7 @@ export const en: Record<string, string> = {
   "demo.hero.analyzing": "Analyzing...",
   "demo.hero.benefitFree": "Free trial",
   "demo.hero.benefitNoSignup": "No signup required",
-  "demo.hero.benefitTime": "Done in 5 min",
+  "demo.hero.benefitTime": "Done in under 1 min",
   "demo.hero.emptyInput": "Please enter a company name!",
   "demo.hero.networkError": "A network error occurred.",
 
