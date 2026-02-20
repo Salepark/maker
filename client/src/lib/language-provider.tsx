@@ -11,7 +11,7 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 
 export function LanguageProvider({
   children,
-  defaultLanguage = "en",
+  defaultLanguage = "ko",
 }: {
   children: React.ReactNode;
   defaultLanguage?: Language;
