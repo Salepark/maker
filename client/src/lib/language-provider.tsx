@@ -16,15 +16,12 @@ export function LanguageProvider({
   children: React.ReactNode;
   defaultLanguage?: Language;
 }) {
-  const [language, setLanguageState] = useState<Language>(() => {
-    const stored = localStorage.getItem("language") as Language;
-    return stored === "en" || stored === "ko" ? stored : defaultLanguage;
-  });
+  const [language, setLanguageState] = useState<Language>("ko");
 
   useEffect(() => {
-    localStorage.setItem("language", language);
-    document.documentElement.lang = language;
-  }, [language]);
+    localStorage.setItem("language", "ko");
+    document.documentElement.lang = "ko";
+  }, []);
 
   const setLanguage = useCallback((lang: Language) => {
     setLanguageState(lang);
