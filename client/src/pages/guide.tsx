@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Rocket, Settings, Bot, Rss, MessageSquare, FileText, ChevronDown, Zap, Brain } from "lucide-react";
+import { Rocket, Settings, Bot, Rss, MessageSquare, FileText, ChevronDown, Zap, Brain, Monitor, Apple, Terminal, Download } from "lucide-react";
 import { useState } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -206,6 +206,107 @@ export default function Guide() {
               </CardContent>
             </Card>
           ))}
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold flex items-center gap-2" data-testid="text-guide-desktop-title">
+          <Monitor className="h-5 w-5 text-primary" />
+          {t("guide.desktop.title")}
+        </h2>
+        <p className="text-sm text-muted-foreground">{t("guide.desktop.intro")}</p>
+
+        <Card data-testid="card-guide-desktop-mac">
+          <CardContent className="p-4 space-y-4">
+            <h3 className="font-semibold text-sm flex items-center gap-2">
+              <Apple className="h-4 w-4" />
+              {t("guide.desktop.mac.title")}
+            </h3>
+            <ol className="list-decimal list-inside space-y-1 pl-1 text-sm text-muted-foreground">
+              <li dangerouslySetInnerHTML={{ __html: t("guide.desktop.mac.step1") }} />
+              <li dangerouslySetInnerHTML={{ __html: t("guide.desktop.mac.step2") }} />
+              <li dangerouslySetInnerHTML={{ __html: t("guide.desktop.mac.step3") }} />
+            </ol>
+
+            <div className="rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950 p-4 space-y-3">
+              <h4 className="font-semibold text-sm text-amber-800 dark:text-amber-200">
+                ⚠️ {t("guide.desktop.mac.gatekeeper")}
+              </h4>
+              <p className="text-xs text-amber-700 dark:text-amber-300">{t("guide.desktop.mac.gatekeeper.desc")}</p>
+
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold text-amber-800 dark:text-amber-200">{t("guide.desktop.mac.method1.title")}</p>
+                  <ol className="list-decimal list-inside space-y-0.5 pl-2 text-xs text-amber-700 dark:text-amber-300">
+                    <li dangerouslySetInnerHTML={{ __html: t("guide.desktop.mac.method1.step1") }} />
+                    <li dangerouslySetInnerHTML={{ __html: t("guide.desktop.mac.method1.step2") }} />
+                    <li dangerouslySetInnerHTML={{ __html: t("guide.desktop.mac.method1.step3") }} />
+                    <li dangerouslySetInnerHTML={{ __html: t("guide.desktop.mac.method1.step4") }} />
+                  </ol>
+                </div>
+
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold text-amber-800 dark:text-amber-200">{t("guide.desktop.mac.method2.title")}</p>
+                  <ol className="list-decimal list-inside space-y-0.5 pl-2 text-xs text-amber-700 dark:text-amber-300">
+                    <li dangerouslySetInnerHTML={{ __html: t("guide.desktop.mac.method2.step1") }} />
+                    <li dangerouslySetInnerHTML={{ __html: t("guide.desktop.mac.method2.step2") }} />
+                    <li dangerouslySetInnerHTML={{ __html: t("guide.desktop.mac.method2.step3") }} />
+                  </ol>
+                </div>
+
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold text-amber-800 dark:text-amber-200 flex items-center gap-1">
+                    <Terminal className="h-3 w-3" />
+                    {t("guide.desktop.mac.method3.title")}
+                  </p>
+                  <ol className="list-decimal list-inside space-y-0.5 pl-2 text-xs text-amber-700 dark:text-amber-300">
+                    <li>{t("guide.desktop.mac.method3.step1")}</li>
+                  </ol>
+                  <div className="rounded bg-gray-900 text-green-400 px-3 py-2 text-xs font-mono mt-1">
+                    {t("guide.desktop.mac.method3.cmd")}
+                  </div>
+                  <p className="text-xs text-amber-700 dark:text-amber-300 pl-2">{t("guide.desktop.mac.method3.step2")}</p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card data-testid="card-guide-desktop-windows">
+          <CardContent className="p-4 space-y-3">
+            <h3 className="font-semibold text-sm flex items-center gap-2">
+              <Monitor className="h-4 w-4" />
+              {t("guide.desktop.windows.title")}
+            </h3>
+            <ol className="list-decimal list-inside space-y-1 pl-1 text-sm text-muted-foreground">
+              <li dangerouslySetInnerHTML={{ __html: t("guide.desktop.windows.step1") }} />
+              <li dangerouslySetInnerHTML={{ __html: t("guide.desktop.windows.step2") }} />
+              <li dangerouslySetInnerHTML={{ __html: t("guide.desktop.windows.step3") }} />
+            </ol>
+          </CardContent>
+        </Card>
+
+        <Card data-testid="card-guide-desktop-linux">
+          <CardContent className="p-4 space-y-3">
+            <h3 className="font-semibold text-sm flex items-center gap-2">
+              <Terminal className="h-4 w-4" />
+              {t("guide.desktop.linux.title")}
+            </h3>
+            <ol className="list-decimal list-inside space-y-1 pl-1 text-sm text-muted-foreground">
+              <li dangerouslySetInnerHTML={{ __html: t("guide.desktop.linux.step1") }} />
+              <li dangerouslySetInnerHTML={{ __html: t("guide.desktop.linux.step2") }} />
+              <li dangerouslySetInnerHTML={{ __html: t("guide.desktop.linux.step3") }} />
+            </ol>
+          </CardContent>
+        </Card>
+
+        <div className="flex justify-center">
+          <Button asChild size="sm" variant="outline" data-testid="button-guide-download">
+            <a href="https://github.com/Salepark/maker/releases/latest" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
+              <Download className="h-4 w-4" />
+              {t("guide.desktop.download")}
+            </a>
+          </Button>
         </div>
       </div>
 
