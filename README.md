@@ -96,7 +96,7 @@ If you wish to:
 
 Please contact us for a separate commercial license.
 
-- Website: https://makelr.com
+- Website: https://maker.am
 - Issues: https://github.com/Salepark/maker/issues
 
 ---
