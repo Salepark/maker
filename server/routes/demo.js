@@ -103,110 +103,157 @@ const KNOWN_CORP_CODES = {
   'NAVER': '00266961',
   '카카오': '00258801',
   'CJ': '00635134',
-  '포스코': '00138532',
-  'POSCO': '00138532',
-  '포스코홀딩스': '00138532',
+  '포스코홀딩스': '00155319',
+  'POSCO홀딩스': '00155319',
   '기아': '00106641',
   '기아자동차': '00106641',
-  '셀트리온': '00421045',
-  '삼성SDI': '00126186',
-  '삼성바이오로직스': '00743573',
-  '삼성물산': '00126276',
-  '삼성생명': '00126299',
-  'SK텔레콤': '00164800',
+  '셀트리온': '00413046',
+  '삼성SDI': '00126362',
+  '삼성바이오로직스': '00877059',
+  '삼성물산': '00126229',
+  '삼성생명': '00126256',
+  'SK텔레콤': '00159023',
   'SK이노베이션': '00631518',
-  'KT': '00164706',
-  'LG에너지솔루션': '01123825',
-  '한화솔루션': '00149655',
-  '롯데케미칼': '00159484',
+  'KT': '00372873',
+  'LG에너지솔루션': '01515323',
+  '한화솔루션': '00162461',
+  '롯데케미칼': '00165413',
   '현대모비스': '00164788',
-  'CJ그룹': '00635134',
-  '두산에너빌리티': '00115714',
-  '한국전력': '00159243',
+  '두산에너빌리티': '00159616',
+  '한국전력': '00159193',
   '신한지주': '00382199',
-  'KB금융': '00547583',
-  '하나금융지주': '00547210',
-  '우리금융지주': '00254872',
-  '아모레퍼시픽': '00156843',
-  '한화에어로스페이스': '00142658',
+  'KB금융': '00688996',
+  '하나금융지주': '00547583',
+  '우리금융지주': '00375302',
+  '아모레퍼시픽': '00583424',
+  '한화에어로스페이스': '00126566',
 };
 
 let corpCodeCache = null;
 
-async function searchCorpCode(companyName) {
-  if (KNOWN_CORP_CODES[companyName]) {
-    return KNOWN_CORP_CODES[companyName];
-  }
-
-  for (const [name, code] of Object.entries(KNOWN_CORP_CODES)) {
-    if (companyName.includes(name) || name.includes(companyName)) {
-      return code;
-    }
-  }
+async function loadCorpCodeCache() {
+  if (corpCodeCache) return true;
 
   try {
     const dartKey = process.env.DART_API_KEY;
-    if (!dartKey) return null;
+    if (!dartKey) return false;
 
-    if (!corpCodeCache) {
-      console.log('[DART] Downloading corp code list...');
-      const res = await fetch(`https://opendart.fss.or.kr/api/corpCode.xml?crtfc_key=${dartKey}`, {
-        signal: AbortSignal.timeout(15000),
-      });
-      if (!res.ok) {
-        console.error('[DART] corpCode download failed:', res.status);
-        return null;
-      }
-
-      const arrayBuffer = await res.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-
-      const xmlContent = await new Promise((resolve, reject) => {
-        const chunks = [];
-        const unzip = createUnzip();
-        unzip.on('data', (chunk) => chunks.push(chunk));
-        unzip.on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')));
-        unzip.on('error', reject);
-        const readable = new Readable();
-        readable.push(buffer);
-        readable.push(null);
-        readable.pipe(unzip);
-      });
-
-      const parsed = await new Promise((resolve, reject) => {
-        parseString(xmlContent, (err, result) => {
-          if (err) reject(err);
-          else resolve(result);
-        });
-      });
-
-      if (parsed?.result?.list) {
-        corpCodeCache = parsed.result.list.map(item => ({
-          corpCode: item.corp_code?.[0] || '',
-          corpName: item.corp_name?.[0] || '',
-          stockCode: item.stock_code?.[0] || '',
-        }));
-        console.log(`[DART] Loaded ${corpCodeCache.length} corp codes`);
-      }
+    console.log('[DART] Downloading corp code list...');
+    const res = await fetch(`https://opendart.fss.or.kr/api/corpCode.xml?crtfc_key=${dartKey}`, {
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!res.ok) {
+      console.error('[DART] corpCode download failed:', res.status);
+      return false;
     }
 
-    if (corpCodeCache) {
-      const exact = corpCodeCache.find(c => c.corpName === companyName);
-      if (exact) return exact.corpCode;
+    const arrayBuffer = await res.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
 
-      const partial = corpCodeCache.find(c =>
-        c.corpName.includes(companyName) || companyName.includes(c.corpName)
-      );
-      if (partial) return partial.corpCode;
+    const xmlContent = await new Promise((resolve, reject) => {
+      const chunks = [];
+      const unzip = createUnzip();
+      unzip.on('data', (chunk) => chunks.push(chunk));
+      unzip.on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')));
+      unzip.on('error', reject);
+      const readable = new Readable();
+      readable.push(buffer);
+      readable.push(null);
+      readable.pipe(unzip);
+    });
+
+    const parsed = await new Promise((resolve, reject) => {
+      parseString(xmlContent, (err, result) => {
+        if (err) reject(err);
+        else resolve(result);
+      });
+    });
+
+    if (parsed?.result?.list) {
+      corpCodeCache = parsed.result.list.map(item => ({
+        corpCode: item.corp_code?.[0] || '',
+        corpName: item.corp_name?.[0] || '',
+        stockCode: (item.stock_code?.[0] || '').trim(),
+      }));
+      console.log(`[DART] Loaded ${corpCodeCache.length} corp codes`);
+      return true;
     }
   } catch (err) {
-    console.error('[DART] Corp code search error:', err.message);
+    console.error('[DART] Corp code cache load error:', err.message);
+  }
+  return false;
+}
+
+function normalizeCompanyName(name) {
+  return name
+    .replace(/\(주\)|\(유\)|주식회사|\s+/g, '')
+    .replace(/㈜/g, '')
+    .toLowerCase();
+}
+
+async function searchCorpCode(companyName) {
+  const loaded = await loadCorpCodeCache();
+
+  if (loaded && corpCodeCache) {
+    const normalized = normalizeCompanyName(companyName);
+
+    const exactMatch = corpCodeCache.find(c => normalizeCompanyName(c.corpName) === normalized);
+    if (exactMatch) {
+      console.log(`[DART] Exact match: "${companyName}" → "${exactMatch.corpName}" (${exactMatch.corpCode})`);
+      return exactMatch.corpCode;
+    }
+
+    const listedExact = corpCodeCache.find(c =>
+      normalizeCompanyName(c.corpName) === normalized && c.stockCode
+    );
+    if (listedExact) {
+      console.log(`[DART] Listed exact match: "${companyName}" → "${listedExact.corpName}" (${listedExact.corpCode})`);
+      return listedExact.corpCode;
+    }
+
+    const partialListed = corpCodeCache.filter(c => {
+      const cn = normalizeCompanyName(c.corpName);
+      return (cn.includes(normalized) || normalized.includes(cn)) && c.stockCode;
+    });
+    if (partialListed.length === 1) {
+      console.log(`[DART] Partial listed match: "${companyName}" → "${partialListed[0].corpName}" (${partialListed[0].corpCode})`);
+      return partialListed[0].corpCode;
+    }
+    if (partialListed.length > 1) {
+      const best = partialListed.reduce((a, b) => {
+        const aDiff = Math.abs(normalizeCompanyName(a.corpName).length - normalized.length);
+        const bDiff = Math.abs(normalizeCompanyName(b.corpName).length - normalized.length);
+        return aDiff <= bDiff ? a : b;
+      });
+      console.log(`[DART] Best partial match from ${partialListed.length} candidates: "${companyName}" → "${best.corpName}" (${best.corpCode})`);
+      return best.corpCode;
+    }
+
+    const partialAny = corpCodeCache.filter(c => {
+      const cn = normalizeCompanyName(c.corpName);
+      return cn.includes(normalized) || normalized.includes(cn);
+    });
+    if (partialAny.length > 0) {
+      const best = partialAny.reduce((a, b) => {
+        const aDiff = Math.abs(normalizeCompanyName(a.corpName).length - normalized.length);
+        const bDiff = Math.abs(normalizeCompanyName(b.corpName).length - normalized.length);
+        return aDiff <= bDiff ? a : b;
+      });
+      console.log(`[DART] Partial any match: "${companyName}" → "${best.corpName}" (${best.corpCode})`);
+      return best.corpCode;
+    }
   }
 
+  if (KNOWN_CORP_CODES[companyName]) {
+    console.log(`[DART] Fallback to known code: "${companyName}" → ${KNOWN_CORP_CODES[companyName]}`);
+    return KNOWN_CORP_CODES[companyName];
+  }
+
+  console.log(`[DART] No match found for "${companyName}"`);
   return null;
 }
 
-async function fetchDartCompanyInfo(corpCode) {
+async function fetchDartCompanyInfo(corpCode, searchQuery) {
   const dartKey = process.env.DART_API_KEY;
   if (!dartKey || !corpCode) return null;
 
@@ -222,6 +269,15 @@ async function fetchDartCompanyInfo(corpCode) {
     if (data.status !== '000') {
       console.error('[DART] API error:', data.message);
       return null;
+    }
+
+    if (searchQuery) {
+      const returnedName = normalizeCompanyName(data.corp_name || '');
+      const queryName = normalizeCompanyName(searchQuery);
+      if (!returnedName.includes(queryName) && !queryName.includes(returnedName)) {
+        console.error(`[DART] MISMATCH: searched "${searchQuery}" but got "${data.corp_name}" — rejecting result`);
+        return null;
+      }
     }
 
     const estDate = data.est_dt;
@@ -497,7 +553,7 @@ async function processAnalysis(jobId) {
     const corpCode = await searchCorpCode(job.company);
     if (corpCode) {
       console.log(`[DART] Found corp_code for "${job.company}": ${corpCode}`);
-      dartInfo = await fetchDartCompanyInfo(corpCode);
+      dartInfo = await fetchDartCompanyInfo(corpCode, job.company);
       if (dartInfo) {
         console.log(`[DART] Company info loaded: ${dartInfo.name} (${dartInfo.ceo})`);
       }
