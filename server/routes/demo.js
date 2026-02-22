@@ -3,9 +3,93 @@ import { v4 as uuidv4 } from 'uuid';
 import { Readable } from 'stream';
 import { createUnzip } from 'zlib';
 import { parseString } from 'xml2js';
+import OpenAI from 'openai';
 
 const router = express.Router();
 const analysisJobs = new Map();
+
+const openai = new OpenAI({
+  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+});
+
+async function analyzeWithGPT4o(companyName, dartInfo, newsItems) {
+  const companyContext = dartInfo
+    ? `회사명: ${dartInfo.name} (${dartInfo.nameEng})
+업종: ${dartInfo.industry}
+대표이사: ${dartInfo.ceo}
+설립일: ${dartInfo.founded}
+본사: ${dartInfo.address}
+종목코드: ${dartInfo.stockCode || '비상장'}
+시장: ${dartInfo.corpClass === 'Y' ? 'KOSPI' : dartInfo.corpClass === 'K' ? 'KOSDAQ' : '기타'}`
+    : `회사명: ${companyName}`;
+
+  const newsContext = newsItems && newsItems.length > 0
+    ? newsItems.map((n, i) => `${i + 1}. [${n.sentiment}] ${n.title} (${n.source})\n   ${n.summary}`).join('\n')
+    : '최근 뉴스 없음';
+
+  const prompt = `당신은 한국 중소기업 시장 분석 전문가입니다. 다음 기업 정보와 최근 뉴스를 바탕으로 종합 분석을 수행해주세요.
+
+## 기업 정보
+${companyContext}
+
+## 최근 뉴스
+${newsContext}
+
+## 요청 사항
+다음 JSON 형식으로 분석 결과를 반환해주세요. 반드시 유효한 JSON만 출력하세요:
+
+{
+  "summary": "기업에 대한 종합적인 분석 요약 (3~5문장, 한국어)",
+  "swot": {
+    "strengths": ["강점 1", "강점 2", "강점 3"],
+    "weaknesses": ["약점 1", "약점 2", "약점 3"],
+    "opportunities": ["기회 1", "기회 2", "기회 3"],
+    "threats": ["위협 1", "위협 2", "위협 3"]
+  },
+  "insights": [
+    "투자/경영 관점의 핵심 인사이트 1",
+    "투자/경영 관점의 핵심 인사이트 2",
+    "투자/경영 관점의 핵심 인사이트 3",
+    "투자/경영 관점의 핵심 인사이트 4",
+    "투자/경영 관점의 핵심 인사이트 5"
+  ]
+}
+
+주의사항:
+- 모든 내용은 한국어로 작성
+- SWOT 각 영역은 정확히 3개씩
+- 인사이트는 정확히 5개
+- 해당 기업의 실제 산업 특성과 뉴스를 반영한 구체적인 분석
+- 일반적인 내용이 아닌, 이 기업에 특화된 분석 제공
+- summary에는 DART 기본정보 반복 없이 시장 위치와 전망 중심으로 작성`;
+
+  try {
+    console.log(`[GPT-4o] Starting analysis for "${companyName}"...`);
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        { role: 'system', content: '당신은 한국 기업 시장 분석 전문 AI입니다. 요청된 JSON 형식으로만 응답하세요.' },
+        { role: 'user', content: prompt },
+      ],
+      response_format: { type: 'json_object' },
+      max_completion_tokens: 8192,
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) {
+      console.error('[GPT-4o] Empty response');
+      return null;
+    }
+
+    const parsed = JSON.parse(content);
+    console.log(`[GPT-4o] Analysis completed for "${companyName}"`);
+    return parsed;
+  } catch (err) {
+    console.error('[GPT-4o] Analysis error:', err.message);
+    return null;
+  }
+}
 
 const KNOWN_CORP_CODES = {
   '삼성전자': '00126380',
@@ -355,6 +439,49 @@ router.get('/analysis-result/:jobId', (req, res) => {
   });
 });
 
+function getFallbackSwot(company) {
+  return {
+    strengths: [
+      '강력한 브랜드 인지도와 높은 고객 충성도',
+      '적극적인 R&D 투자 및 기술 혁신 역량',
+      '글로벌 시장에서의 높은 점유율',
+    ],
+    weaknesses: [
+      '경쟁사 대비 높은 가격 구조',
+      '공급망 특정 지역 집중 리스크',
+      '핵심 시장에 대한 높은 의존도',
+    ],
+    opportunities: [
+      '신흥 시장 진출 확대 가능성',
+      '신규 제품 라인 다각화',
+      'ESG 및 지속가능성 트렌드 활용',
+    ],
+    threats: [
+      '신규 경쟁사 진입으로 인한 경쟁 심화',
+      '변화하는 규제 환경 대응 필요',
+      '원자재 및 운영 비용 상승 압박',
+    ],
+  };
+}
+
+function getFallbackInsights(company) {
+  return [
+    `${company}의 매출 성장률은 업계 평균을 상회하며, 강력한 경쟁 우위를 보여줍니다.`,
+    `R&D 투자 비중이 높아 기술 혁신에 적극적입니다.`,
+    `주요 경제 매체 기준 시장 감성 분석 결과, 긍정적 보도 비율이 우세합니다.`,
+    `공급망 다각화 노력으로 단일 공급원 의존도가 감소 추세입니다.`,
+    `고객 유지율이 높아 강한 브랜드 충성도를 나타냅니다.`,
+  ];
+}
+
+function getFallbackSummary(company, dartInfo) {
+  const corpClassMap = { 'Y': '유가증권시장 (KOSPI)', 'K': '코스닥 (KOSDAQ)', 'N': '코넥스 (KONEX)', 'E': '기타' };
+  if (dartInfo) {
+    return `${dartInfo.name}(${dartInfo.nameEng})은 ${dartInfo.founded} 설립된 ${dartInfo.industry} 분야의 기업으로, ${dartInfo.stockCode ? `${corpClassMap[dartInfo.corpClass] || '증권시장'}에 상장(종목코드: ${dartInfo.stockCode})되어 있습니다` : '비상장 기업입니다'}. 대표이사 ${dartInfo.ceo}가 이끌고 있으며, 본사는 ${dartInfo.address}에 위치하고 있습니다.`;
+  }
+  return `${company}는 해당 산업에서 강력한 브랜드 인지도와 성장 잠재력을 보유한 선도 기업입니다. 지난 10년간 꾸준한 기술 혁신과 시장 확장을 통해 업계 내 입지를 공고히 해왔으며, 글로벌 시장에서의 경쟁력을 지속적으로 강화하고 있습니다.`;
+}
+
 async function processAnalysis(jobId) {
   const job = analysisJobs.get(jobId);
   if (!job) return;
@@ -376,30 +503,37 @@ async function processAnalysis(jobId) {
       console.log(`[DART] Corp code not found for "${job.company}", using fallback`);
     }
 
-    await delay(1500);
     job.steps[0].status = 'completed';
     job.progress = 25;
 
     job.currentStep = '뉴스 및 미디어 분석 중...';
     job.steps[1].status = 'processing';
     const liveNews = await collectNews(dartInfo?.name || job.company);
+    const newsItems = liveNews || getFallbackNews(job.company);
     job.steps[1].status = 'completed';
     job.progress = 50;
 
     job.currentStep = 'GPT-4o 종합 분석 중...';
     job.steps[2].status = 'processing';
-    await delay(3000);
+
+    let aiAnalysis = null;
+    try {
+      aiAnalysis = await analyzeWithGPT4o(job.company, dartInfo, newsItems);
+    } catch (aiErr) {
+      console.error('[GPT-4o] Fallback to static analysis:', aiErr.message);
+    }
+
     job.steps[2].status = 'completed';
     job.progress = 80;
 
     job.currentStep = '리포트 생성 중...';
     job.steps[3].status = 'processing';
-    await delay(1500);
+
+    const corpClassMap = { 'Y': '유가증권시장 (KOSPI)', 'K': '코스닥 (KOSDAQ)', 'N': '코넥스 (KONEX)', 'E': '기타' };
+    const useAi = aiAnalysis && aiAnalysis.swot && aiAnalysis.insights && aiAnalysis.summary;
+
     job.steps[3].status = 'completed';
     job.progress = 100;
-
-    const companyDisplayName = dartInfo?.name || job.company;
-    const corpClassMap = { 'Y': '유가증권시장 (KOSPI)', 'K': '코스닥 (KOSDAQ)', 'N': '코넥스 (KONEX)', 'E': '기타' };
 
     job.status = 'completed';
     job.currentStep = '분석 완료!';
@@ -428,48 +562,21 @@ async function processAnalysis(jobId) {
         revenue: '약 5조 6,000억원 (2024)',
         website: `https://www.${job.company.toLowerCase().replace(/\s+/g, '')}.com`,
       },
-      summary: dartInfo
-        ? `${dartInfo.name}(${dartInfo.nameEng})은 ${dartInfo.founded} 설립된 ${dartInfo.industry} 분야의 기업으로, ${dartInfo.stockCode ? `${corpClassMap[dartInfo.corpClass] || '증권시장'}에 상장(종목코드: ${dartInfo.stockCode})되어 있습니다` : '비상장 기업입니다'}. 대표이사 ${dartInfo.ceo}가 이끌고 있으며, 본사는 ${dartInfo.address}에 위치하고 있습니다.`
-        : `${job.company}는 해당 산업에서 강력한 브랜드 인지도와 성장 잠재력을 보유한 선도 기업입니다. 지난 10년간 꾸준한 기술 혁신과 시장 확장을 통해 업계 내 입지를 공고히 해왔으며, 글로벌 시장에서의 경쟁력을 지속적으로 강화하고 있습니다.`,
-      swot: {
-        strengths: [
-          '강력한 브랜드 인지도와 높은 고객 충성도',
-          '적극적인 R&D 투자 및 기술 혁신 역량',
-          '글로벌 시장에서의 높은 점유율',
-        ],
-        weaknesses: [
-          '경쟁사 대비 높은 가격 구조',
-          '공급망 특정 지역 집중 리스크',
-          '핵심 시장에 대한 높은 의존도',
-        ],
-        opportunities: [
-          '신흥 시장 진출 확대 가능성',
-          '신규 제품 라인 다각화',
-          'ESG 및 지속가능성 트렌드 활용',
-        ],
-        threats: [
-          '신규 경쟁사 진입으로 인한 경쟁 심화',
-          '변화하는 규제 환경 대응 필요',
-          '원자재 및 운영 비용 상승 압박',
-        ],
-      },
-      news: liveNews || getFallbackNews(job.company),
-      insights: [
-        `${job.company}의 매출 성장률 23%는 업계 평균 12%를 크게 상회하며, 강력한 경쟁 우위를 보여줍니다.`,
-        `R&D 투자 비중이 매출의 18%로, 업계 평균 10%보다 현저히 높아 기술 혁신에 적극적입니다.`,
-        `주요 경제 매체 기준 시장 감성 분석 결과, 67%가 긍정적 보도로 나타났습니다.`,
-        `공급망 다각화 노력으로 단일 공급원 의존도가 전년 대비 45%에서 28%로 감소했습니다.`,
-        `고객 유지율이 94%로 높은 만족도와 강한 브랜드 충성도를 나타냅니다.`,
-      ],
+      summary: useAi ? aiAnalysis.summary : getFallbackSummary(job.company, dartInfo),
+      swot: useAi ? aiAnalysis.swot : getFallbackSwot(job.company),
+      news: newsItems,
+      insights: useAi ? aiAnalysis.insights : getFallbackInsights(job.company),
+      aiPowered: !!useAi,
       generatedAt: new Date().toISOString(),
       analysisTime: Math.floor((Date.now() - job.startTime) / 1000),
     };
 
-    console.log(`분석 완료: ${job.company} (${job.result.analysisTime}초)`);
+    console.log(`분석 완료: ${job.company} (${job.result.analysisTime}초, AI: ${!!useAi})`);
   } catch (error) {
     job.status = 'failed';
     job.error = error.message;
     job.currentStep = '분석 실패';
+    console.error(`분석 실패: ${job.company}`, error.message);
   }
 }
 

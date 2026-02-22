@@ -67,6 +67,7 @@ interface AnalysisResult {
   };
   news: NewsItem[];
   insights: string[];
+  aiPowered?: boolean;
   generatedAt: string;
   analysisTime: number;
 }
@@ -298,6 +299,12 @@ export default function DemoReport() {
           <CardHeader className="flex flex-row items-center gap-2 pb-4">
             <Lightbulb className="h-5 w-5 text-primary" />
             <CardTitle className="text-lg">{t("demo.report.summary")}</CardTitle>
+            {result.aiPowered && (
+              <Badge className="ml-auto bg-gradient-to-r from-green-500 to-emerald-600 text-white text-[10px] px-2 py-0.5">
+                <Sparkles className="h-3 w-3 mr-1" />
+                GPT-4o AI 분석
+              </Badge>
+            )}
           </CardHeader>
           <CardContent>
             <p className="text-sm leading-relaxed text-muted-foreground" data-testid="text-summary">
