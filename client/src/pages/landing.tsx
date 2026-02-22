@@ -503,7 +503,7 @@ export default function Landing() {
         <section className="max-w-6xl mx-auto px-6 py-16" data-testid="section-pricing">
           <h2 className="text-2xl font-bold text-center mb-2">{t("landing.pricing.title")}</h2>
           <p className="text-center text-muted-foreground mb-12">{t("landing.pricing.subtitle")}</p>
-          <div className="grid sm:grid-cols-3 gap-6 max-w-4xl mx-auto">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
             {[
               {
                 key: "web",
@@ -511,6 +511,7 @@ export default function Landing() {
                 color: "bg-blue-500 dark:bg-blue-600",
                 features: [t("landing.pricing.web.f1"), t("landing.pricing.web.f2"), t("landing.pricing.web.f3"), t("landing.pricing.web.f4")],
                 popular: false,
+                href: "/api/login",
               },
               {
                 key: "local",
@@ -518,6 +519,16 @@ export default function Landing() {
                 color: "bg-primary",
                 features: [t("landing.pricing.local.f1"), t("landing.pricing.local.f2"), t("landing.pricing.local.f3")],
                 popular: true,
+                href: "/api/login",
+              },
+              {
+                key: "desktop",
+                icon: Monitor,
+                color: "bg-emerald-500 dark:bg-emerald-600",
+                features: [t("landing.pricing.desktop.f1"), t("landing.pricing.desktop.f2"), t("landing.pricing.desktop.f3"), t("landing.pricing.desktop.f4")],
+                popular: false,
+                href: "https://github.com/Salepark/maker/releases/latest",
+                external: true,
               },
               {
                 key: "teams",
@@ -525,6 +536,7 @@ export default function Landing() {
                 color: "bg-slate-600 dark:bg-slate-500",
                 features: [t("landing.pricing.teams.f1"), t("landing.pricing.teams.f2"), t("landing.pricing.teams.f3")],
                 popular: false,
+                href: "/api/login",
               },
             ].map((plan) => (
               <Card key={plan.key} className={`flex flex-col relative ${plan.popular ? "ring-2 ring-primary shadow-lg scale-105" : ""}`} data-testid={`card-pricing-${plan.key}`}>
@@ -553,7 +565,7 @@ export default function Landing() {
                     ))}
                   </ul>
                   <Button asChild className={`w-full ${plan.popular ? "" : "variant-outline"}`} variant={plan.popular ? "default" : "outline"} data-testid={`button-pricing-${plan.key}`}>
-                    <a href="/api/login">
+                    <a href={(plan as any).href} {...((plan as any).external ? { target: "_blank", rel: "noopener noreferrer" } : {})}>
                       {t(`landing.pricing.${plan.key}.button`)}
                     </a>
                   </Button>
