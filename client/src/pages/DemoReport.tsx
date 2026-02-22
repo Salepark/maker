@@ -32,13 +32,20 @@ import {
 
 interface BasicInfo {
   name: string;
+  nameEng?: string;
   industry: string;
   ceo: string;
   founded: string;
   headquarters: string;
-  employees: string;
-  revenue: string;
+  employees?: string;
+  revenue?: string;
   website: string;
+  stockCode?: string;
+  stockMarket?: string;
+  phone?: string;
+  bizNo?: string;
+  accountMonth?: string;
+  dataSource?: string;
 }
 
 interface NewsItem {
@@ -142,10 +149,13 @@ export default function DemoReport() {
     { icon: UserCircle, label: t("demo.report.companyInfo.ceo"), value: result.basicInfo.ceo },
     { icon: Calendar, label: t("demo.report.companyInfo.founded"), value: result.basicInfo.founded },
     { icon: MapPin, label: t("demo.report.companyInfo.headquarters"), value: result.basicInfo.headquarters },
-    { icon: Users, label: t("demo.report.companyInfo.employees"), value: result.basicInfo.employees },
-    { icon: DollarSign, label: t("demo.report.companyInfo.revenue"), value: result.basicInfo.revenue },
+    ...(result.basicInfo.stockCode ? [{ icon: TrendingUp, label: "종목코드", value: `${result.basicInfo.stockCode} (${result.basicInfo.stockMarket || ''})` }] : []),
+    ...(result.basicInfo.employees ? [{ icon: Users, label: t("demo.report.companyInfo.employees"), value: result.basicInfo.employees }] : []),
+    ...(result.basicInfo.revenue ? [{ icon: DollarSign, label: t("demo.report.companyInfo.revenue"), value: result.basicInfo.revenue }] : []),
+    ...(result.basicInfo.accountMonth ? [{ icon: Calendar, label: "결산월", value: result.basicInfo.accountMonth }] : []),
     { icon: Globe, label: t("demo.report.companyInfo.website"), value: result.basicInfo.website },
-  ];
+    ...(result.basicInfo.phone ? [{ icon: Building2, label: "전화번호", value: result.basicInfo.phone }] : []),
+  ].filter(item => item.value);
 
   const swotSections = [
     {
@@ -256,9 +266,19 @@ export default function DemoReport() {
             <CardTitle className="text-lg">{t("demo.report.companyInfo")}</CardTitle>
           </CardHeader>
           <CardContent>
-            <h2 className="text-xl font-bold mb-4" data-testid="text-company-name">
-              {result.basicInfo.name}
-            </h2>
+            <div className="mb-4">
+              <h2 className="text-xl font-bold" data-testid="text-company-name">
+                {result.basicInfo.name}
+              </h2>
+              {result.basicInfo.nameEng && (
+                <p className="text-sm text-muted-foreground">{result.basicInfo.nameEng}</p>
+              )}
+              {result.basicInfo.dataSource && (
+                <Badge variant="outline" className="mt-2 text-xs">
+                  {result.basicInfo.dataSource}
+                </Badge>
+              )}
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {infoItems.map((item) => (
                 <div key={item.label} className="flex items-start gap-3">
