@@ -34,18 +34,23 @@ interface BasicInfo {
   name: string;
   nameEng?: string;
   industry: string;
-  ceo: string;
-  founded: string;
-  headquarters: string;
+  ceo?: string;
+  founded?: string;
+  headquarters?: string;
   employees?: string;
   revenue?: string;
-  website: string;
+  website?: string;
   stockCode?: string;
   stockMarket?: string;
   phone?: string;
   bizNo?: string;
   accountMonth?: string;
   dataSource?: string;
+  bizStatus?: string;
+  bizStatusCode?: string;
+  taxType?: string;
+  bizEndDate?: string;
+  bizDataSource?: string;
 }
 
 interface NewsItem {
@@ -145,16 +150,26 @@ export default function DemoReport() {
     return "bg-muted text-muted-foreground";
   };
 
+  const bizStatusColor = (code: string) => {
+    if (code === '01') return 'text-emerald-600 dark:text-emerald-400';
+    if (code === '02') return 'text-amber-600 dark:text-amber-400';
+    if (code === '03') return 'text-red-600 dark:text-red-400';
+    return '';
+  };
+
   const infoItems = [
     { icon: Briefcase, label: t("demo.report.companyInfo.industry"), value: result.basicInfo.industry },
-    { icon: UserCircle, label: t("demo.report.companyInfo.ceo"), value: result.basicInfo.ceo },
-    { icon: Calendar, label: t("demo.report.companyInfo.founded"), value: result.basicInfo.founded },
-    { icon: MapPin, label: t("demo.report.companyInfo.headquarters"), value: result.basicInfo.headquarters },
+    ...(result.basicInfo.ceo ? [{ icon: UserCircle, label: t("demo.report.companyInfo.ceo"), value: result.basicInfo.ceo }] : []),
+    ...(result.basicInfo.founded ? [{ icon: Calendar, label: t("demo.report.companyInfo.founded"), value: result.basicInfo.founded }] : []),
+    ...(result.basicInfo.headquarters && result.basicInfo.headquarters !== '정보 없음' && result.basicInfo.headquarters !== '정보 없음 (사업자번호 조회)' ? [{ icon: MapPin, label: t("demo.report.companyInfo.headquarters"), value: result.basicInfo.headquarters }] : []),
     ...(result.basicInfo.stockCode ? [{ icon: TrendingUp, label: "종목코드", value: `${result.basicInfo.stockCode} (${result.basicInfo.stockMarket || ''})` }] : []),
+    ...(result.basicInfo.bizNo ? [{ icon: Building2, label: "사업자등록번호", value: result.basicInfo.bizNo.replace(/(\d{3})(\d{2})(\d{5})/, '$1-$2-$3') }] : []),
+    ...(result.basicInfo.bizStatus ? [{ icon: Target, label: "사업자 상태", value: result.basicInfo.bizStatus, className: bizStatusColor(result.basicInfo.bizStatusCode || '') }] : []),
+    ...(result.basicInfo.taxType ? [{ icon: Briefcase, label: "과세유형", value: result.basicInfo.taxType }] : []),
     ...(result.basicInfo.employees ? [{ icon: Users, label: t("demo.report.companyInfo.employees"), value: result.basicInfo.employees }] : []),
     ...(result.basicInfo.revenue ? [{ icon: DollarSign, label: t("demo.report.companyInfo.revenue"), value: result.basicInfo.revenue }] : []),
     ...(result.basicInfo.accountMonth ? [{ icon: Calendar, label: "결산월", value: result.basicInfo.accountMonth }] : []),
-    { icon: Globe, label: t("demo.report.companyInfo.website"), value: result.basicInfo.website },
+    ...(result.basicInfo.website ? [{ icon: Globe, label: t("demo.report.companyInfo.website"), value: result.basicInfo.website }] : []),
     ...(result.basicInfo.phone ? [{ icon: Building2, label: "전화번호", value: result.basicInfo.phone }] : []),
   ].filter(item => item.value);
 
@@ -274,11 +289,18 @@ export default function DemoReport() {
               {result.basicInfo.nameEng && (
                 <p className="text-sm text-muted-foreground">{result.basicInfo.nameEng}</p>
               )}
-              {result.basicInfo.dataSource && (
-                <Badge variant="outline" className="mt-2 text-xs">
-                  {result.basicInfo.dataSource}
-                </Badge>
-              )}
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {result.basicInfo.dataSource && (
+                  <Badge variant="outline" className="text-xs">
+                    {result.basicInfo.dataSource}
+                  </Badge>
+                )}
+                {result.basicInfo.bizDataSource && (
+                  <Badge variant="outline" className="text-xs border-emerald-300 text-emerald-700 dark:border-emerald-700 dark:text-emerald-400">
+                    {result.basicInfo.bizDataSource}
+                  </Badge>
+                )}
+              </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {infoItems.map((item) => (

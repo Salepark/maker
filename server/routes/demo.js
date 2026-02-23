@@ -129,6 +129,73 @@ const KNOWN_CORP_CODES = {
   '한화에어로스페이스': '00126566',
 };
 
+async function fetchBusinessStatus(bizNo) {
+  const apiKey = process.env.DATA_GO_KR_API_KEY;
+  if (!apiKey || !bizNo) return null;
+
+  const cleanBizNo = bizNo.replace(/[-\s]/g, '');
+  if (cleanBizNo.length !== 10 || !/^\d{10}$/.test(cleanBizNo)) return null;
+
+  try {
+    console.log(`[data.go.kr] Querying business status for ${cleanBizNo}...`);
+    const res = await fetch(
+      `https://api.odcloud.kr/api/nts-businessman/v1/status?serviceKey=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ b_no: [cleanBizNo] }),
+        signal: AbortSignal.timeout(10000),
+      }
+    );
+
+    if (!res.ok) {
+      console.error(`[data.go.kr] API error: ${res.status}`);
+      return null;
+    }
+
+    const data = await res.json();
+    if (data.status_code !== 'OK' || !data.data?.[0]) return null;
+
+    const biz = data.data[0];
+    const isRegistered = biz.b_stt_cd !== '' || !biz.tax_type.includes('등록되지 않은');
+
+    const statusMap = { '01': '영업중', '02': '휴업', '03': '폐업' };
+    const taxTypeMap = {
+      '01': '부가가치세 일반과세자',
+      '02': '부가가치세 간이과세자',
+      '03': '부가가치세 면세사업자',
+      '04': '비영리법인',
+      '05': '수익사업 영위 비영리법인',
+      '06': '고유번호가 부여된 단체',
+      '07': '부가가치세 간이과세자 (세금계산서 발급)',
+    };
+
+    console.log(`[data.go.kr] Business ${cleanBizNo}: registered=${isRegistered}, status=${biz.b_stt || 'N/A'}, taxType=${biz.tax_type || 'N/A'}`);
+
+    return {
+      bizNo: cleanBizNo,
+      isRegistered,
+      status: statusMap[biz.b_stt_cd] || biz.b_stt || (isRegistered ? '확인됨' : '미등록'),
+      statusCode: biz.b_stt_cd || '',
+      taxType: taxTypeMap[biz.tax_type_cd] || biz.tax_type || '',
+      taxTypeCode: biz.tax_type_cd || '',
+      endDate: biz.end_dt || '',
+      unitedTaxpayer: biz.utcc_yn === 'Y' ? '단위과세 적용' : '',
+      taxTypeChangeDate: biz.tax_type_change_dt || '',
+      invoiceApplyDate: biz.invoice_apply_dt || '',
+      dataSource: '국세청 사업자등록정보 조회 (data.go.kr)',
+    };
+  } catch (err) {
+    console.error('[data.go.kr] Business status error:', err.message);
+    return null;
+  }
+}
+
+function isBusinessNumber(input) {
+  const cleaned = input.replace(/[-\s]/g, '');
+  return /^\d{10}$/.test(cleaned);
+}
+
 let corpCodeCache = null;
 
 async function loadCorpCodeCache() {
@@ -418,15 +485,18 @@ router.post('/quick-analysis', async (req, res) => {
     }
 
     const jobId = uuidv4();
+    const isBizNoSearch = isBusinessNumber(company);
     const job = {
       id: jobId,
       company,
+      isBizNoSearch,
       status: 'processing',
       progress: 0,
       currentStep: '분석 준비 중...',
       startTime: Date.now(),
       steps: [
         { name: '기본 정보 수집', status: 'pending' },
+        { name: '사업자 등록정보 확인', status: 'pending' },
         { name: '뉴스 및 미디어 분석', status: 'pending' },
         { name: 'AI 종합 분석', status: 'pending' },
         { name: '리포트 생성', status: 'pending' },
@@ -550,53 +620,68 @@ async function processAnalysis(jobId) {
     job.progress = 5;
 
     let dartInfo = null;
-    const corpCode = await searchCorpCode(job.company);
-    if (corpCode) {
-      console.log(`[DART] Found corp_code for "${job.company}": ${corpCode}`);
-      dartInfo = await fetchDartCompanyInfo(corpCode, job.company);
-      if (dartInfo) {
-        console.log(`[DART] Company info loaded: ${dartInfo.name} (${dartInfo.ceo})`);
-      }
+    let bizNoForLookup = null;
+
+    if (job.isBizNoSearch) {
+      console.log(`[Search] Business number detected: ${job.company}`);
+      bizNoForLookup = job.company.replace(/[-\s]/g, '');
     } else {
-      console.log(`[DART] Corp code not found for "${job.company}", using fallback`);
+      const corpCode = await searchCorpCode(job.company);
+      if (corpCode) {
+        console.log(`[DART] Found corp_code for "${job.company}": ${corpCode}`);
+        dartInfo = await fetchDartCompanyInfo(corpCode, job.company);
+        if (dartInfo) {
+          console.log(`[DART] Company info loaded: ${dartInfo.name} (${dartInfo.ceo})`);
+          if (dartInfo.bizNo) bizNoForLookup = dartInfo.bizNo;
+        }
+      } else {
+        console.log(`[DART] Corp code not found for "${job.company}", using fallback`);
+      }
     }
 
     job.steps[0].status = 'completed';
+    job.progress = 15;
+
+    job.currentStep = '국세청 사업자 등록정보 확인 중...';
+    job.steps[1].status = 'processing';
+    let bizStatus = null;
+    if (bizNoForLookup) {
+      bizStatus = await fetchBusinessStatus(bizNoForLookup);
+    }
+    job.steps[1].status = 'completed';
     job.progress = 25;
 
+    const companyNameForSearch = dartInfo?.name || (job.isBizNoSearch ? null : job.company);
+
     job.currentStep = '뉴스 및 미디어 분석 중...';
-    job.steps[1].status = 'processing';
-    const liveNews = await collectNews(dartInfo?.name || job.company);
-    const newsItems = liveNews || getFallbackNews(job.company);
-    job.steps[1].status = 'completed';
+    job.steps[2].status = 'processing';
+    const liveNews = companyNameForSearch ? await collectNews(companyNameForSearch) : null;
+    const newsItems = liveNews || getFallbackNews(companyNameForSearch || job.company);
+    job.steps[2].status = 'completed';
     job.progress = 50;
 
     job.currentStep = 'GPT-4o 종합 분석 중...';
-    job.steps[2].status = 'processing';
+    job.steps[3].status = 'processing';
 
     let aiAnalysis = null;
     try {
-      aiAnalysis = await analyzeWithGPT4o(job.company, dartInfo, newsItems);
+      aiAnalysis = await analyzeWithGPT4o(companyNameForSearch || job.company, dartInfo, newsItems);
     } catch (aiErr) {
       console.error('[GPT-4o] Fallback to static analysis:', aiErr.message);
     }
 
-    job.steps[2].status = 'completed';
+    job.steps[3].status = 'completed';
     job.progress = 80;
 
     job.currentStep = '리포트 생성 중...';
-    job.steps[3].status = 'processing';
+    job.steps[4].status = 'processing';
 
     const corpClassMap = { 'Y': '유가증권시장 (KOSPI)', 'K': '코스닥 (KOSDAQ)', 'N': '코넥스 (KONEX)', 'E': '기타' };
     const useAi = aiAnalysis && aiAnalysis.swot && aiAnalysis.insights && aiAnalysis.summary;
 
-    job.steps[3].status = 'completed';
-    job.progress = 100;
-
-    job.status = 'completed';
-    job.currentStep = '분석 완료!';
-    job.result = {
-      basicInfo: dartInfo ? {
+    let basicInfo;
+    if (dartInfo) {
+      basicInfo = {
         name: dartInfo.name,
         nameEng: dartInfo.nameEng,
         industry: dartInfo.industry,
@@ -610,20 +695,43 @@ async function processAnalysis(jobId) {
         bizNo: dartInfo.bizNo,
         accountMonth: dartInfo.accountMonth ? `${dartInfo.accountMonth}월` : '',
         dataSource: dartInfo.dataSource,
-      } : {
+      };
+    } else if (job.isBizNoSearch && bizStatus) {
+      basicInfo = {
+        name: `사업자번호 ${bizStatus.bizNo.replace(/(\d{3})(\d{2})(\d{5})/, '$1-$2-$3')}`,
+        industry: bizStatus.taxType || '정보 없음',
+        bizNo: bizStatus.bizNo,
+        headquarters: '정보 없음 (사업자번호 조회)',
+        dataSource: bizStatus.dataSource,
+      };
+    } else {
+      basicInfo = {
         name: job.company,
-        industry: '기술/IT',
-        ceo: '대표이사',
-        founded: '2005년',
-        headquarters: '서울특별시',
-        employees: '12,500명 이상',
-        revenue: '약 5조 6,000억원 (2024)',
-        website: `https://www.${job.company.toLowerCase().replace(/\s+/g, '')}.com`,
-      },
-      summary: useAi ? aiAnalysis.summary : getFallbackSummary(job.company, dartInfo),
-      swot: useAi ? aiAnalysis.swot : getFallbackSwot(job.company),
+        industry: '정보 조회 중',
+        headquarters: '정보 없음',
+        dataSource: 'AI 분석 기반',
+      };
+    }
+
+    if (bizStatus) {
+      basicInfo.bizStatus = bizStatus.status;
+      basicInfo.bizStatusCode = bizStatus.statusCode;
+      basicInfo.taxType = bizStatus.taxType;
+      basicInfo.bizEndDate = bizStatus.endDate;
+      basicInfo.bizDataSource = bizStatus.dataSource;
+    }
+
+    job.steps[4].status = 'completed';
+    job.progress = 100;
+
+    job.status = 'completed';
+    job.currentStep = '분석 완료!';
+    job.result = {
+      basicInfo,
+      summary: useAi ? aiAnalysis.summary : getFallbackSummary(companyNameForSearch || job.company, dartInfo),
+      swot: useAi ? aiAnalysis.swot : getFallbackSwot(companyNameForSearch || job.company),
       news: newsItems,
-      insights: useAi ? aiAnalysis.insights : getFallbackInsights(job.company),
+      insights: useAi ? aiAnalysis.insights : getFallbackInsights(companyNameForSearch || job.company),
       aiPowered: !!useAi,
       generatedAt: new Date().toISOString(),
       analysisTime: Math.floor((Date.now() - job.startTime) / 1000),

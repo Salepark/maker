@@ -35,9 +35,10 @@ const DemoLanding: React.FC = () => {
           type="text"
           value={companyInput}
           onChange={(e) => setCompanyInput(e.target.value)}
-          placeholder="예: Tesla, Apple, Netflix"
-          style={{padding: '12px', marginRight: '12px', width: '300px'}}
+          placeholder="기업명 또는 사업자등록번호 (예: 삼성전자, 123-45-67890)"
+          style={{padding: '12px', marginRight: '12px', width: '360px'}}
           data-testid="input-company"
+          onKeyDown={(e) => e.key === 'Enter' && handleAnalysis()}
         />
         <button
           onClick={handleAnalysis}
@@ -48,7 +49,9 @@ const DemoLanding: React.FC = () => {
           {isLoading ? '분석 중...' : '무료로 분석하기'}
         </button>
       </div>
-      <p>완전 무료 체험 | 가입 불필요 | 5분 내 완료</p>
+      <p style={{color: '#666', fontSize: '14px'}}>
+        상장기업(DART) + 중소기업(사업자등록번호) 모두 분석 가능 | 완전 무료 | 가입 불필요
+      </p>
     </div>
   );
 };
