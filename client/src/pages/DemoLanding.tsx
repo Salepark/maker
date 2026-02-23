@@ -29,7 +29,7 @@ const DemoLanding: React.FC = () => {
 
   return (
     <div style={{padding: '40px', textAlign: 'center'}}>
-      <h1>AI가 5분만에 당신의 경쟁사를 분석합니다</h1>
+      <h1>Real-time market analysis powered by GPT-4o</h1>
       <div style={{margin: '40px 0'}}>
         <input
           type="text"
