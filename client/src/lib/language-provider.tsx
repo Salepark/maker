@@ -16,12 +16,18 @@ export function LanguageProvider({
   children: React.ReactNode;
   defaultLanguage?: Language;
 }) {
-  const [language, setLanguageState] = useState<Language>("ko");
+  const [language, setLanguageState] = useState<Language>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("language");
+      if (saved === "en" || saved === "ko") return saved;
+    }
+    return defaultLanguage;
+  });
 
   useEffect(() => {
-    localStorage.setItem("language", "ko");
-    document.documentElement.lang = "ko";
-  }, []);
+    localStorage.setItem("language", language);
+    document.documentElement.lang = language;
+  }, [language]);
 
   const setLanguage = useCallback((lang: Language) => {
     setLanguageState(lang);

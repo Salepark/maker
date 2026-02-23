@@ -63,16 +63,18 @@ interface NewsItem {
 
 interface AnalysisResult {
   basicInfo: BasicInfo;
-  summary: string;
+  summary: string | null;
   swot: {
     strengths: string[];
     weaknesses: string[];
     opportunities: string[];
     threats: string[];
-  };
-  news: NewsItem[];
-  insights: string[];
+  } | null;
+  news: NewsItem[] | null;
+  insights: string[] | null;
   aiPowered?: boolean;
+  aiError?: string | null;
+  newsError?: string | null;
   generatedAt: string;
   analysisTime: number;
 }
@@ -173,7 +175,7 @@ export default function DemoReport() {
     ...(result.basicInfo.phone ? [{ icon: Building2, label: "전화번호", value: result.basicInfo.phone }] : []),
   ].filter(item => item.value);
 
-  const swotSections = [
+  const swotSections = result.swot ? [
     {
       key: "strengths" as const,
       label: t("demo.report.swot.strengths"),
@@ -210,7 +212,7 @@ export default function DemoReport() {
       bg: "bg-amber-50 dark:bg-amber-950/20",
       border: "border-amber-200 dark:border-amber-800",
     },
-  ];
+  ] : [];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted">
@@ -329,9 +331,16 @@ export default function DemoReport() {
             )}
           </CardHeader>
           <CardContent>
-            <p className="text-sm leading-relaxed text-muted-foreground" data-testid="text-summary">
-              {result.summary}
-            </p>
+            {result.summary ? (
+              <p className="text-sm leading-relaxed text-muted-foreground" data-testid="text-summary">
+                {result.summary}
+              </p>
+            ) : (
+              <div className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400" data-testid="text-summary-error">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                <p>{result.aiError || "AI 요약을 생성할 수 없습니다. GPT-4o 연결을 확인해주세요."}</p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -341,32 +350,43 @@ export default function DemoReport() {
             <Target className="h-5 w-5 text-primary" />
             {t("demo.report.swot")}
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {swotSections.map((section) => (
-              <Card
-                key={section.key}
-                className={`${section.bg} border ${section.border}`}
-                data-testid={`card-swot-${section.key}`}
-              >
-                <CardHeader className="pb-2">
-                  <CardTitle className={`text-sm font-semibold flex items-center gap-2 ${section.color}`}>
-                    <section.icon className="h-4 w-4" />
-                    {section.label}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <ul className="space-y-2">
-                    {section.items.map((item, i) => (
-                      <li key={i} className="text-sm flex items-start gap-2">
-                        <span className={`mt-1.5 h-1.5 w-1.5 rounded-full shrink-0 ${section.color.replace("text-", "bg-")}`} />
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          {swotSections.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {swotSections.map((section) => (
+                <Card
+                  key={section.key}
+                  className={`${section.bg} border ${section.border}`}
+                  data-testid={`card-swot-${section.key}`}
+                >
+                  <CardHeader className="pb-2">
+                    <CardTitle className={`text-sm font-semibold flex items-center gap-2 ${section.color}`}>
+                      <section.icon className="h-4 w-4" />
+                      {section.label}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <ul className="space-y-2">
+                      {section.items.map((item, i) => (
+                        <li key={i} className="text-sm flex items-start gap-2">
+                          <span className={`mt-1.5 h-1.5 w-1.5 rounded-full shrink-0 ${section.color.replace("text-", "bg-")}`} />
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="py-6">
+                <div className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400" data-testid="text-swot-error">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  <p>{result.aiError || "SWOT 분석을 수행할 수 없습니다. GPT-4o 연결을 확인해주세요."}</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* 3. Latest News */}
@@ -375,34 +395,45 @@ export default function DemoReport() {
             <Newspaper className="h-5 w-5 text-primary" />
             {t("demo.report.news")}
           </h2>
-          <div className="space-y-3">
-            {result.news.map((article, i) => (
-              <Card key={i} data-testid={`card-news-${i}`}>
-                <CardContent className="py-4">
-                  <div className="flex items-start justify-between gap-3 flex-wrap">
-                    <div className="flex-1 min-w-0 space-y-1">
-                      <h3 className="text-sm font-semibold leading-snug" data-testid={`text-news-title-${i}`}>
-                        {article.title}
-                      </h3>
-                      <p className="text-xs text-muted-foreground">
-                        {article.source} &middot; {new Date(article.date).toLocaleDateString()}
-                      </p>
-                      <p className="text-sm text-muted-foreground leading-relaxed mt-1">
-                        {article.summary}
-                      </p>
+          {result.news && result.news.length > 0 ? (
+            <div className="space-y-3">
+              {result.news.map((article, i) => (
+                <Card key={i} data-testid={`card-news-${i}`}>
+                  <CardContent className="py-4">
+                    <div className="flex items-start justify-between gap-3 flex-wrap">
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <h3 className="text-sm font-semibold leading-snug" data-testid={`text-news-title-${i}`}>
+                          {article.title}
+                        </h3>
+                        <p className="text-xs text-muted-foreground">
+                          {article.source} &middot; {new Date(article.date).toLocaleDateString()}
+                        </p>
+                        <p className="text-sm text-muted-foreground leading-relaxed mt-1">
+                          {article.summary}
+                        </p>
+                      </div>
+                      <Badge
+                        variant="secondary"
+                        className={`shrink-0 text-xs ${sentimentBg(article.sentiment)}`}
+                        data-testid={`badge-sentiment-${i}`}
+                      >
+                        {t(`demo.report.news.${article.sentiment}`)}
+                      </Badge>
                     </div>
-                    <Badge
-                      variant="secondary"
-                      className={`shrink-0 text-xs ${sentimentBg(article.sentiment)}`}
-                      data-testid={`badge-sentiment-${i}`}
-                    >
-                      {t(`demo.report.news.${article.sentiment}`)}
-                    </Badge>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="py-6">
+                <div className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400" data-testid="text-news-error">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  <p>{result.newsError || "뉴스 데이터를 가져올 수 없습니다."}</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* 4. Key Insights */}
@@ -411,20 +442,31 @@ export default function DemoReport() {
             <Lightbulb className="h-5 w-5 text-primary" />
             {t("demo.report.insights")}
           </h2>
-          <Card>
-            <CardContent className="py-4">
-              <ol className="space-y-3">
-                {result.insights.map((insight, i) => (
-                  <li key={i} className="flex items-start gap-3" data-testid={`text-insight-${i}`}>
-                    <span className="flex items-center justify-center h-6 w-6 rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0">
-                      {i + 1}
-                    </span>
-                    <p className="text-sm leading-relaxed">{insight}</p>
-                  </li>
-                ))}
-              </ol>
-            </CardContent>
-          </Card>
+          {result.insights && result.insights.length > 0 ? (
+            <Card>
+              <CardContent className="py-4">
+                <ol className="space-y-3">
+                  {result.insights.map((insight, i) => (
+                    <li key={i} className="flex items-start gap-3" data-testid={`text-insight-${i}`}>
+                      <span className="flex items-center justify-center h-6 w-6 rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0">
+                        {i + 1}
+                      </span>
+                      <p className="text-sm leading-relaxed">{insight}</p>
+                    </li>
+                  ))}
+                </ol>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="py-6">
+                <div className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400" data-testid="text-insights-error">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  <p>{result.aiError || "핵심 인사이트를 생성할 수 없습니다. GPT-4o 연결을 확인해주세요."}</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* CTA */}

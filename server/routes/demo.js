@@ -446,31 +446,6 @@ async function collectNews(company) {
   }
 }
 
-function getFallbackNews(company) {
-  return [
-    {
-      title: `${company}, 4분기 매출 사상 최대 기록`,
-      source: '연합뉴스',
-      date: new Date(Date.now() - 86400000).toISOString(),
-      sentiment: 'positive',
-      summary: `${company}가 4분기 매출이 전년 대비 23% 증가하며 시장 기대치를 상회했습니다. 주력 사업부의 성장세가 두드러졌습니다.`,
-    },
-    {
-      title: `${company}, 동남아 시장 진출 본격화`,
-      source: '한국경제',
-      date: new Date(Date.now() - 86400000 * 3).toISOString(),
-      sentiment: 'neutral',
-      summary: `싱가포르와 베트남에 신규 법인을 설립하고 아시아·태평양 지역 확장 전략을 발표했습니다.`,
-    },
-    {
-      title: `${company}, EU 시장에서 규제 리스크 부각`,
-      source: '매일경제',
-      date: new Date(Date.now() - 86400000 * 5).toISOString(),
-      sentiment: 'negative',
-      summary: `유럽 규제 당국이 데이터 관련 조사에 착수하여 현지 사업에 영향을 미칠 수 있다는 분석이 나왔습니다.`,
-    },
-  ];
-}
 
 router.get('/test', (req, res) => {
   res.json({ success: true, message: '데모 API가 정상 작동 중입니다.' });
@@ -567,48 +542,6 @@ router.get('/analysis-result/:jobId', (req, res) => {
   });
 });
 
-function getFallbackSwot(company) {
-  return {
-    strengths: [
-      '강력한 브랜드 인지도와 높은 고객 충성도',
-      '적극적인 R&D 투자 및 기술 혁신 역량',
-      '글로벌 시장에서의 높은 점유율',
-    ],
-    weaknesses: [
-      '경쟁사 대비 높은 가격 구조',
-      '공급망 특정 지역 집중 리스크',
-      '핵심 시장에 대한 높은 의존도',
-    ],
-    opportunities: [
-      '신흥 시장 진출 확대 가능성',
-      '신규 제품 라인 다각화',
-      'ESG 및 지속가능성 트렌드 활용',
-    ],
-    threats: [
-      '신규 경쟁사 진입으로 인한 경쟁 심화',
-      '변화하는 규제 환경 대응 필요',
-      '원자재 및 운영 비용 상승 압박',
-    ],
-  };
-}
-
-function getFallbackInsights(company) {
-  return [
-    `${company}의 매출 성장률은 업계 평균을 상회하며, 강력한 경쟁 우위를 보여줍니다.`,
-    `R&D 투자 비중이 높아 기술 혁신에 적극적입니다.`,
-    `주요 경제 매체 기준 시장 감성 분석 결과, 긍정적 보도 비율이 우세합니다.`,
-    `공급망 다각화 노력으로 단일 공급원 의존도가 감소 추세입니다.`,
-    `고객 유지율이 높아 강한 브랜드 충성도를 나타냅니다.`,
-  ];
-}
-
-function getFallbackSummary(company, dartInfo) {
-  const corpClassMap = { 'Y': '유가증권시장 (KOSPI)', 'K': '코스닥 (KOSDAQ)', 'N': '코넥스 (KONEX)', 'E': '기타' };
-  if (dartInfo) {
-    return `${dartInfo.name}(${dartInfo.nameEng})은 ${dartInfo.founded} 설립된 ${dartInfo.industry} 분야의 기업으로, ${dartInfo.stockCode ? `${corpClassMap[dartInfo.corpClass] || '증권시장'}에 상장(종목코드: ${dartInfo.stockCode})되어 있습니다` : '비상장 기업입니다'}. 대표이사 ${dartInfo.ceo}가 이끌고 있으며, 본사는 ${dartInfo.address}에 위치하고 있습니다.`;
-  }
-  return `${company}는 해당 산업에서 강력한 브랜드 인지도와 성장 잠재력을 보유한 선도 기업입니다. 지난 10년간 꾸준한 기술 혁신과 시장 확장을 통해 업계 내 입지를 공고히 해왔으며, 글로벌 시장에서의 경쟁력을 지속적으로 강화하고 있습니다.`;
-}
 
 async function processAnalysis(jobId) {
   const job = analysisJobs.get(jobId);
@@ -655,8 +588,17 @@ async function processAnalysis(jobId) {
 
     job.currentStep = '뉴스 및 미디어 분석 중...';
     job.steps[2].status = 'processing';
-    const liveNews = companyNameForSearch ? await collectNews(companyNameForSearch) : null;
-    const newsItems = liveNews || getFallbackNews(companyNameForSearch || job.company);
+    let newsItems = null;
+    let newsError = null;
+    if (companyNameForSearch) {
+      newsItems = await collectNews(companyNameForSearch);
+      if (!newsItems) {
+        newsError = '뉴스 데이터를 가져올 수 없습니다. (News API 연결 실패 또는 관련 뉴스 없음)';
+        console.log(`[News] No news available for "${companyNameForSearch}"`);
+      }
+    } else {
+      newsError = '기업명을 확인할 수 없어 뉴스를 검색하지 못했습니다.';
+    }
     job.steps[2].status = 'completed';
     job.progress = 50;
 
@@ -664,10 +606,12 @@ async function processAnalysis(jobId) {
     job.steps[3].status = 'processing';
 
     let aiAnalysis = null;
+    let aiError = null;
     try {
-      aiAnalysis = await analyzeWithGPT4o(companyNameForSearch || job.company, dartInfo, newsItems);
+      aiAnalysis = await analyzeWithGPT4o(companyNameForSearch || job.company, dartInfo, newsItems || []);
     } catch (aiErr) {
-      console.error('[GPT-4o] Fallback to static analysis:', aiErr.message);
+      aiError = `AI 분석에 실패했습니다: ${aiErr.message}`;
+      console.error('[GPT-4o] Analysis failed:', aiErr.message);
     }
 
     job.steps[3].status = 'completed';
@@ -728,11 +672,13 @@ async function processAnalysis(jobId) {
     job.currentStep = '분석 완료!';
     job.result = {
       basicInfo,
-      summary: useAi ? aiAnalysis.summary : getFallbackSummary(companyNameForSearch || job.company, dartInfo),
-      swot: useAi ? aiAnalysis.swot : getFallbackSwot(companyNameForSearch || job.company),
-      news: newsItems,
-      insights: useAi ? aiAnalysis.insights : getFallbackInsights(companyNameForSearch || job.company),
+      summary: useAi ? aiAnalysis.summary : null,
+      swot: useAi ? aiAnalysis.swot : null,
+      news: newsItems || null,
+      insights: useAi ? aiAnalysis.insights : null,
       aiPowered: !!useAi,
+      aiError: aiError || null,
+      newsError: newsError || null,
       generatedAt: new Date().toISOString(),
       analysisTime: Math.floor((Date.now() - job.startTime) / 1000),
     };
