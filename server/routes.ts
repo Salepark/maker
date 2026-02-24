@@ -2121,6 +2121,86 @@ export async function registerRoutes(
     })();
   }
 
+  // ============================================
+  // AGENT AUTONOMY ROUTES (v1.1)
+  // ============================================
+
+  app.post("/api/agent/plan", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      const { botId, goal } = req.body;
+      if (!botId || !goal) return res.status(400).json({ error: "botId and goal are required" });
+
+      const { generatePlan } = await import("./agent/runner");
+      const plan = await generatePlan({ userId }, botId, goal);
+      res.json(plan);
+    } catch (err: any) {
+      console.error("[Agent Plan]", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/agent/run", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      const { botId, goal, planId } = req.body;
+      if (!botId || !goal) return res.status(400).json({ error: "botId and goal are required" });
+
+      const { generatePlan, executeAgentRun } = await import("./agent/runner");
+      const plan = await generatePlan({ userId }, botId, goal);
+      const result = await executeAgentRun({ userId, botId }, botId, goal, plan);
+      res.json(result);
+    } catch (err: any) {
+      console.error("[Agent Run]", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/agent/runs", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      const botId = req.query.botId ? parseInt(req.query.botId as string) : undefined;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
+      const runs = await storage.listAgentRuns(userId, botId, limit);
+      res.json(runs);
+    } catch (err: any) {
+      console.error("[Agent Runs List]", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/agent/runs/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      const runId = parseInt(req.params.id);
+      const run = await storage.getAgentRun(runId, userId);
+      if (!run) return res.status(404).json({ error: "Not found" });
+      res.json(run);
+    } catch (err: any) {
+      console.error("[Agent Run Detail]", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/agent/runs/:id/steps", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      const runId = parseInt(req.params.id);
+      const run = await storage.getAgentRun(runId, userId);
+      if (!run) return res.status(404).json({ error: "Not found" });
+      const steps = await storage.listAgentSteps(runId);
+      res.json(steps);
+    } catch (err: any) {
+      console.error("[Agent Steps]", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.use((err: Error, _req: Request, res: Response, next: NextFunction) => {
     if (err instanceof NotImplementedError || err?.name === "NotImplementedError") {
       console.warn(`[Route] ${err.message}`);

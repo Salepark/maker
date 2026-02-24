@@ -10,7 +10,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Shield, Globe, Brain, HardDrive, Settings2, AlertTriangle, RotateCcw, Clock, ChevronRight, Monitor } from "lucide-react";
+import { Shield, Globe, Brain, HardDrive, Settings2, AlertTriangle, RotateCcw, Clock, ChevronRight, Monitor, Bot, MessageSquare } from "lucide-react";
 
 type ApprovalMode = "AUTO_ALLOWED" | "APPROVAL_REQUIRED" | "AUTO_DENIED";
 type EgressLevel = "NO_EGRESS" | "METADATA_ONLY" | "FULL_CONTENT_ALLOWED";
@@ -79,6 +79,23 @@ const DASHBOARD_GROUPS: DashboardGroup[] = [
       { key: "FS_DELETE", labelEn: "Delete Files (Trash Only)", labelKo: "파일 삭제 (휴지통만)", descEn: "Allow moving files to trash (permanent deletion is never allowed)", descKo: "파일을 휴지통으로 이동 허용 (영구 삭제는 불가)", risk: "HIGH", localOnly: true },
       { key: "CAL_READ", labelEn: "Read Calendar", labelKo: "캘린더 읽기", descEn: "Allow reading calendar events for briefings", descKo: "브리핑을 위한 캘린더 이벤트 읽기 허용", risk: "LOW", localOnly: true },
       { key: "CAL_WRITE", labelEn: "Create/Update Events", labelKo: "일정 생성/수정", descEn: "Allow creating and modifying calendar events", descKo: "캘린더 이벤트 생성/수정 허용", risk: "MED", localOnly: true },
+    ],
+  },
+  {
+    id: "autonomy",
+    icon: Bot,
+    keys: [
+      { key: "AUTONOMY_LEVEL", labelEn: "Autonomy Level", labelKo: "자율성 레벨", descEn: "Set the autonomy level for this bot (L0-L3)", descKo: "이 봇의 자율성 레벨을 설정합니다 (L0-L3)", risk: "HIGH" },
+      { key: "AGENT_RUN", labelEn: "Agent Run Loop", labelKo: "에이전트 실행", descEn: "Allow multi-step agent loop execution", descKo: "다단계 에이전트 루프 실행을 허용합니다", risk: "HIGH" },
+      { key: "TOOL_USE", labelEn: "Tool Invocation", labelKo: "도구 사용", descEn: "Master toggle for tool invocation inside agent runs", descKo: "에이전트 실행 중 도구 호출을 허용하는 마스터 토글", risk: "MED" },
+    ],
+  },
+  {
+    id: "messaging",
+    icon: MessageSquare,
+    keys: [
+      { key: "TELEGRAM_CONNECT", labelEn: "Telegram Connection", labelKo: "텔레그램 연결", descEn: "Connect bot to Telegram for commands and notifications", descKo: "명령과 알림을 위해 봇을 텔레그램에 연결합니다", risk: "MED" },
+      { key: "TELEGRAM_SEND", labelEn: "Send Telegram Messages", labelKo: "텔레그램 메시지 전송", descEn: "Send messages to Telegram chats", descKo: "텔레그램 채팅으로 메시지를 전송합니다", risk: "MED" },
     ],
   },
   {

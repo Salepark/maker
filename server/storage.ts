@@ -6,6 +6,7 @@ import {
   bots, botSettings, sourceBotLinks, llmProviders, jobRuns,
   permissions, auditLogs, reportMetrics, ruleMemories,
   telegramLinks, linkCodes, appSettings,
+  agentRuns, agentSteps,
   type Source, type Item, type Analysis, type Draft, type Post, type Report, 
   type InsertSource, type InsertItem, type InsertAnalysis, type InsertDraft, type InsertReport, 
   type ChatMessage, type InsertChatMessage, type ChatThread, type InsertChatThread, type Setting,
@@ -17,6 +18,7 @@ import {
   type Permission, type InsertPermission,
   type RuleMemory,
   type TelegramLink,
+  type AgentRun, type AgentStep,
 } from "@shared/schema";
 import { eq, desc, sql, and, count, gte, lt, lte, or, isNull, inArray } from "drizzle-orm";
 
@@ -225,6 +227,16 @@ export interface IStorage {
   getAppSetting(key: string): Promise<string | null>;
   setAppSetting(key: string, value: string): Promise<void>;
   deleteAppSetting(key: string): Promise<void>;
+
+  // Agent Runs (v1.1)
+  createAgentRun(data: any): Promise<any>;
+  getAgentRun(id: number, userId: string): Promise<any | null>;
+  listAgentRuns(userId: string, botId?: number, limit?: number): Promise<any[]>;
+  updateAgentRun(id: number, patch: any): Promise<void>;
+
+  // Agent Steps (v1.1)
+  createAgentStep(data: any): Promise<any>;
+  listAgentSteps(agentRunId: number): Promise<any[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1981,6 +1993,41 @@ export class DatabaseStorage implements IStorage {
 
   async deleteAppSetting(key: string): Promise<void> {
     await db.delete(appSettings).where(eq(appSettings.key, key));
+  }
+
+  async createAgentRun(data: any): Promise<AgentRun> {
+    const [row] = await db.insert(agentRuns).values(data).returning();
+    return row;
+  }
+
+  async getAgentRun(id: number, userId: string): Promise<AgentRun | null> {
+    const [row] = await db.select().from(agentRuns)
+      .where(and(eq(agentRuns.id, id), eq(agentRuns.userId, userId)))
+      .limit(1);
+    return row ?? null;
+  }
+
+  async listAgentRuns(userId: string, botId?: number, limit: number = 10): Promise<AgentRun[]> {
+    let q = db.select().from(agentRuns).where(eq(agentRuns.userId, userId));
+    if (botId) {
+      q = db.select().from(agentRuns).where(and(eq(agentRuns.userId, userId), eq(agentRuns.botId, botId)));
+    }
+    return q.orderBy(desc(agentRuns.startedAt)).limit(limit);
+  }
+
+  async updateAgentRun(id: number, patch: any): Promise<void> {
+    await db.update(agentRuns).set(patch).where(eq(agentRuns.id, id));
+  }
+
+  async createAgentStep(data: any): Promise<AgentStep> {
+    const [row] = await db.insert(agentSteps).values(data).returning();
+    return row;
+  }
+
+  async listAgentSteps(agentRunId: number): Promise<AgentStep[]> {
+    return db.select().from(agentSteps)
+      .where(eq(agentSteps.agentRunId, agentRunId))
+      .orderBy(agentSteps.stepIndex);
   }
 }
 

@@ -27,6 +27,8 @@ export async function getEffectivePermissions(
     "FS_READ", "FS_WRITE", "FS_DELETE",
     "CAL_READ", "CAL_WRITE", "SCHEDULE_WRITE",
     "MEMORY_WRITE", "DATA_RETENTION",
+    "AUTONOMY_LEVEL", "AGENT_RUN", "TOOL_USE",
+    "TELEGRAM_CONNECT", "TELEGRAM_SEND",
   ];
 
   for (const key of allKeys) {

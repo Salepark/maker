@@ -681,3 +681,64 @@ export const appSettings = pgTable("app_settings", {
 });
 
 export type AppSetting = typeof appSettings.$inferSelect;
+
+// ============================================
+// AGENT RUNS - Autonomy agent execution log (v1.1)
+// ============================================
+export const agentRuns = pgTable("agent_runs", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  botId: integer("bot_id").references(() => bots.id),
+  jobRunId: integer("job_run_id").references(() => jobRuns.id),
+  trigger: text("trigger").notNull().default("manual"),
+  autonomyLevel: text("autonomy_level").notNull().default("L1"),
+  goal: text("goal").notNull().default(""),
+  status: text("status").notNull().default("running"),
+  stepCount: integer("step_count").notNull().default(0),
+  llmCallCount: integer("llm_call_count").notNull().default(0),
+  toolCallCount: integer("tool_call_count").notNull().default(0),
+  summary: text("summary"),
+  planJson: jsonb("plan_json"),
+  startedAt: timestamp("started_at").notNull().defaultNow(),
+  finishedAt: timestamp("finished_at"),
+  durationMs: integer("duration_ms"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  index("idx_agent_runs_user_bot").on(table.userId, table.botId, table.startedAt),
+  index("idx_agent_runs_status").on(table.status, table.startedAt),
+]);
+
+export const insertAgentRunSchema = createInsertSchema(agentRuns).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type AgentRun = typeof agentRuns.$inferSelect;
+export type InsertAgentRun = z.infer<typeof insertAgentRunSchema>;
+
+// ============================================
+// AGENT STEPS - Individual steps within an agent run
+// ============================================
+export const agentSteps = pgTable("agent_steps", {
+  id: serial("id").primaryKey(),
+  agentRunId: integer("agent_run_id").notNull().references(() => agentRuns.id, { onDelete: "cascade" }),
+  stepIndex: integer("step_index").notNull(),
+  toolKey: text("tool_key").notNull(),
+  permissionKey: text("permission_key"),
+  status: text("status").notNull().default("pending"),
+  inputSummary: text("input_summary"),
+  outputSummary: text("output_summary"),
+  rationale: text("rationale"),
+  durationMs: integer("duration_ms"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  index("idx_agent_steps_run").on(table.agentRunId, table.stepIndex),
+]);
+
+export const insertAgentStepSchema = createInsertSchema(agentSteps).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type AgentStep = typeof agentSteps.$inferSelect;
+export type InsertAgentStep = z.infer<typeof insertAgentStepSchema>;

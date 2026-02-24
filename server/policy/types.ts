@@ -1,5 +1,7 @@
 export type ApprovalMode = "AUTO_ALLOWED" | "APPROVAL_REQUIRED" | "AUTO_DENIED";
 export type EgressLevel = "NO_EGRESS" | "METADATA_ONLY" | "FULL_CONTENT_ALLOWED";
+export type AutonomyLevel = "L0" | "L1" | "L2" | "L3";
+export type RiskTier = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 
 export interface PermissionValue {
   enabled: boolean;
@@ -41,6 +43,11 @@ export const PERMISSION_KEYS = [
   "SCHEDULE_WRITE",
   "MEMORY_WRITE",
   "DATA_RETENTION",
+  "AUTONOMY_LEVEL",
+  "AGENT_RUN",
+  "TOOL_USE",
+  "TELEGRAM_CONNECT",
+  "TELEGRAM_SEND",
 ] as const;
 
 export type PermissionKey = typeof PERMISSION_KEYS[number];
@@ -56,8 +63,10 @@ export interface PermissionGroupDef {
     descEn: string;
     descKo: string;
     risk: "LOW" | "MED" | "HIGH";
+    riskTier?: RiskTier;
     defaultValue: PermissionValue;
     egressLevel?: EgressLevel;
+    isAutonomy?: boolean;
   }[];
 }
 
@@ -74,6 +83,7 @@ export const PERMISSION_GROUPS: PermissionGroupDef[] = [
         descEn: "Allow collecting content from RSS/Atom feeds",
         descKo: "RSS/Atom 피드에서 콘텐츠를 수집하도록 허용",
         risk: "LOW",
+        riskTier: "LOW",
         defaultValue: { enabled: true, approvalMode: "AUTO_ALLOWED" },
       },
       {
@@ -83,6 +93,7 @@ export const PERMISSION_GROUPS: PermissionGroupDef[] = [
         descEn: "Allow fetching public web pages (including scraping/extraction)",
         descKo: "공개 웹 페이지 가져오기 허용 (스크래핑/본문 추출 포함)",
         risk: "MED",
+        riskTier: "MEDIUM",
         defaultValue: { enabled: false, approvalMode: "APPROVAL_REQUIRED" },
       },
       {
@@ -92,6 +103,7 @@ export const PERMISSION_GROUPS: PermissionGroupDef[] = [
         descEn: "Allow adding, editing, and deleting bot sources",
         descKo: "봇의 소스 추가/수정/삭제 허용",
         risk: "LOW",
+        riskTier: "HIGH",
         defaultValue: { enabled: true, approvalMode: "APPROVAL_REQUIRED" },
       },
     ],
@@ -108,6 +120,7 @@ export const PERMISSION_GROUPS: PermissionGroupDef[] = [
         descEn: "Allow using external AI/LLM APIs for analysis and reports",
         descKo: "분석과 리포트를 위한 외부 AI/LLM API 사용 허용",
         risk: "MED",
+        riskTier: "MEDIUM",
         defaultValue: { enabled: true, approvalMode: "APPROVAL_REQUIRED" },
       },
       {
@@ -117,8 +130,74 @@ export const PERMISSION_GROUPS: PermissionGroupDef[] = [
         descEn: "Control what content is sent to external AI providers",
         descKo: "외부 AI 제공자에게 전송되는 콘텐츠 범위를 제어",
         risk: "HIGH",
+        riskTier: "CRITICAL",
         defaultValue: { enabled: true, approvalMode: "AUTO_ALLOWED" },
         egressLevel: "METADATA_ONLY",
+      },
+    ],
+  },
+  {
+    group: "autonomy",
+    groupLabelEn: "Autonomy & Agent",
+    groupLabelKo: "자율성 & 에이전트",
+    keys: [
+      {
+        key: "AUTONOMY_LEVEL",
+        labelEn: "Autonomy Level",
+        labelKo: "자율성 레벨",
+        descEn: "Set the autonomy level for this bot (L0-L3)",
+        descKo: "이 봇의 자율성 레벨을 설정합니다 (L0-L3)",
+        risk: "HIGH",
+        riskTier: "HIGH",
+        defaultValue: { enabled: true, approvalMode: "AUTO_ALLOWED", resourceScope: { level: "L1" } },
+        isAutonomy: true,
+      },
+      {
+        key: "AGENT_RUN",
+        labelEn: "Agent Run Loop",
+        labelKo: "에이전트 실행",
+        descEn: "Allow multi-step agent loop execution",
+        descKo: "다단계 에이전트 루프 실행을 허용합니다",
+        risk: "HIGH",
+        riskTier: "HIGH",
+        defaultValue: { enabled: false, approvalMode: "APPROVAL_REQUIRED" },
+      },
+      {
+        key: "TOOL_USE",
+        labelEn: "Tool Invocation",
+        labelKo: "도구 사용",
+        descEn: "Master toggle for tool invocation inside agent runs",
+        descKo: "에이전트 실행 중 도구 호출을 허용하는 마스터 토글",
+        risk: "MED",
+        riskTier: "MEDIUM",
+        defaultValue: { enabled: false, approvalMode: "APPROVAL_REQUIRED" },
+      },
+    ],
+  },
+  {
+    group: "messaging",
+    groupLabelEn: "Messaging",
+    groupLabelKo: "메시징",
+    keys: [
+      {
+        key: "TELEGRAM_CONNECT",
+        labelEn: "Telegram Connection",
+        labelKo: "텔레그램 연결",
+        descEn: "Connect bot to Telegram for commands and notifications",
+        descKo: "명령과 알림을 위해 봇을 텔레그램에 연결합니다",
+        risk: "MED",
+        riskTier: "MEDIUM",
+        defaultValue: { enabled: false, approvalMode: "APPROVAL_REQUIRED" },
+      },
+      {
+        key: "TELEGRAM_SEND",
+        labelEn: "Send Telegram Messages",
+        labelKo: "텔레그램 메시지 전송",
+        descEn: "Send messages to Telegram chats",
+        descKo: "텔레그램 채팅으로 메시지를 전송합니다",
+        risk: "MED",
+        riskTier: "MEDIUM",
+        defaultValue: { enabled: false, approvalMode: "APPROVAL_REQUIRED" },
       },
     ],
   },
@@ -134,6 +213,7 @@ export const PERMISSION_GROUPS: PermissionGroupDef[] = [
         descEn: "Allow reading files from selected folders",
         descKo: "선택한 폴더에서 파일 읽기 허용",
         risk: "MED",
+        riskTier: "HIGH",
         defaultValue: { enabled: false, approvalMode: "APPROVAL_REQUIRED" },
       },
       {
@@ -143,6 +223,7 @@ export const PERMISSION_GROUPS: PermissionGroupDef[] = [
         descEn: "Allow creating and modifying files in designated folders",
         descKo: "지정된 폴더에서 파일 생성/수정 허용",
         risk: "MED",
+        riskTier: "CRITICAL",
         defaultValue: { enabled: false, approvalMode: "APPROVAL_REQUIRED" },
       },
       {
@@ -152,6 +233,7 @@ export const PERMISSION_GROUPS: PermissionGroupDef[] = [
         descEn: "Allow moving files to trash (permanent deletion is never allowed)",
         descKo: "파일을 휴지통으로 이동 허용 (영구 삭제는 불가)",
         risk: "HIGH",
+        riskTier: "CRITICAL",
         defaultValue: { enabled: false, approvalMode: "AUTO_DENIED" },
       },
     ],
@@ -168,6 +250,7 @@ export const PERMISSION_GROUPS: PermissionGroupDef[] = [
         descEn: "Allow reading calendar events for briefings",
         descKo: "브리핑을 위한 캘린더 이벤트 읽기 허용",
         risk: "LOW",
+        riskTier: "LOW",
         defaultValue: { enabled: false, approvalMode: "APPROVAL_REQUIRED" },
       },
       {
@@ -177,6 +260,7 @@ export const PERMISSION_GROUPS: PermissionGroupDef[] = [
         descEn: "Allow creating and modifying calendar events",
         descKo: "캘린더 이벤트 생성/수정 허용",
         risk: "MED",
+        riskTier: "MEDIUM",
         defaultValue: { enabled: false, approvalMode: "APPROVAL_REQUIRED" },
       },
     ],
@@ -193,6 +277,7 @@ export const PERMISSION_GROUPS: PermissionGroupDef[] = [
         descEn: "Allow changing bot run schedules",
         descKo: "봇 실행 스케줄 변경 허용",
         risk: "LOW",
+        riskTier: "HIGH",
         defaultValue: { enabled: true, approvalMode: "APPROVAL_REQUIRED" },
       },
     ],
@@ -209,6 +294,7 @@ export const PERMISSION_GROUPS: PermissionGroupDef[] = [
         descEn: "Allow saving and modifying user rules and preferences to long-term memory",
         descKo: "사용자 규칙과 선호를 장기 메모리에 저장/수정 허용",
         risk: "LOW",
+        riskTier: "LOW",
         defaultValue: { enabled: true, approvalMode: "AUTO_ALLOWED" },
       },
       {
@@ -218,11 +304,26 @@ export const PERMISSION_GROUPS: PermissionGroupDef[] = [
         descEn: "Control how long collected data and memory are retained",
         descKo: "수집된 데이터와 메모리의 보존 기간 관리",
         risk: "MED",
+        riskTier: "MEDIUM",
         defaultValue: { enabled: true, approvalMode: "APPROVAL_REQUIRED" },
       },
     ],
   },
 ];
+
+export const AUTONOMY_LEVEL_DEFAULTS = {
+  global: "L1" as AutonomyLevel,
+  web_max: "L2" as AutonomyLevel,
+  desktop_max: "L3" as AutonomyLevel,
+};
+
+export const AGENT_HARD_LIMITS = {
+  maxSteps: 5,
+  maxRuntimeMs: 30_000,
+  maxLLMCalls: 3,
+  maxToolCalls: 5,
+  cooldownMs: 60_000,
+};
 
 export function getDefaultPermissionValue(key: PermissionKey): PermissionValue {
   for (const group of PERMISSION_GROUPS) {

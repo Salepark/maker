@@ -17,6 +17,7 @@ import { ArrowLeft, Save, Loader2, Brain, Clock, FileText, Filter, Rss, AlertTri
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { PermissionDashboard } from "@/components/permission-dashboard";
 import { MemoryCard } from "@/components/memory-card";
+import { AutonomyCard } from "@/components/autonomy-card";
 
 interface JobRunData {
   id: number;
@@ -368,6 +369,8 @@ export default function BotDetail() {
             </p>
           </CardContent>
         </Card>
+
+        {botId && <AutonomyCard botId={botId} t={t} language={language} />}
 
         {botId && <PermissionDashboard botId={botId} t={t} language={language} />}
 
