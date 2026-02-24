@@ -8,9 +8,18 @@ import OpenAI from 'openai';
 const router = express.Router();
 const analysisJobs = new Map();
 
-const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+let _openai = null;
+function getOpenAI() {
+  if (!_openai) {
+    _openai = new OpenAI({
+      apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || 'dummy',
+      baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+    });
+  }
+  return _openai;
+}
+const openai = new Proxy({}, {
+  get(_, prop) { return getOpenAI()[prop]; }
 });
 
 async function analyzeWithGPT4o(companyName, dartInfo, newsItems) {
