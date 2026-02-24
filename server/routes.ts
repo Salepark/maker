@@ -2122,7 +2122,7 @@ export async function registerRoutes(
   }
 
   // ============================================
-  // AGENT AUTONOMY ROUTES (v1.1)
+  // AGENT AUTONOMY ROUTES (v1.2)
   // ============================================
 
   app.post("/api/agent/plan", isAuthenticated, async (req, res) => {
@@ -2145,12 +2145,12 @@ export async function registerRoutes(
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ error: "Unauthorized" });
-      const { botId, goal, planId } = req.body;
+      const { botId, goal, planId, planHash } = req.body;
       if (!botId || !goal) return res.status(400).json({ error: "botId and goal are required" });
 
       const { generatePlan, executeAgentRun } = await import("./agent/runner");
       const plan = await generatePlan({ userId }, botId, goal);
-      const result = await executeAgentRun({ userId, botId }, botId, goal, plan);
+      const result = await executeAgentRun({ userId, botId }, botId, goal, plan, planHash);
       res.json(result);
     } catch (err: any) {
       console.error("[Agent Run]", err);

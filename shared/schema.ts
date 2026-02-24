@@ -683,7 +683,7 @@ export const appSettings = pgTable("app_settings", {
 export type AppSetting = typeof appSettings.$inferSelect;
 
 // ============================================
-// AGENT RUNS - Autonomy agent execution log (v1.1)
+// AGENT RUNS - Autonomy agent execution log (v1.2)
 // ============================================
 export const agentRuns = pgTable("agent_runs", {
   id: serial("id").primaryKey(),
@@ -699,6 +699,14 @@ export const agentRuns = pgTable("agent_runs", {
   toolCallCount: integer("tool_call_count").notNull().default(0),
   summary: text("summary"),
   planJson: jsonb("plan_json"),
+  planHash: text("plan_hash"),
+  policySnapshot: jsonb("policy_snapshot"),
+  riskScoreTotal: integer("risk_score_total").notNull().default(0),
+  riskBudgetLimit: integer("risk_budget_limit"),
+  terminationReason: text("termination_reason"),
+  explainSummary: text("explain_summary"),
+  explainPolicy: text("explain_policy"),
+  explainRisk: text("explain_risk"),
   startedAt: timestamp("started_at").notNull().defaultNow(),
   finishedAt: timestamp("finished_at"),
   durationMs: integer("duration_ms"),
@@ -717,7 +725,7 @@ export type AgentRun = typeof agentRuns.$inferSelect;
 export type InsertAgentRun = z.infer<typeof insertAgentRunSchema>;
 
 // ============================================
-// AGENT STEPS - Individual steps within an agent run
+// AGENT STEPS - Individual steps within an agent run (v1.2)
 // ============================================
 export const agentSteps = pgTable("agent_steps", {
   id: serial("id").primaryKey(),
@@ -729,6 +737,11 @@ export const agentSteps = pgTable("agent_steps", {
   inputSummary: text("input_summary"),
   outputSummary: text("output_summary"),
   rationale: text("rationale"),
+  riskScore: integer("risk_score").notNull().default(0),
+  decisionReason: text("decision_reason"),
+  blockedByPolicy: boolean("blocked_by_policy").notNull().default(false),
+  policyRuleTriggered: text("policy_rule_triggered"),
+  egressUsed: boolean("egress_used").notNull().default(false),
   durationMs: integer("duration_ms"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (table) => [

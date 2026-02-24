@@ -48,6 +48,9 @@ export const PERMISSION_KEYS = [
   "TOOL_USE",
   "TELEGRAM_CONNECT",
   "TELEGRAM_SEND",
+  "RISK_BUDGET_LIMIT",
+  "CRITICAL_AUTO_ALLOW",
+  "EXPLAINABILITY_REQUIRED",
 ] as const;
 
 export type PermissionKey = typeof PERMISSION_KEYS[number];
@@ -171,6 +174,37 @@ export const PERMISSION_GROUPS: PermissionGroupDef[] = [
         risk: "MED",
         riskTier: "MEDIUM",
         defaultValue: { enabled: false, approvalMode: "APPROVAL_REQUIRED" },
+      },
+      {
+        key: "RISK_BUDGET_LIMIT",
+        labelEn: "Risk Budget Limit",
+        labelKo: "위험 예산 한도",
+        descEn: "Maximum risk score accumulation per agent run",
+        descKo: "에이전트 실행당 최대 위험 점수 누적 한도",
+        risk: "HIGH",
+        riskTier: "HIGH",
+        defaultValue: { enabled: true, approvalMode: "AUTO_ALLOWED", resourceScope: { limit: 10 } },
+        isAutonomy: true,
+      },
+      {
+        key: "CRITICAL_AUTO_ALLOW",
+        labelEn: "Allow Critical Auto-Execute",
+        labelKo: "위험 단계 자동 실행 허용",
+        descEn: "Allow CRITICAL risk steps without manual approval (Desktop only)",
+        descKo: "CRITICAL 위험 단계를 수동 승인 없이 자동 실행 허용 (데스크톱 전용)",
+        risk: "HIGH",
+        riskTier: "CRITICAL",
+        defaultValue: { enabled: false, approvalMode: "AUTO_DENIED" },
+      },
+      {
+        key: "EXPLAINABILITY_REQUIRED",
+        labelEn: "Require Explanations",
+        labelKo: "설명 생성 필수",
+        descEn: "Force explanation generation before run completion",
+        descKo: "실행 완료 전 설명 생성을 필수로 요구",
+        risk: "LOW",
+        riskTier: "LOW",
+        defaultValue: { enabled: true, approvalMode: "AUTO_ALLOWED" },
       },
     ],
   },
@@ -324,6 +358,43 @@ export const AGENT_HARD_LIMITS = {
   maxToolCalls: 5,
   cooldownMs: 60_000,
 };
+
+export const RISK_SCORE_MAP: Record<RiskTier, number> = {
+  LOW: 1,
+  MEDIUM: 3,
+  HIGH: 7,
+  CRITICAL: 15,
+};
+
+export const RISK_BUDGET_PRESETS = {
+  conservative: 10,
+  balanced: 25,
+  advanced: 50,
+} as const;
+
+export const RISK_BUDGET_BY_AUTONOMY: Record<AutonomyLevel, number> = {
+  L0: 5,
+  L1: 10,
+  L2: 20,
+  L3: 40,
+};
+
+export const RISK_BUDGET_WEB_MAX = 25;
+
+export const TERMINATION_REASONS = [
+  "completed",
+  "timeout",
+  "step_limit",
+  "llm_limit",
+  "tool_limit",
+  "cooldown_block",
+  "risk_limit_reached",
+  "policy_denied",
+  "user_denied",
+  "plan_mismatch",
+] as const;
+
+export type TerminationReason = typeof TERMINATION_REASONS[number];
 
 export function getDefaultPermissionValue(key: PermissionKey): PermissionValue {
   for (const group of PERMISSION_GROUPS) {

@@ -9,8 +9,10 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { Bot, Play, Loader2, CheckCircle2, XCircle, Clock, AlertTriangle, Shield, ChevronRight, Zap, Timer } from "lucide-react";
+import { Bot, Play, Loader2, CheckCircle2, XCircle, Clock, AlertTriangle, Shield, ChevronRight, Zap, Timer, FileText, ShieldAlert, Gauge } from "lucide-react";
 
 type AutonomyLevel = "L0" | "L1" | "L2" | "L3";
 
@@ -26,6 +28,12 @@ interface AgentRunData {
   startedAt: string;
   finishedAt: string | null;
   durationMs: number | null;
+  riskScoreTotal: number | null;
+  terminationReason: string | null;
+  explainSummary: string | null;
+  explainPolicy: string | null;
+  explainRisk: string | null;
+  riskBudgetLimit: number | null;
 }
 
 interface AgentStepData {
@@ -39,6 +47,11 @@ interface AgentStepData {
   outputSummary: string | null;
   rationale: string | null;
   durationMs: number | null;
+  riskScore: number | null;
+  decisionReason: string | null;
+  blockedByPolicy: boolean | null;
+  policyRuleTriggered: string | null;
+  egressUsed: boolean | null;
 }
 
 interface PlanStep {
@@ -46,15 +59,18 @@ interface PlanStep {
   description: string;
   permissionKey: string;
   riskTier: string;
+  riskScore: number;
 }
 
 interface AgentPlan {
   planId: string;
+  planHash: string;
   goal: string;
   steps: PlanStep[];
   requiredPermissions: string[];
-  riskSummary: { high: number; medium: number; low: number };
+  riskSummary: { high: number; medium: number; low: number; critical: number; totalRisk: number };
   estimatedSteps: number;
+  riskBudget: number;
 }
 
 function useIsDesktop() {
@@ -82,6 +98,12 @@ function getStatusBadgeVariant(status: string): "default" | "secondary" | "destr
   }
 }
 
+function getRiskBadgeVariant(riskScore: number): "default" | "secondary" | "destructive" | "outline" {
+  if (riskScore >= 15) return "destructive";
+  if (riskScore >= 7) return "secondary";
+  return "outline";
+}
+
 function formatDuration(ms: number | null): string {
   if (!ms) return "-";
   if (ms < 1000) return `${ms}ms`;
@@ -97,6 +119,26 @@ function formatTimeAgo(dateStr: string, language: string): string {
   if (hours < 24) return language === "ko" ? `${hours}시간 전` : `${hours}h ago`;
   const days = Math.floor(hours / 24);
   return language === "ko" ? `${days}일 전` : `${days}d ago`;
+}
+
+function RiskBudgetBar({ consumed, budget, t }: { consumed: number; budget: number; t: (key: string) => string }) {
+  const pct = budget > 0 ? Math.min((consumed / budget) * 100, 100) : 0;
+  const color = pct >= 90 ? "bg-red-500" : pct >= 60 ? "bg-yellow-500" : "bg-green-500";
+
+  return (
+    <div className="space-y-1.5" data-testid="risk-budget-bar">
+      <div className="flex items-center justify-between text-xs">
+        <span className="flex items-center gap-1">
+          <Gauge className="h-3 w-3" />
+          {t("risk.title")}
+        </span>
+        <span className="font-medium">{consumed}/{budget} ({Math.round(pct)}%)</span>
+      </div>
+      <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+        <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
 }
 
 interface AutonomyCardProps {
@@ -125,6 +167,8 @@ export function AutonomyCard({ botId, t, language }: AutonomyCardProps) {
   const levels: AutonomyLevel[] = ["L0", "L1", "L2", "L3"];
   const levelOrder = { L0: 0, L1: 1, L2: 2, L3: 3 };
   const isLevelDisabled = (level: AutonomyLevel) => levelOrder[level] > levelOrder[maxLevel];
+
+  const riskBudgetLimit = effective?.RISK_BUDGET_LIMIT?.resourceScope?.limit ?? 10;
 
   const { data: agentRuns, isLoading: runsLoading } = useQuery<AgentRunData[]>({
     queryKey: ["/api/agent/runs", botId],
@@ -169,8 +213,8 @@ export function AutonomyCard({ botId, t, language }: AutonomyCardProps) {
   });
 
   const runMutation = useMutation({
-    mutationFn: async ({ goal: goalText, planId }: { goal: string; planId?: string }) => {
-      const res = await apiRequest("POST", "/api/agent/run", { botId, goal: goalText, planId });
+    mutationFn: async ({ goal: goalText, planId, planHash }: { goal: string; planId?: string; planHash?: string }) => {
+      const res = await apiRequest("POST", "/api/agent/run", { botId, goal: goalText, planId, planHash });
       return res.json();
     },
     onSuccess: () => {
@@ -198,6 +242,7 @@ export function AutonomyCard({ botId, t, language }: AutonomyCardProps) {
   };
 
   const runs = agentRuns ?? [];
+  const selectedRun = runs.find(r => r.id === selectedRunId);
 
   return (
     <>
@@ -256,6 +301,7 @@ export function AutonomyCard({ botId, t, language }: AutonomyCardProps) {
               <div>{t("autonomy.maxLLMCalls")}: <span className="font-medium text-foreground">3</span></div>
               <div>{t("autonomy.maxToolCalls")}: <span className="font-medium text-foreground">5</span></div>
               <div>{t("autonomy.cooldown")}: <span className="font-medium text-foreground">60{t("autonomy.seconds")}</span></div>
+              <div>{t("risk.budget")}: <span className="font-medium text-foreground">{riskBudgetLimit}</span></div>
             </div>
           </div>
 
@@ -310,8 +356,13 @@ export function AutonomyCard({ botId, t, language }: AutonomyCardProps) {
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <Badge variant={getStatusBadgeVariant(run.status)} className="text-[10px]">
-                        {t(`agent.status.${run.status}` as any) || run.status}
+                        {run.terminationReason ? t(`termination.${run.terminationReason}` as any) || run.terminationReason : (t(`agent.status.${run.status}` as any) || run.status)}
                       </Badge>
+                      {run.riskScoreTotal != null && run.riskBudgetLimit != null && (
+                        <span className="text-[10px] text-muted-foreground font-mono">
+                          {run.riskScoreTotal}/{run.riskBudgetLimit}
+                        </span>
+                      )}
                       <span className="text-xs text-muted-foreground">
                         {run.stepCount}{t("agent.steps")}
                       </span>
@@ -343,6 +394,8 @@ export function AutonomyCard({ botId, t, language }: AutonomyCardProps) {
             <div className="grid gap-4 py-2">
               <p className="text-sm text-muted-foreground">{t("agent.planApproval.desc")}</p>
 
+              <RiskBudgetBar consumed={currentPlan.riskSummary.totalRisk} budget={currentPlan.riskBudget} t={t} />
+
               <div>
                 <p className="text-sm font-medium mb-2">{t("agent.plan")}</p>
                 <div className="grid gap-1.5">
@@ -350,8 +403,8 @@ export function AutonomyCard({ botId, t, language }: AutonomyCardProps) {
                     <div key={i} className="flex items-center gap-2 p-2 rounded-md bg-muted/50 text-sm">
                       <span className="text-xs font-mono text-muted-foreground w-6 shrink-0">#{i + 1}</span>
                       <span className="flex-1">{step.description}</span>
-                      <Badge variant={step.riskTier === "HIGH" || step.riskTier === "CRITICAL" ? "destructive" : step.riskTier === "MEDIUM" ? "secondary" : "default"} className="text-[10px]">
-                        {step.riskTier}
+                      <Badge variant={getRiskBadgeVariant(step.riskScore)} className="text-[10px]">
+                        {step.riskTier} ({step.riskScore})
                       </Badge>
                     </div>
                   ))}
@@ -359,6 +412,10 @@ export function AutonomyCard({ botId, t, language }: AutonomyCardProps) {
               </div>
 
               <div className="flex items-center gap-4 p-3 rounded-md bg-muted/50 text-sm">
+                <div className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-purple-500" />
+                  <span>CRITICAL: {currentPlan.riskSummary.critical}</span>
+                </div>
                 <div className="flex items-center gap-1">
                   <span className="w-2 h-2 rounded-full bg-red-500" />
                   <span>{t("agent.planApproval.high")}: {currentPlan.riskSummary.high}</span>
@@ -382,12 +439,16 @@ export function AutonomyCard({ botId, t, language }: AutonomyCardProps) {
                 </div>
               </div>
 
+              <div className="text-xs text-muted-foreground p-2 rounded bg-muted/30 font-mono">
+                Plan Hash: {currentPlan.planHash.substring(0, 16)}...
+              </div>
+
               <div className="flex justify-end gap-2 pt-2 border-t">
                 <Button variant="outline" onClick={() => setPlanModalOpen(false)} data-testid="button-plan-cancel">
                   {t("agent.planApproval.cancel")}
                 </Button>
                 <Button
-                  onClick={() => runMutation.mutate({ goal: currentPlan.goal, planId: currentPlan.planId })}
+                  onClick={() => runMutation.mutate({ goal: currentPlan.goal, planId: currentPlan.planId, planHash: currentPlan.planHash })}
                   disabled={runMutation.isPending}
                   data-testid="button-plan-approve"
                 >
@@ -401,7 +462,7 @@ export function AutonomyCard({ botId, t, language }: AutonomyCardProps) {
       </Dialog>
 
       <Sheet open={detailOpen} onOpenChange={setDetailOpen}>
-        <SheetContent className="w-[400px] sm:w-[540px]" data-testid="sheet-agent-detail">
+        <SheetContent className="w-[400px] sm:w-[540px] overflow-y-auto" data-testid="sheet-agent-detail">
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
               <Bot className="h-5 w-5" />
@@ -409,79 +470,135 @@ export function AutonomyCard({ botId, t, language }: AutonomyCardProps) {
             </SheetTitle>
           </SheetHeader>
           <div className="mt-4 grid gap-4">
-            {selectedRunId && runs.find(r => r.id === selectedRunId) && (() => {
-              const run = runs.find(r => r.id === selectedRunId)!;
-              return (
-                <>
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Status</span>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        {getStatusIcon(run.status)}
-                        <span className="font-medium">{t(`agent.status.${run.status}` as any)}</span>
-                      </div>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">{t("agent.duration")}</span>
-                      <p className="font-medium mt-0.5">{formatDuration(run.durationMs)}</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">{t("agent.steps")}</span>
-                      <p className="font-medium mt-0.5">{run.stepCount}</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Level</span>
-                      <p className="font-medium mt-0.5">{run.autonomyLevel}</p>
+            {selectedRun && (
+              <>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Status</span>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      {getStatusIcon(selectedRun.status)}
+                      <span className="font-medium">{t(`agent.status.${selectedRun.status}` as any)}</span>
                     </div>
                   </div>
+                  <div>
+                    <span className="text-muted-foreground">{t("agent.duration")}</span>
+                    <p className="font-medium mt-0.5">{formatDuration(selectedRun.durationMs)}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">{t("agent.steps")}</span>
+                    <p className="font-medium mt-0.5">{selectedRun.stepCount}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Level</span>
+                    <p className="font-medium mt-0.5">{selectedRun.autonomyLevel}</p>
+                  </div>
+                </div>
 
-                  {run.goal && (
-                    <div className="text-sm">
-                      <span className="text-muted-foreground">Goal</span>
-                      <p className="mt-0.5">{run.goal}</p>
-                    </div>
-                  )}
+                {selectedRun.riskScoreTotal != null && selectedRun.riskBudgetLimit != null && (
+                  <RiskBudgetBar consumed={selectedRun.riskScoreTotal} budget={selectedRun.riskBudgetLimit} t={t} />
+                )}
 
-                  {run.summary && (
-                    <div className="text-sm">
-                      <span className="text-muted-foreground">Summary</span>
-                      <p className="mt-0.5">{run.summary}</p>
-                    </div>
-                  )}
+                {selectedRun.terminationReason && (
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">{language === "ko" ? "종료 사유" : "Termination"}</span>
+                    <Badge variant={selectedRun.terminationReason === "completed" ? "default" : "secondary"} className="ml-2 text-[10px]">
+                      {t(`termination.${selectedRun.terminationReason}` as any) || selectedRun.terminationReason}
+                    </Badge>
+                  </div>
+                )}
 
-                  <div className="border-t pt-3">
-                    <p className="text-sm font-medium mb-2">{t("agent.steps")}</p>
-                    {selectedSteps && selectedSteps.length > 0 ? (
-                      <div className="grid gap-2">
-                        {selectedSteps.map(step => (
-                          <div key={step.id} className="p-2.5 rounded-md border text-sm" data-testid={`step-detail-${step.stepIndex}`}>
-                            <div className="flex items-center justify-between mb-1.5">
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-mono text-muted-foreground">#{step.stepIndex + 1}</span>
-                                {getStatusIcon(step.status)}
-                                <span className="font-medium">{step.toolKey}</span>
-                              </div>
+                {selectedRun.goal && (
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">Goal</span>
+                    <p className="mt-0.5">{selectedRun.goal}</p>
+                  </div>
+                )}
+
+                {(selectedRun.explainSummary || selectedRun.explainPolicy || selectedRun.explainRisk) && (
+                  <Tabs defaultValue="summary" className="w-full" data-testid="explain-tabs">
+                    <TabsList className="w-full grid grid-cols-3">
+                      <TabsTrigger value="summary" className="text-xs">
+                        <FileText className="h-3 w-3 mr-1" />
+                        {t("explain.summary")}
+                      </TabsTrigger>
+                      <TabsTrigger value="policy" className="text-xs">
+                        <ShieldAlert className="h-3 w-3 mr-1" />
+                        {t("explain.policy")}
+                      </TabsTrigger>
+                      <TabsTrigger value="risk" className="text-xs">
+                        <Gauge className="h-3 w-3 mr-1" />
+                        {t("explain.risk")}
+                      </TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="summary" className="mt-2">
+                      <pre className="text-xs bg-muted/50 p-3 rounded-md whitespace-pre-wrap font-mono">{selectedRun.explainSummary}</pre>
+                    </TabsContent>
+                    <TabsContent value="policy" className="mt-2">
+                      <pre className="text-xs bg-muted/50 p-3 rounded-md whitespace-pre-wrap font-mono">{selectedRun.explainPolicy}</pre>
+                    </TabsContent>
+                    <TabsContent value="risk" className="mt-2">
+                      <pre className="text-xs bg-muted/50 p-3 rounded-md whitespace-pre-wrap font-mono">{selectedRun.explainRisk}</pre>
+                    </TabsContent>
+                  </Tabs>
+                )}
+
+                <div className="border-t pt-3">
+                  <p className="text-sm font-medium mb-2">{t("agent.steps")}</p>
+                  {selectedSteps && selectedSteps.length > 0 ? (
+                    <div className="grid gap-2">
+                      {selectedSteps.map(step => (
+                        <div key={step.id} className={`p-2.5 rounded-md border text-sm ${step.blockedByPolicy ? "border-yellow-500/50 bg-yellow-50/50 dark:bg-yellow-950/20" : ""}`} data-testid={`step-detail-${step.stepIndex}`}>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-mono text-muted-foreground">#{step.stepIndex + 1}</span>
+                              {getStatusIcon(step.status)}
+                              <span className="font-medium">{step.toolKey}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              {step.riskScore != null && (
+                                <Badge variant={getRiskBadgeVariant(step.riskScore)} className="text-[10px]">
+                                  {t("risk.score")}: {step.riskScore}
+                                </Badge>
+                              )}
+                              {step.blockedByPolicy && (
+                                <Badge variant="destructive" className="text-[10px]">
+                                  {t("agent.step.blocked")}
+                                </Badge>
+                              )}
+                              {step.egressUsed && (
+                                <Badge variant="secondary" className="text-[10px]">
+                                  {t("agent.step.egress")}
+                                </Badge>
+                              )}
                               <span className="text-xs text-muted-foreground">{formatDuration(step.durationMs)}</span>
                             </div>
-                            {step.inputSummary && (
-                              <p className="text-xs text-muted-foreground">{t("agent.step.input")}: {step.inputSummary}</p>
-                            )}
-                            {step.outputSummary && (
-                              <p className="text-xs mt-0.5">{t("agent.step.output")}: {step.outputSummary}</p>
-                            )}
-                            {step.permissionKey && (
-                              <Badge variant="outline" className="text-[10px] mt-1">{step.permissionKey}</Badge>
-                            )}
                           </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">{language === "ko" ? "단계 정보가 없습니다" : "No steps recorded"}</p>
-                    )}
-                  </div>
-                </>
-              );
-            })()}
+                          {step.inputSummary && (
+                            <p className="text-xs text-muted-foreground">{t("agent.step.input")}: {step.inputSummary}</p>
+                          )}
+                          {step.outputSummary && (
+                            <p className="text-xs mt-0.5">{t("agent.step.output")}: {step.outputSummary}</p>
+                          )}
+                          {step.decisionReason && (
+                            <p className="text-xs mt-0.5 text-muted-foreground italic">{step.decisionReason}</p>
+                          )}
+                          {step.policyRuleTriggered && (
+                            <p className="text-xs mt-0.5 text-yellow-600 dark:text-yellow-400">
+                              {language === "ko" ? "정책 규칙" : "Policy Rule"}: {step.policyRuleTriggered}
+                            </p>
+                          )}
+                          {step.permissionKey && (
+                            <Badge variant="outline" className="text-[10px] mt-1">{step.permissionKey}</Badge>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">{language === "ko" ? "단계 정보가 없습니다" : "No steps recorded"}</p>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </SheetContent>
       </Sheet>
