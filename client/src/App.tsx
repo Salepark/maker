@@ -16,6 +16,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Loader2 } from "lucide-react";
 import { ShareButton } from "@/components/share-button";
 import { PermissionRequestProvider } from "@/lib/permission-request-context";
+import { ErrorBoundary } from "@/components/error-boundary";
 
 import Dashboard from "@/pages/dashboard";
 import Items from "@/pages/items";
@@ -95,7 +96,9 @@ function AuthenticatedApp() {
               </div>
             </header>
             <main className="flex-1 overflow-auto bg-muted/30">
-              <Router />
+              <ErrorBoundary>
+                <Router />
+              </ErrorBoundary>
             </main>
           </div>
         </div>

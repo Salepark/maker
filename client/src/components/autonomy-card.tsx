@@ -241,7 +241,7 @@ export function AutonomyCard({ botId, t, language }: AutonomyCardProps) {
     }
   };
 
-  const runs = agentRuns ?? [];
+  const runs = Array.isArray(agentRuns) ? agentRuns : [];
   const selectedRun = runs.find(r => r.id === selectedRunId);
 
   return (
@@ -544,7 +544,7 @@ export function AutonomyCard({ botId, t, language }: AutonomyCardProps) {
 
                 <div className="border-t pt-3">
                   <p className="text-sm font-medium mb-2">{t("agent.steps")}</p>
-                  {selectedSteps && selectedSteps.length > 0 ? (
+                  {Array.isArray(selectedSteps) && selectedSteps.length > 0 ? (
                     <div className="grid gap-2">
                       {selectedSteps.map(step => (
                         <div key={step.id} className={`p-2.5 rounded-md border text-sm ${step.blockedByPolicy ? "border-yellow-500/50 bg-yellow-50/50 dark:bg-yellow-950/20" : ""}`} data-testid={`step-detail-${step.stepIndex}`}>

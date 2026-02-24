@@ -240,7 +240,7 @@ export function PermissionDashboard({ botId, t, language }: PermissionDashboardP
     }
   };
 
-  const recentAudit = (auditLogs || []).slice(0, 5);
+  const recentAudit = (Array.isArray(auditLogs) ? auditLogs : []).slice(0, 5);
 
   const isUpdating = saveMutation.isPending || resetMutation.isPending;
 

@@ -175,9 +175,9 @@ export default function BotDetail() {
 
   const bot = botResponse?.bot;
   const botSettings = settingsResponse?.settings;
-  const botSources = sourcesResponse?.links ?? [];
-  const allSources = allSourcesResponse ?? [];
-  const availableProviders = providersResponse?.providers ?? [];
+  const botSources = Array.isArray(sourcesResponse?.links) ? sourcesResponse.links : [];
+  const allSources = Array.isArray(allSourcesResponse) ? allSourcesResponse : [];
+  const availableProviders = Array.isArray(providersResponse?.providers) ? providersResponse.providers : [];
 
   const linkedSourceIds = new Set(botSources.map(s => s.id));
   const unlinkedSources = allSources.filter(s => !linkedSourceIds.has(s.id));
@@ -695,7 +695,7 @@ export default function BotDetail() {
               <Clock className="h-5 w-5" />
               {t("runs.title")}
             </CardTitle>
-            {runsData && runsData.length > 0 && (
+            {Array.isArray(runsData) && runsData.length > 0 && (
               <Sheet>
                 <SheetTrigger asChild>
                   <Button variant="outline" size="sm" data-testid="button-view-all-runs">
@@ -716,7 +716,7 @@ export default function BotDetail() {
             )}
           </CardHeader>
           <CardContent>
-            {!runsData || runsData.length === 0 ? (
+            {!Array.isArray(runsData) || runsData.length === 0 ? (
               <p className="text-sm text-muted-foreground" data-testid="text-runs-empty">{t("runs.empty")}</p>
             ) : (
               <div className="grid gap-2">

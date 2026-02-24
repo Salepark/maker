@@ -120,9 +120,11 @@ export function MemoryCard({ botId, t, language }: MemoryCardProps) {
     setIsAdding(true);
   };
 
+  const safeBotRules = Array.isArray(botRules) ? botRules : [];
+  const safeGlobalRules = Array.isArray(globalRules) ? globalRules : [];
   const allRules = [
-    ...botRules.map(r => ({ ...r, _source: "bot" as const })),
-    ...globalRules.map(r => ({ ...r, _source: "global" as const })),
+    ...safeBotRules.map(r => ({ ...r, _source: "bot" as const })),
+    ...safeGlobalRules.map(r => ({ ...r, _source: "global" as const })),
   ];
 
   const ruleKeyLabel = (key: string) => {
