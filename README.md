@@ -1,30 +1,85 @@
-# Maker — Local-First Automation OS
+# Maker — Control-First AI Operating System
 
-**Stop renting bots. Build your own.**
+> We don't trust AI. We trust the user's right to control it.
 
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)](https://github.com/Salepark/maker/releases)
 [![Release](https://img.shields.io/github/v/release/Salepark/maker)](https://github.com/Salepark/maker/releases)
 
-> We don't trust AI. We trust the user's right to control it.
+Maker is not a company that makes AI stronger.
+Maker is a company that makes AI **controllable**.
 
-Maker is a personal automation operating system for the AI era.
-Design your own workflows, control your own bots, own your own data.
+We believe AI automation must go beyond convenience — it must be **operable**.
+AI is a tool. Judgment and responsibility must remain with humans.
 
-[Download from Releases](https://github.com/Salepark/maker/releases)
+Maker builds a **Control-First AI OS** that helps individuals design, control, and audit their own automation systems.
+
+[Website](https://maker.am) · [Download Desktop](https://github.com/Salepark/maker/releases)
 
 ---
 
-## Why Maker?
+## Our Mission
 
-Other tools say: *"Use our bots."*
-Maker says: **"Build your own system."**
+**Build an AI operating system that humans can control.**
 
-- **Local-first** — Your data stays on your machine. SQLite + Electron, no cloud required.
-- **Permission Engine** — 11 granular permissions. AI acts only with your approval.
-- **Fast-first reports** — Instant previews, never stuck on "Running..."
-- **Bring Your Own LLM** — Anthropic, OpenAI, Google AI, or any OpenAI-compatible endpoint.
-- **Full transparency** — Audit logs track everything: what was collected, analyzed, and sent.
+AI is advancing rapidly. But control structures have not kept pace.
+Maker exists to close that gap.
+
+- Visibility into AI execution
+- Policy-based control
+- Risk budget management
+- Data ownership guarantee
+- Explainable autonomy
+
+As AI grows more powerful, control must grow more sophisticated.
+
+---
+
+## Our Philosophy
+
+**We don't trust AI. We trust the user's right to control it.**
+
+Maker stands on seven principles:
+
+| # | Principle | Description |
+|---|-----------|-------------|
+| 1 | **Nothing Runs Silently** | Every execution is logged. |
+| 2 | **Autonomy Must Be Bounded** | Autonomy must exist within time, steps, and risk budgets. |
+| 3 | **Data Belongs to the User** | Your data stays with you. |
+| 4 | **Policy Before Power** | Permissions must be designed before capabilities. |
+| 5 | **Explanation Is Mandatory** | AI actions must be explainable. |
+| 6 | **Risk Must Be Measurable** | Risk must be quantified and managed. |
+| 7 | **Human Remains Accountable** | Final responsibility always lies with humans. |
+
+---
+
+## What We Are Not
+
+Maker is different from:
+
+- Unlimited autonomous agent platforms
+- Black-box automation tools
+- Data-collection-centric SaaS
+- Systems that delegate full authority to AI
+
+**We do not pursue autonomy without control.**
+
+---
+
+## What Is Maker?
+
+Maker is not an AI automation tool.
+It's not a simple agent framework.
+It's not a newsletter generation service.
+
+> **Maker is a personal AI execution kernel.**
+
+Inside Maker, AI must:
+
+- Pass through policies
+- Stay within the risk budget
+- Be logged
+- Be explained
 
 ---
 
@@ -33,7 +88,7 @@ Maker says: **"Build your own system."**
 - Multi-bot management with strict topic isolation
 - Template Gallery with guided setup wizard
 - Fast-first report pipeline (instant previews, async full reports)
-- 11-permission policy engine with audit logging
+- 11-permission policy engine with audit logging and risk budget
 - Bring Your Own LLM (Anthropic, OpenAI, Google AI, custom endpoints)
 - Command Chat — natural language bot control
 - Bilingual interface (English / Korean)
@@ -65,11 +120,40 @@ npm run build:desktop && npm run pack:desktop  # Build installer
 
 ---
 
-## Philosophy
+## Long-Term Vision
 
-Maker exists to help individuals design and control their own automation workflows.
+We are not just building an app. We are building:
 
-Read the full philosophy: [`docs/PHILOSOPHY_EN.md`](docs/PHILOSOPHY_EN.md)
+> **A controllable operating system for the AI era.**
+
+- **Phase 1:** Personal Maker OS
+- **Phase 2:** Distributed execution + local control
+- **Phase 3:** Organization-level governance
+
+But the starting point is always the same — **individual control**.
+
+---
+
+## Why Now
+
+AI is rapidly becoming mainstream. But we ask:
+
+- Who controls it?
+- By what criteria is it executed?
+- What data is leaving the system?
+- When it fails, who is responsible?
+
+Maker started from these questions.
+
+---
+
+## Founder's Note
+
+Maker did not start from fear. But it did not start from uncritical optimism either.
+
+AI is powerful. That is precisely why control structures are necessary.
+
+Maker is not a project to make AI stronger — it is an effort to make AI safe to use.
 
 ---
 
@@ -84,8 +168,6 @@ Maker Core is licensed under the **GNU Affero General Public License v3.0 (AGPL-
 
 The full license text is available in the [`LICENSE`](LICENSE) file.
 
----
-
 ### Commercial Licensing
 
 If you wish to:
@@ -99,8 +181,6 @@ Please contact us for a separate commercial license.
 - Website: https://maker.am
 - Issues: https://github.com/Salepark/maker/issues
 
----
-
 ### Trademarks
 
 "Maker", the Maker logo, and related brand assets are trademarks of the Maker project.
@@ -110,5 +190,4 @@ However, use of the Maker name and branding in a way that implies official endor
 
 ---
 
-We do not sell bots.
-We build tools for people who build their own automation.
+> Maker is the execution infrastructure that transforms "Autonomous AI" into "Governable AI".

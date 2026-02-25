@@ -35,6 +35,7 @@ import Guide from "@/pages/guide";
 import Permissions from "@/pages/permissions";
 import DemoProgress from "@/pages/DemoProgress";
 import DemoReport from "@/pages/DemoReport";
+import About from "@/pages/about";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -121,6 +122,7 @@ function AppContent() {
   if (!isAuthenticated) {
     return (
       <Switch>
+        <Route path="/about" component={About} />
         <Route path="/demo/progress/:jobId" component={DemoProgress} />
         <Route path="/demo/report/:jobId" component={DemoReport} />
         <Route component={Landing} />

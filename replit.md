@@ -40,6 +40,9 @@ A modular adapter system (`server/adapters/`) connects Maker to external messagi
 ### Report Generation & Pipeline
 A multi-stage report pipeline (Fast, Status, Full Report) ensures efficiency and cost optimization, providing immediate feedback and background processing for detailed AI analysis, with built-in timeouts and graceful fallbacks.
 
+### About Page
+A public `/about` page (`client/src/pages/about.tsx`) presents Maker's company overview, mission, philosophy (7 principles), product positioning, vision, and founder's note. Fully bilingual (EN/KO) via i18n keys prefixed with `about.`. Linked from the landing page nav.
+
 ### Internationalization (i18n)
 The application supports English and Korean using a homegrown i18n system, with language preferences persisted and all UI text localized.
 

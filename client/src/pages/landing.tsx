@@ -209,6 +209,9 @@ export default function Landing() {
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <ShareButton />
+            <Button variant="ghost" size="sm" asChild data-testid="link-about">
+              <a href="/about">About</a>
+            </Button>
             <LanguageSwitcher />
             <ThemeToggle />
             <Button asChild data-testid="button-login-nav">
