@@ -89,7 +89,7 @@ export const ko: Record<string, string> = {
   "landing.cta.title": "내일 아침부터 시장 브리핑을 받아보세요",
   "landing.cta.subtitle": "5분이면 설정 완료. GPT-4o가 매일 아침 핵심 시장 정보를 정리해 드립니다.",
   "landing.cta.button": "무료 체험 시작",
-  "landing.footer": "Maker Bot Manager",
+  "landing.footer": "© 2026 Maker. Control-First AI OS.",
 
   "landing.useCase.dailyMarketBrief": "일일 시장 브리핑",
   "landing.useCase.dailyMarketBriefDesc": "매일 아침 출근 전, 우리 업계 핵심 뉴스와 경쟁사 동향을 한눈에 파악하세요. GPT-4o가 액션 아이템까지 제안합니다.",

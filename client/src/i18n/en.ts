@@ -89,7 +89,7 @@ export const en: Record<string, string> = {
   "landing.cta.title": "Start receiving market briefings tomorrow morning",
   "landing.cta.subtitle": "5-minute setup. GPT-4o organizes key market insights for you every morning.",
   "landing.cta.button": "Start Free Trial",
-  "landing.footer": "Maker Bot Manager",
+  "landing.footer": "© 2026 Maker. Control-First AI OS.",
 
   "landing.useCase.dailyMarketBrief": "Daily Market Briefing",
   "landing.useCase.dailyMarketBriefDesc": "Get key industry news and competitor updates before work every morning. GPT-4o even suggests action items.",
