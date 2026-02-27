@@ -218,7 +218,7 @@ export default function MakerIntro() {
   const lang = language;
   const [openDocId, setOpenDocId] = useState<string | null>(null);
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(
-    new Set(["identity", "philosophy", "features", "demo"])
+    new Set(["identity", "philosophy", "features", "demo", "research"])
   );
 
   const isDevMode = useMemo(() => {

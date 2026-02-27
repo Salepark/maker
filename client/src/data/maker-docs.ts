@@ -96,6 +96,15 @@ export const mindMapTree: MindMapNode = {
         { id: "demo-1", labelKo: "통제 우선 AI OS의 전략적 증명", labelEn: "Strategic Proof of Control-First AI OS", color: "#14b8a6", docId: "demo-proof" },
       ],
     },
+    {
+      id: "research",
+      labelKo: "연구 논문",
+      labelEn: "Research Papers",
+      color: "#0ea5e9",
+      children: [
+        { id: "research-1", labelKo: "통제 우선 AI 운영체제 아키텍처: 경계 자율성 모델 제안", labelEn: "Control-First AI OS Architecture: Bounded Autonomy Model Proposal", color: "#0ea5e9", docId: "paper-bounded-autonomy" },
+      ],
+    },
   ],
 };
 
@@ -425,6 +434,35 @@ export const documents: Record<string, MindMapDoc> = {
       "5-Minute Demo Workflow: Enter just a company name and get a competitive analysis report within 5 minutes. Shows progress transparently every 30 seconds, with timeout prevention and Fast-First architecture ensuring no blank screens under any circumstance.",
       "Enterprise Use Cases: Daily market briefings, competitor trend monitoring, supply chain & commodity price tracking, regulatory monitoring. The entire collect-analyze-deliver process is scheduled to run continuously in the background.",
       "AI doesn't autonomously publish analysis results. It reports what was collected and analyzed, leaving final approval to humans. This implements the philosophy that 'automation doesn't replace humans' and 'final responsibility always lies with humans.'",
+    ],
+  },
+  "paper-bounded-autonomy": {
+    id: "paper-bounded-autonomy",
+    titleKo: "통제 우선 AI 운영체제 아키텍처: 정책 기반 경계 자율성(Bounded Autonomy) 모델 제안",
+    titleEn: "Control-First AI OS Architecture: Policy-Based Bounded Autonomy Model Proposal",
+    contentKo: [
+      "초록 — 자율형 AI 에이전트는 목표 기반 실행과 도구 사용 능력을 통해 강력한 범용성을 확보했으나, 무제한적 자율성(Unbounded Autonomy)은 보안, 비용, 책임의 측면에서 구조적 불안정성을 내포한다. 본 연구는 이러한 문제를 해결하기 위해 '통제 우선(Control-First)' 원칙에 기반한 AI 운영체제 아키텍처를 제안한다. 제안 모델은 (1) 세분화된 권한 체계, (2) 사전 정책 검증(Pre-Gating), (3) 정량적 리스크 예산(Risk Budgeting), (4) 설명 가능성 계층(Explainability Layer)을 통합하여 자율성을 경계화(Bounded)한다.",
+      "1. 문제 정의 — 기존 자율형 에이전트 아키텍처는 목표 중심 반복 실행, 도구 호출 자동화, 동적 계획 수정의 특성을 가진다. 이 구조는 강력한 유연성을 제공하지만 권한 남용 위험(Privilege Escalation), 데이터 유출 가능성, API 비용의 비결정성, 무한 실행 루프 가능성, 사후 감사(Post-Audit) 중심 구조의 위험을 수반한다. 본 연구는 이러한 위험이 단순 보안 이슈가 아니라 아키텍처적 설계 문제라고 본다.",
+      "2. Bounded Autonomy 모델 — Bounded Autonomy란 자율적 AI 실행을 정책, 자원, 위험, 시간의 경계 안에 제한하는 구조를 의미한다. 제안 아키텍처는 5개 계층으로 구성된다: (1) Policy Layer, (2) Risk Governance Layer, (3) Autonomy Kernel, (4) Tool Sandbox, (5) LLM Adapter. 각 실행은 반드시 Policy Layer를 통과해야 하며, Risk Governance Layer에서 정량 평가를 거친 후 Autonomy Kernel에서 수행된다.",
+      "3. 권한 기반 정책 모델 (Micro-Permission Architecture) — AI 실행은 단일 전역 권한이 아닌 세분화된 권한 키 집합으로 정의된다. 예: WEB_FETCH, FS_READ, FS_WRITE, FS_DELETE, LLM_EGRESS, AGENT_RUN. 각 권한은 Auto Allowed, Approval Required, Denied 상태 중 하나를 가진다. 이 구조는 Post-Audit가 아니라 Pre-Gating을 실현한다.",
+      "4. 리스크 예산 모델 (Quantitative Risk Budgeting) — 특정 세션 S에 대한 총 리스크 점수는 R_total(S) = Σ W(aᵢ) × V(dᵢ)로 산출된다. W(aᵢ)는 행위 위험 가중치, V(dᵢ)는 데이터 민감도 계수이다. R_total > 0.5B_max → 경고 및 승인 모드 강제, R_total ≥ B_max → 즉시 프로세스 종료. 이 모델은 실행 위험을 질적 판단이 아닌 정량적 기준으로 통제한다.",
+      "5. 실행 커널 모델 (Autonomy Kernel) — 각 Agent 실행은 하나의 AI Process로 정의되며, Ready, Running, Blocked, Suspended, Terminated의 5가지 상태를 가진다. 실행 제한 요소: 최대 단계 수, 최대 LLM 호출 수, 최대 실행 시간, 위험 예산 한도. 이는 전통적 OS의 CPU/메모리 제어와 유사한 역할을 수행한다.",
+      "6. 설명 가능성 계층 (Explainability Layer) — 자율 실행의 모든 단계는 선택된 도구, 적용된 정책, 위험 점수, 차단 사유, 종료 원인을 기록한다. 이 계층은 결과 중심이 아닌 의사결정 과정 중심 감사 구조를 구현한다.",
+      "7. 비교적 위치 — 기존 자동화 시스템은 '연결 중심'이며, 자율형 에이전트는 '실행 중심'이다. 제안 모델은 '통제 중심(Control-Centric)' 아키텍처로 분류될 수 있다. 자율성과 보안을 이분법적으로 다루는 대신, 자율성을 경계화하여 거버넌스 가능한 상태로 전환한다.",
+      "8. 의의 — 본 연구의 기여: (1) Bounded Autonomy 개념의 구조적 정의, (2) 정량적 리스크 예산 모델 제안, (3) Micro-Permission 기반 사전 검증 체계, (4) 자율 실행의 커널화(Kernelization) 개념 도입, (5) Governance-Ready AI 아키텍처 제시.",
+      "9. 결론 — 자율 AI는 강력하지만, 통제 구조가 없다면 예측 불가능하다. 본 논문은 AI 실행을 운영체제 수준에서 관리하는 통제 우선 아키텍처를 제안하였다. 이 모델은 자율성을 제거하지 않는다. 대신 자율성을 측정 가능하고 경계화된 상태로 전환한다. 이는 향후 개인 및 조직 단위의 AI 거버넌스 인프라로 확장될 수 있는 기반 모델을 제시한다.",
+    ],
+    contentEn: [
+      "Abstract — Autonomous AI agents have achieved powerful generality through goal-based execution and tool-use capabilities. However, unbounded autonomy inherently poses structural instabilities in security, cost, and accountability. This study proposes an AI operating system architecture based on the 'Control-First' principle. The proposed model integrates (1) granular permission systems, (2) pre-gating policy verification, (3) quantitative risk budgeting, and (4) an explainability layer to bound autonomy.",
+      "1. Problem Statement — Existing autonomous agent architectures feature goal-oriented iterative execution, automated tool invocation, and dynamic plan modification. While providing powerful flexibility, this structure carries risks: privilege escalation, data leakage potential, API cost non-determinism, infinite execution loops, and post-audit-centric structures. This study views these risks not as mere security issues but as architectural design problems.",
+      "2. Bounded Autonomy Model — Bounded Autonomy refers to a structure that constrains autonomous AI execution within boundaries of policy, resources, risk, and time. The proposed architecture consists of 5 layers: (1) Policy Layer, (2) Risk Governance Layer, (3) Autonomy Kernel, (4) Tool Sandbox, (5) LLM Adapter. Each execution must pass through the Policy Layer, undergo quantitative assessment in the Risk Governance Layer, and then be performed in the Autonomy Kernel.",
+      "3. Micro-Permission Architecture — AI execution is defined not by a single global permission but by a set of granular permission keys. Examples: WEB_FETCH, FS_READ, FS_WRITE, FS_DELETE, LLM_EGRESS, AGENT_RUN. Each permission has one of three states: Auto Allowed, Approval Required, or Denied. This structure realizes Pre-Gating rather than Post-Audit.",
+      "4. Quantitative Risk Budgeting — Total risk score for a session S is calculated as R_total(S) = Σ W(aᵢ) × V(dᵢ), where W(aᵢ) is the action risk weight and V(dᵢ) is the data sensitivity coefficient. R_total > 0.5B_max → warning and forced approval mode; R_total ≥ B_max → immediate process termination. This model controls execution risk through quantitative criteria rather than qualitative judgment.",
+      "5. Autonomy Kernel — Each agent execution is defined as an AI Process with 5 states: Ready, Running, Blocked, Suspended, and Terminated. Execution constraints include: maximum steps, maximum LLM calls, maximum execution time, and risk budget limits. This performs a role analogous to CPU/memory control in traditional operating systems.",
+      "6. Explainability Layer — Every step of autonomous execution records: selected tools, applied policies, risk scores, blocking reasons, and termination causes. This layer implements a decision-process-centric audit structure rather than a result-centric one.",
+      "7. Comparative Positioning — Existing automation systems are 'connection-centric,' while autonomous agents are 'execution-centric.' The proposed model can be classified as a 'Control-Centric' architecture. Instead of treating autonomy and security as a binary, it bounds autonomy to transition it into a governable state.",
+      "8. Contributions — (1) Structural definition of Bounded Autonomy, (2) Quantitative risk budget model proposal, (3) Micro-Permission-based pre-verification system, (4) Introduction of autonomous execution kernelization concept, (5) Governance-Ready AI architecture presentation.",
+      "9. Conclusion — Autonomous AI is powerful, but without control structures it is unpredictable. This paper proposes a Control-First architecture that manages AI execution at the operating system level. This model does not eliminate autonomy. Instead, it transitions autonomy into a measurable and bounded state. It presents a foundational model that can be extended to AI governance infrastructure at both individual and organizational levels.",
     ],
   },
 };
