@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useLanguage } from "@/lib/language-provider";
 import { mindMapTree, documents, type MindMapNode } from "@/data/maker-docs";
-import { ArrowLeft, ChevronDown, ChevronRight, FileText, X } from "lucide-react";
+import { internalTreeNodes, internalDocuments } from "@/data/maker-docs-internal";
+import { ArrowLeft, ChevronDown, ChevronRight, FileText, X, Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -164,12 +165,16 @@ function DocumentView({
   docId,
   lang,
   onBack,
+  allDocs,
+  isInternal,
 }: {
   docId: string;
   lang: string;
   onBack: () => void;
+  allDocs: Record<string, { titleKo: string; titleEn: string; contentKo: string[]; contentEn: string[] }>;
+  isInternal?: boolean;
 }) {
-  const doc = documents[docId];
+  const doc = allDocs[docId];
   if (!doc) return null;
 
   const title = lang === "ko" ? doc.titleKo : doc.titleEn;
@@ -188,6 +193,12 @@ function DocumentView({
         {lang === "ko" ? "마인드맵으로 돌아가기" : "Back to Mind Map"}
       </Button>
       <article className="prose prose-sm dark:prose-invert max-w-none">
+        {isInternal && (
+          <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs font-medium">
+            <Lock className="h-3.5 w-3.5" />
+            {lang === "ko" ? "내부 전략 문서 (개발자 모드)" : "Internal Strategy Document (Developer Mode)"}
+          </div>
+        )}
         <h1 className="text-2xl font-bold mb-6 text-foreground leading-tight" data-testid="text-doc-title">
           {title}
         </h1>
@@ -209,6 +220,28 @@ export default function MakerIntro() {
     new Set(["identity", "philosophy", "features", "demo"])
   );
 
+  const isDevMode = useMemo(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("dev") === "1";
+  }, []);
+
+  const activeTree = useMemo<MindMapNode>(() => {
+    if (!isDevMode) return mindMapTree;
+    return {
+      ...mindMapTree,
+      children: [...(mindMapTree.children || []), ...internalTreeNodes],
+    };
+  }, [isDevMode]);
+
+  const allDocs = useMemo(() => {
+    if (!isDevMode) return documents;
+    return { ...documents, ...internalDocuments };
+  }, [isDevMode]);
+
+  const internalDocIds = useMemo(() => {
+    return new Set(Object.keys(internalDocuments));
+  }, []);
+
   const toggleNode = (id: string) => {
     setExpandedNodes((prev) => {
       const next = new Set(prev);
@@ -227,7 +260,7 @@ export default function MakerIntro() {
       allIds.push(node.id);
       node.children?.forEach(collect);
     };
-    mindMapTree.children?.forEach(collect);
+    activeTree.children?.forEach(collect);
     setExpandedNodes(new Set(allIds));
   };
 
@@ -238,7 +271,13 @@ export default function MakerIntro() {
   if (selectedDoc) {
     return (
       <ScrollArea className="h-full">
-        <DocumentView docId={selectedDoc} lang={lang} onBack={() => setSelectedDoc(null)} />
+        <DocumentView
+          docId={selectedDoc}
+          lang={lang}
+          onBack={() => setSelectedDoc(null)}
+          allDocs={allDocs}
+          isInternal={internalDocIds.has(selectedDoc)}
+        />
       </ScrollArea>
     );
   }
@@ -271,10 +310,16 @@ export default function MakerIntro() {
               {lang === "ko" ? "모두 접기" : "Collapse All"}
             </Button>
           </div>
+          {isDevMode && (
+            <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs font-medium" data-testid="badge-dev-mode">
+              <Lock className="h-3 w-3" />
+              {lang === "ko" ? "개발자 모드 — 내부 전략 문서 포함" : "Developer Mode — Internal Strategy Docs Included"}
+            </div>
+          )}
         </div>
 
         <div className="grid gap-4" data-testid="mindmap-grid">
-          {mindMapTree.children?.map((branch) => (
+          {activeTree.children?.map((branch) => (
             <CategoryCard
               key={branch.id}
               node={branch}
