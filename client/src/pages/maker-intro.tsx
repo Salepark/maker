@@ -1,27 +1,67 @@
 import { useState, useMemo } from "react";
 import { useLanguage } from "@/lib/language-provider";
-import { mindMapTree, documents, type MindMapNode } from "@/data/maker-docs";
+import { mindMapTree, documents, type MindMapNode, type MindMapDoc } from "@/data/maker-docs";
 import { internalTreeNodes, internalDocuments } from "@/data/maker-docs-internal";
-import { ArrowLeft, ChevronDown, ChevronRight, FileText, X, Lock } from "lucide-react";
+import { ChevronDown, ChevronRight, FileText, Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
+function InlineDocContent({
+  doc,
+  lang,
+  isInternal,
+  color,
+}: {
+  doc: MindMapDoc;
+  lang: string;
+  isInternal: boolean;
+  color: string;
+}) {
+  const content = lang === "ko" ? doc.contentKo : doc.contentEn;
+
+  return (
+    <div
+      className="mt-2 mb-3 ml-1 pl-4 border-l-2 animate-in fade-in slide-in-from-top-2 duration-200"
+      style={{ borderColor: color + "40" }}
+      data-testid={`doc-content-${doc.id}`}
+    >
+      {isInternal && (
+        <div className="flex items-center gap-2 mb-2 px-2.5 py-1.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs font-medium w-fit">
+          <Lock className="h-3 w-3" />
+          {lang === "ko" ? "내부 전략 문서" : "Internal Strategy Document"}
+        </div>
+      )}
+      {content.map((paragraph, i) => (
+        <p key={i} className="text-muted-foreground leading-relaxed mb-2.5 text-xs" data-testid={`text-paragraph-${doc.id}-${i}`}>
+          {paragraph}
+        </p>
+      ))}
+    </div>
+  );
+}
+
 function MindMapBranch({
   node,
   depth,
   lang,
-  onDocClick,
+  openDocId,
+  onDocToggle,
   expandedNodes,
   toggleNode,
+  allDocs,
+  internalDocIds,
 }: {
   node: MindMapNode;
   depth: number;
   lang: string;
-  onDocClick: (docId: string) => void;
+  openDocId: string | null;
+  onDocToggle: (docId: string) => void;
   expandedNodes: Set<string>;
   toggleNode: (id: string) => void;
+  allDocs: Record<string, MindMapDoc>;
+  internalDocIds: Set<string>;
 }) {
   const label = lang === "ko" ? node.labelKo : node.labelEn;
   const hasChildren = node.children && node.children.length > 0;
@@ -29,17 +69,33 @@ function MindMapBranch({
   const isLeaf = !hasChildren;
 
   if (isLeaf && node.docId) {
+    const isOpen = openDocId === node.docId;
+    const doc = allDocs[node.docId];
+
     return (
-      <Badge
-        variant="outline"
-        className="cursor-pointer hover:bg-accent transition-colors text-xs py-1.5 px-3 whitespace-normal text-left leading-tight border-2"
-        style={{ borderColor: node.color + "60", color: node.color }}
-        onClick={() => onDocClick(node.docId!)}
-        data-testid={`badge-doc-${node.id}`}
-      >
-        <FileText className="h-3 w-3 mr-1.5 shrink-0" style={{ color: node.color }} />
-        {label}
-      </Badge>
+      <div>
+        <Badge
+          variant="outline"
+          className={`cursor-pointer hover:bg-accent transition-colors text-xs py-1.5 px-3 whitespace-normal text-left leading-tight border-2 ${isOpen ? "bg-accent" : ""}`}
+          style={{ borderColor: node.color + (isOpen ? "90" : "60"), color: node.color }}
+          onClick={() => onDocToggle(node.docId!)}
+          data-testid={`badge-doc-${node.id}`}
+        >
+          {isOpen
+            ? <ChevronDown className="h-3 w-3 mr-1.5 shrink-0" style={{ color: node.color }} />
+            : <FileText className="h-3 w-3 mr-1.5 shrink-0" style={{ color: node.color }} />
+          }
+          {label}
+        </Badge>
+        {isOpen && doc && (
+          <InlineDocContent
+            doc={doc}
+            lang={lang}
+            isInternal={internalDocIds.has(node.docId)}
+            color={node.color}
+          />
+        )}
+      </div>
     );
   }
 
@@ -69,34 +125,21 @@ function MindMapBranch({
       </button>
       {isExpanded && hasChildren && (
         <div className="ml-4 pl-4 border-l-2 space-y-1 mt-1 mb-2" style={{ borderColor: node.color + "30" }}>
-          {node.children!.map((child) => {
-            const childHasChildren = child.children && child.children.length > 0;
-            if (childHasChildren) {
-              return (
-                <MindMapBranch
-                  key={child.id}
-                  node={child}
-                  depth={depth + 1}
-                  lang={lang}
-                  onDocClick={onDocClick}
-                  expandedNodes={expandedNodes}
-                  toggleNode={toggleNode}
-                />
-              );
-            }
-            return (
-              <div key={child.id} className="py-0.5">
-                <MindMapBranch
-                  node={child}
-                  depth={depth + 1}
-                  lang={lang}
-                  onDocClick={onDocClick}
-                  expandedNodes={expandedNodes}
-                  toggleNode={toggleNode}
-                />
-              </div>
-            );
-          })}
+          {node.children!.map((child) => (
+            <div key={child.id} className={child.children && child.children.length > 0 ? "" : "py-0.5"}>
+              <MindMapBranch
+                node={child}
+                depth={depth + 1}
+                lang={lang}
+                openDocId={openDocId}
+                onDocToggle={onDocToggle}
+                expandedNodes={expandedNodes}
+                toggleNode={toggleNode}
+                allDocs={allDocs}
+                internalDocIds={internalDocIds}
+              />
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -106,15 +149,21 @@ function MindMapBranch({
 function CategoryCard({
   node,
   lang,
-  onDocClick,
+  openDocId,
+  onDocToggle,
   expandedNodes,
   toggleNode,
+  allDocs,
+  internalDocIds,
 }: {
   node: MindMapNode;
   lang: string;
-  onDocClick: (docId: string) => void;
+  openDocId: string | null;
+  onDocToggle: (docId: string) => void;
   expandedNodes: Set<string>;
   toggleNode: (id: string) => void;
+  allDocs: Record<string, MindMapDoc>;
+  internalDocIds: Set<string>;
 }) {
   const label = lang === "ko" ? node.labelKo : node.labelEn;
   const isExpanded = expandedNodes.has(node.id);
@@ -149,9 +198,12 @@ function CategoryCard({
                 node={child}
                 depth={1}
                 lang={lang}
-                onDocClick={onDocClick}
+                openDocId={openDocId}
+                onDocToggle={onDocToggle}
                 expandedNodes={expandedNodes}
                 toggleNode={toggleNode}
+                allDocs={allDocs}
+                internalDocIds={internalDocIds}
               />
             ))}
           </div>
@@ -161,61 +213,10 @@ function CategoryCard({
   );
 }
 
-function DocumentView({
-  docId,
-  lang,
-  onBack,
-  allDocs,
-  isInternal,
-}: {
-  docId: string;
-  lang: string;
-  onBack: () => void;
-  allDocs: Record<string, { titleKo: string; titleEn: string; contentKo: string[]; contentEn: string[] }>;
-  isInternal?: boolean;
-}) {
-  const doc = allDocs[docId];
-  if (!doc) return null;
-
-  const title = lang === "ko" ? doc.titleKo : doc.titleEn;
-  const content = lang === "ko" ? doc.contentKo : doc.contentEn;
-
-  return (
-    <div className="max-w-3xl mx-auto p-6" data-testid="document-view">
-      <Button
-        variant="ghost"
-        size="sm"
-        className="mb-6 gap-2"
-        onClick={onBack}
-        data-testid="button-back-to-map"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        {lang === "ko" ? "마인드맵으로 돌아가기" : "Back to Mind Map"}
-      </Button>
-      <article className="prose prose-sm dark:prose-invert max-w-none">
-        {isInternal && (
-          <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs font-medium">
-            <Lock className="h-3.5 w-3.5" />
-            {lang === "ko" ? "내부 전략 문서 (개발자 모드)" : "Internal Strategy Document (Developer Mode)"}
-          </div>
-        )}
-        <h1 className="text-2xl font-bold mb-6 text-foreground leading-tight" data-testid="text-doc-title">
-          {title}
-        </h1>
-        {content.map((paragraph, i) => (
-          <p key={i} className="text-muted-foreground leading-relaxed mb-4 text-sm" data-testid={`text-paragraph-${i}`}>
-            {paragraph}
-          </p>
-        ))}
-      </article>
-    </div>
-  );
-}
-
 export default function MakerIntro() {
   const { language } = useLanguage();
   const lang = language;
-  const [selectedDoc, setSelectedDoc] = useState<string | null>(null);
+  const [openDocId, setOpenDocId] = useState<string | null>(null);
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(
     new Set(["identity", "philosophy", "features", "demo"])
   );
@@ -242,6 +243,10 @@ export default function MakerIntro() {
     return new Set(Object.keys(internalDocuments));
   }, []);
 
+  const handleDocToggle = (docId: string) => {
+    setOpenDocId((prev) => (prev === docId ? null : docId));
+  };
+
   const toggleNode = (id: string) => {
     setExpandedNodes((prev) => {
       const next = new Set(prev);
@@ -266,21 +271,8 @@ export default function MakerIntro() {
 
   const collapseAll = () => {
     setExpandedNodes(new Set());
+    setOpenDocId(null);
   };
-
-  if (selectedDoc) {
-    return (
-      <ScrollArea className="h-full">
-        <DocumentView
-          docId={selectedDoc}
-          lang={lang}
-          onBack={() => setSelectedDoc(null)}
-          allDocs={allDocs}
-          isInternal={internalDocIds.has(selectedDoc)}
-        />
-      </ScrollArea>
-    );
-  }
 
   return (
     <ScrollArea className="h-full">
@@ -299,8 +291,8 @@ export default function MakerIntro() {
           </div>
           <p className="text-sm text-muted-foreground max-w-lg mx-auto" data-testid="text-page-subtitle">
             {lang === "ko"
-              ? "Maker의 비전, 철학, 기술 아키텍처, 비즈니스 전략을 담은 문서를 탐색하세요. 각 배지를 클릭하면 상세 문서를 볼 수 있습니다."
-              : "Explore documents covering Maker's vision, philosophy, technical architecture, and business strategy. Click any badge to view the full document."}
+              ? "Maker의 비전, 철학, 기술 아키텍처를 담은 문서를 탐색하세요. 각 배지를 클릭하면 문서가 펼쳐집니다."
+              : "Explore documents covering Maker's vision, philosophy, and technical architecture. Click any badge to expand the document."}
           </p>
           <div className="flex items-center justify-center gap-2 mt-4">
             <Button variant="outline" size="sm" onClick={expandAll} data-testid="button-expand-all">
@@ -324,9 +316,12 @@ export default function MakerIntro() {
               key={branch.id}
               node={branch}
               lang={lang}
-              onDocClick={setSelectedDoc}
+              openDocId={openDocId}
+              onDocToggle={handleDocToggle}
               expandedNodes={expandedNodes}
               toggleNode={toggleNode}
+              allDocs={allDocs}
+              internalDocIds={internalDocIds}
             />
           ))}
         </div>
