@@ -1,4 +1,4 @@
-import { LayoutDashboard, FileText, Rss, CheckCircle, Settings, Eye, FileBarChart, MessageCircle, Bot, BookOpen, Shield } from "lucide-react";
+import { LayoutDashboard, FileText, Rss, CheckCircle, Settings, Eye, FileBarChart, MessageCircle, Bot, BookOpen, Shield, Info } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -46,6 +46,7 @@ export function AppSidebar() {
     { title: t("sidebar.guide"), url: "/guide", icon: BookOpen, translationKey: "sidebar.guide" },
     { title: t("sidebar.permissions"), url: "/permissions", icon: Shield, translationKey: "sidebar.permissions" },
     { title: t("sidebar.settings"), url: "/settings", icon: Settings, translationKey: "sidebar.settings" },
+    { title: t("sidebar.makerIntro"), url: "/maker-intro", icon: Info, translationKey: "sidebar.makerIntro" },
   ];
 
   const { data: botsResponse } = useQuery<{ bots: BotInfo[] }>({

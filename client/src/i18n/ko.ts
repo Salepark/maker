@@ -10,6 +10,7 @@ export const ko: Record<string, string> = {
   "sidebar.guide": "가이드",
   "sidebar.settings": "설정",
   "sidebar.permissions": "권한 관리",
+  "sidebar.makerIntro": "메이커 소개",
   "sidebar.activeBots": "활성 봇",
   "sidebar.navigation": "메뉴",
   "sidebar.subtitle": "워크플로우 디자이너",

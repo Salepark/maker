@@ -10,6 +10,7 @@ export const en: Record<string, string> = {
   "sidebar.guide": "Guide",
   "sidebar.settings": "Settings",
   "sidebar.permissions": "Permissions",
+  "sidebar.makerIntro": "About Maker",
   "sidebar.activeBots": "Active Bots",
   "sidebar.navigation": "Navigation",
   "sidebar.subtitle": "Workflow Designer",

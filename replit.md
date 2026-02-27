@@ -43,6 +43,9 @@ A multi-stage report pipeline (Fast, Status, Full Report) ensures efficiency and
 ### About Page
 A public `/about` page (`client/src/pages/about.tsx`) presents Maker's company overview, mission, philosophy (7 principles), product positioning, vision, and founder's note. Fully bilingual (EN/KO) via i18n keys prefixed with `about.`. Linked from the landing page nav.
 
+### Maker Introduction (Mind Map) Page
+An interactive mind map page at `/maker-intro` (`client/src/pages/maker-intro.tsx`) with 25+ bilingual documents covering Maker's vision, philosophy, technical architecture, and business strategy. Data stored in `client/src/data/maker-docs.ts`. Features collapsible category cards, document badges, and a full document viewer with back navigation. Accessible from sidebar as "메이커 소개" / "About Maker". Uses `mindmap.*` i18n prefix for page-level strings.
+
 ### Internationalization (i18n)
 The application supports English and Korean using a homegrown i18n system, with language preferences persisted and all UI text localized.
 
