@@ -206,7 +206,7 @@ export default function MakerIntro() {
   const lang = language;
   const [selectedDoc, setSelectedDoc] = useState<string | null>(null);
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(
-    new Set(["identity", "philosophy", "features", "business", "demo", "overview"])
+    new Set(["identity", "philosophy", "features", "demo"])
   );
 
   const toggleNode = (id: string) => {
