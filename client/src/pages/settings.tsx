@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useLanguage } from "@/lib/language-provider";
-import { Settings as SettingsIcon, Play, Pause, RefreshCw, Zap, Clock, Plus, Trash2, Key, Loader2, Pencil, MessageCircle, Copy, Unlink, ExternalLink, Check, UserCheck, ArrowLeftRight, AlertTriangle } from "lucide-react";
+import { Settings as SettingsIcon, Play, Pause, RefreshCw, Zap, Clock, Plus, Trash2, Key, Loader2, Pencil, MessageCircle, Copy, Unlink, ExternalLink, Check } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
 interface SchedulerStatus {
@@ -34,9 +34,6 @@ interface LlmProviderSafe {
   createdAt: string;
 }
 
-const TEST_ACCOUNT_ID = "test_clean_account";
-const REVIEWER_ACCOUNT_ID = "reviewer_account";
-
 export default function Settings() {
   const { toast } = useToast();
   const { t } = useLanguage();
@@ -48,46 +45,6 @@ export default function Settings() {
   const [apiKey, setApiKey] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
   const [defaultModel, setDefaultModel] = useState("");
-
-  const isTestAccount = user?.id === TEST_ACCOUNT_ID;
-  const isReviewerAccount = user?.id === REVIEWER_ACCOUNT_ID;
-  const isSwitchedAccount = isTestAccount || isReviewerAccount;
-
-  const switchToTestMutation = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/auth/switch-test"),
-    onSuccess: () => {
-      queryClient.invalidateQueries();
-      toast({ title: t("settings.testAccount.switchedToTest") });
-      window.location.reload();
-    },
-    onError: () => {
-      toast({ title: t("settings.testAccount.switchFailed"), variant: "destructive" });
-    },
-  });
-
-  const switchToReviewerMutation = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/auth/switch-reviewer"),
-    onSuccess: () => {
-      queryClient.invalidateQueries();
-      toast({ title: t("settings.reviewerAccount.switchedToReviewer") });
-      window.location.reload();
-    },
-    onError: () => {
-      toast({ title: t("settings.testAccount.switchFailed"), variant: "destructive" });
-    },
-  });
-
-  const switchBackMutation = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/auth/switch-back"),
-    onSuccess: () => {
-      queryClient.invalidateQueries();
-      toast({ title: t("settings.testAccount.switchedBack") });
-      window.location.reload();
-    },
-    onError: () => {
-      toast({ title: t("settings.testAccount.switchFailed"), variant: "destructive" });
-    },
-  });
 
   const { data: status, isLoading } = useQuery<SchedulerStatus>({
     queryKey: ["/api/scheduler/status"],
@@ -723,71 +680,6 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      <Card data-testid="card-test-account">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <ArrowLeftRight className="h-4 w-4" />
-            {t("settings.testAccount.title")}
-          </CardTitle>
-          <CardDescription>{t("settings.testAccount.desc")}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isSwitchedAccount ? (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 p-3 rounded-md bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800">
-                <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
-                <p className="text-sm text-amber-800 dark:text-amber-200">
-                  {isTestAccount
-                    ? t("settings.testAccount.currentlyTest")
-                    : t("settings.reviewerAccount.currentlyReviewer")}
-                </p>
-              </div>
-              <Button
-                variant="outline"
-                onClick={() => switchBackMutation.mutate()}
-                disabled={switchBackMutation.isPending}
-                data-testid="button-switch-back"
-              >
-                {switchBackMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <UserCheck className="h-4 w-4 mr-2" />
-                )}
-                {t("settings.testAccount.switchBack")}
-              </Button>
-            </div>
-          ) : (
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                variant="outline"
-                onClick={() => switchToTestMutation.mutate()}
-                disabled={switchToTestMutation.isPending}
-                data-testid="button-switch-test"
-              >
-                {switchToTestMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <ArrowLeftRight className="h-4 w-4 mr-2" />
-                )}
-                {t("settings.testAccount.switchToTest")}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => switchToReviewerMutation.mutate()}
-                disabled={switchToReviewerMutation.isPending}
-                data-testid="button-switch-reviewer"
-              >
-                {switchToReviewerMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <ArrowLeftRight className="h-4 w-4 mr-2" />
-                )}
-                {t("settings.reviewerAccount.switchToReviewer")}
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 }
