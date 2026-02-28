@@ -107,7 +107,7 @@ export const PERMISSION_GROUPS: PermissionGroupDef[] = [
         descKo: "봇의 소스 추가/수정/삭제 허용",
         risk: "LOW",
         riskTier: "HIGH",
-        defaultValue: { enabled: true, approvalMode: "AUTO_ALLOWED" },
+        defaultValue: { enabled: true, approvalMode: "APPROVAL_REQUIRED" },
       },
     ],
   },
