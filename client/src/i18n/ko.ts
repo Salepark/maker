@@ -798,6 +798,8 @@ export const ko: Record<string, string> = {
   "drafts.rejected": "초안이 거부되었습니다",
   "drafts.copiedToClipboard": "클립보드에 복사됨",
 
+  "pagination.info": "{{current}} / {{total}} 페이지",
+
   "itemDetail.notFound": "아이템을 찾을 수 없습니다",
   "itemDetail.backToItems": "아이템 목록으로",
   "itemDetail.by": "작성자: {{author}}",

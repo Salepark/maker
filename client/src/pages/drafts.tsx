@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Edit, ThumbsUp, ThumbsDown, Copy, Check, ExternalLink, Filter } from "lucide-react";
+import { Edit, ThumbsUp, ThumbsDown, Copy, Check, ExternalLink, Filter, ChevronLeft, ChevronRight } from "lucide-react";
 import { Link } from "wouter";
 import { format } from "date-fns";
 import { useState } from "react";
@@ -33,25 +33,58 @@ interface DraftItem {
   sourceName: string;
 }
 
+interface PaginatedResponse {
+  data: DraftItem[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 const decisionColors: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
   approved: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
   rejected: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
 };
 
+const PAGE_SIZE = 50;
+
+function getPageNumbers(current: number, total: number): (number | "...")[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages: (number | "...")[] = [1];
+  const start = Math.max(2, current - 1);
+  const end = Math.min(total - 1, current + 1);
+  if (start > 2) pages.push("...");
+  for (let i = start; i <= end; i++) pages.push(i);
+  if (end < total - 1) pages.push("...");
+  pages.push(total);
+  return pages;
+}
+
 export default function Drafts() {
   const { t } = useLanguage();
   const { toast } = useToast();
   const [decisionFilter, setDecisionFilter] = useState<string>("pending");
   const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [page, setPage] = useState(1);
 
-  const draftsUrl = decisionFilter === "all" 
-    ? "/api/drafts" 
-    : `/api/drafts?decision=${decisionFilter}`;
-  
-  const { data: drafts, isLoading } = useQuery<DraftItem[]>({
-    queryKey: [draftsUrl],
+  const params = new URLSearchParams();
+  if (decisionFilter !== "all") params.set("decision", decisionFilter);
+  params.set("page", String(page));
+  params.set("limit", String(PAGE_SIZE));
+  const draftsUrl = `/api/drafts?${params.toString()}`;
+
+  const { data: result, isLoading } = useQuery<PaginatedResponse>({
+    queryKey: ["/api/drafts", decisionFilter, page],
+    queryFn: async () => {
+      const res = await fetch(draftsUrl, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch drafts");
+      return res.json();
+    },
   });
+
+  const drafts = result?.data ?? [];
+  const total = result?.total ?? 0;
+  const totalPages = Math.ceil(total / PAGE_SIZE);
 
   const approveMutation = useMutation({
     mutationFn: async ({ draftId, finalText }: { draftId: number; finalText: string }) => {
@@ -85,6 +118,11 @@ export default function Drafts() {
     toast({ title: t("drafts.copiedToClipboard") });
   };
 
+  const handleDecisionChange = (value: string) => {
+    setDecisionFilter(value);
+    setPage(1);
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div>
@@ -93,7 +131,7 @@ export default function Drafts() {
       </div>
 
       <div className="flex items-center gap-3">
-        <Select value={decisionFilter} onValueChange={setDecisionFilter}>
+        <Select value={decisionFilter} onValueChange={handleDecisionChange}>
           <SelectTrigger className="w-[180px]" data-testid="select-decision-filter">
             <Filter className="h-4 w-4 mr-2" />
             <SelectValue placeholder={t("drafts.filterDecision")} />
@@ -111,7 +149,7 @@ export default function Drafts() {
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <Edit className="h-5 w-5" />
-            {t("drafts.count", { count: String(drafts?.length ?? 0) })}
+            {t("drafts.count", { count: String(total) })}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -214,6 +252,48 @@ export default function Drafts() {
                   ? t("drafts.noDraftsFilter")
                   : t("drafts.noDraftsDefault")}
               </p>
+            </div>
+          )}
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-1 mt-6 pt-4 border-t">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                data-testid="button-prev-page"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              {getPageNumbers(page, totalPages).map((p, i) =>
+                p === "..." ? (
+                  <span key={`ellipsis-${i}`} className="px-2 text-muted-foreground">…</span>
+                ) : (
+                  <Button
+                    key={p}
+                    variant={p === page ? "default" : "outline"}
+                    size="sm"
+                    className="min-w-[36px]"
+                    onClick={() => setPage(p)}
+                    data-testid={`button-page-${p}`}
+                  >
+                    {p}
+                  </Button>
+                )
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                data-testid="button-next-page"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              <span className="ml-3 text-xs text-muted-foreground">
+                {t("pagination.info", { current: String(page), total: String(totalPages) })}
+              </span>
             </div>
           )}
         </CardContent>

@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { FileText, Search, Edit, CheckCircle, Send, XCircle, Clock, Filter, ExternalLink } from "lucide-react";
+import { FileText, Search, Edit, CheckCircle, Send, XCircle, Clock, Filter, ExternalLink, ChevronLeft, ChevronRight } from "lucide-react";
 import { Link } from "wouter";
 import { format } from "date-fns";
 import { useLanguage } from "@/lib/language-provider";
@@ -27,6 +27,13 @@ interface Item {
   sourceName: string;
   relevanceScore?: number;
   replyWorthinessScore?: number;
+}
+
+interface PaginatedResponse {
+  data: Item[];
+  total: number;
+  page: number;
+  limit: number;
 }
 
 const statusIcons: Record<string, React.ReactNode> = {
@@ -47,20 +54,46 @@ const statusColors: Record<string, string> = {
   skipped: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200",
 };
 
+const PAGE_SIZE = 50;
+
+function getPageNumbers(current: number, total: number): (number | "...")[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages: (number | "...")[] = [1];
+  const start = Math.max(2, current - 1);
+  const end = Math.min(total - 1, current + 1);
+  if (start > 2) pages.push("...");
+  for (let i = start; i <= end; i++) pages.push(i);
+  if (end < total - 1) pages.push("...");
+  pages.push(total);
+  return pages;
+}
+
 export default function Items() {
   const { t } = useLanguage();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
 
-  const itemsUrl = statusFilter === "all" 
-    ? "/api/items" 
-    : `/api/items?status=${statusFilter}`;
-  
-  const { data: items, isLoading } = useQuery<Item[]>({
-    queryKey: [itemsUrl],
+  const params = new URLSearchParams();
+  if (statusFilter !== "all") params.set("status", statusFilter);
+  params.set("page", String(page));
+  params.set("limit", String(PAGE_SIZE));
+  const itemsUrl = `/api/items?${params.toString()}`;
+
+  const { data: result, isLoading } = useQuery<PaginatedResponse>({
+    queryKey: ["/api/items", statusFilter, page],
+    queryFn: async () => {
+      const res = await fetch(itemsUrl, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch items");
+      return res.json();
+    },
   });
 
-  const filteredItems = items?.filter((item) => {
+  const items = result?.data ?? [];
+  const total = result?.total ?? 0;
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+
+  const filteredItems = items.filter((item) => {
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       return (
@@ -70,6 +103,11 @@ export default function Items() {
     }
     return true;
   });
+
+  const handleStatusChange = (value: string) => {
+    setStatusFilter(value);
+    setPage(1);
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -89,7 +127,7 @@ export default function Items() {
             data-testid="input-search-items"
           />
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <Select value={statusFilter} onValueChange={handleStatusChange}>
           <SelectTrigger className="w-full sm:w-[180px]" data-testid="select-status-filter">
             <Filter className="h-4 w-4 mr-2" />
             <SelectValue placeholder={t("items.filterStatus")} />
@@ -110,7 +148,7 @@ export default function Items() {
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <FileText className="h-5 w-5" />
-            {t("items.count", { count: String(filteredItems?.length ?? 0) })}
+            {t("items.count", { count: String(total) })}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -180,6 +218,48 @@ export default function Items() {
                   ? t("items.noItemsFilter")
                   : t("items.noItemsDefault")}
               </p>
+            </div>
+          )}
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-1 mt-6 pt-4 border-t">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                data-testid="button-prev-page"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              {getPageNumbers(page, totalPages).map((p, i) =>
+                p === "..." ? (
+                  <span key={`ellipsis-${i}`} className="px-2 text-muted-foreground">…</span>
+                ) : (
+                  <Button
+                    key={p}
+                    variant={p === page ? "default" : "outline"}
+                    size="sm"
+                    className="min-w-[36px]"
+                    onClick={() => setPage(p)}
+                    data-testid={`button-page-${p}`}
+                  >
+                    {p}
+                  </Button>
+                )
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                data-testid="button-next-page"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              <span className="ml-3 text-xs text-muted-foreground">
+                {t("pagination.info", { current: String(page), total: String(totalPages) })}
+              </span>
             </div>
           )}
         </CardContent>

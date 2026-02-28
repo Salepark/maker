@@ -767,6 +767,8 @@ export const en: Record<string, string> = {
   "drafts.rejected": "Draft rejected",
   "drafts.copiedToClipboard": "Copied to clipboard",
 
+  "pagination.info": "Page {{current}} of {{total}}",
+
   "itemDetail.notFound": "Item not found",
   "itemDetail.backToItems": "Back to Items",
   "itemDetail.by": "by {{author}}",

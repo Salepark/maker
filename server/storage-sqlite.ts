@@ -131,7 +131,7 @@ export class SqliteStorage implements IStorage {
     await db.delete(sources).where(eq(sources.id, id));
   }
 
-  async getItems(status?: string, userId?: string): Promise<(Item & { sourceName: string; relevanceScore?: number; replyWorthinessScore?: number })[]> {
+  async getItems(status?: string, userId?: string, page: number = 1, limit: number = 50): Promise<{ data: (Item & { sourceName: string; relevanceScore?: number; replyWorthinessScore?: number })[]; total: number; page: number; limit: number }> {
     const conditions: any[] = [];
     if (status && status !== "all") {
       conditions.push(eq(items.status, status));
@@ -139,6 +139,17 @@ export class SqliteStorage implements IStorage {
     if (userId) {
       conditions.push(eq(sources.userId, userId));
     }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const [countResult] = await db
+      .select({ total: count() })
+      .from(items)
+      .innerJoin(sources, eq(items.sourceId, sources.id))
+      .where(whereClause);
+
+    const total = (countResult?.total as number) ?? 0;
+    const offset = (page - 1) * limit;
 
     let query = db
       .select({
@@ -150,19 +161,26 @@ export class SqliteStorage implements IStorage {
       .from(items)
       .innerJoin(sources, eq(items.sourceId, sources.id))
       .leftJoin(analysis, eq(analysis.itemId, items.id))
-      .orderBy(desc(items.insertedAt));
+      .orderBy(desc(items.insertedAt))
+      .limit(limit)
+      .offset(offset);
 
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions)) as any;
+    if (whereClause) {
+      query = query.where(whereClause) as any;
     }
 
     const result = await query;
-    return result.map((r) => ({
-      ...r.item,
-      sourceName: r.sourceName || "Unknown",
-      relevanceScore: r.relevanceScore ?? undefined,
-      replyWorthinessScore: r.replyWorthinessScore ?? undefined,
-    })) as any;
+    return {
+      data: result.map((r) => ({
+        ...r.item,
+        sourceName: r.sourceName || "Unknown",
+        relevanceScore: r.relevanceScore ?? undefined,
+        replyWorthinessScore: r.replyWorthinessScore ?? undefined,
+      })) as any,
+      total,
+      page,
+      limit,
+    };
   }
 
   async getRecentItems(limit: number = 10, userId?: string): Promise<(Item & { sourceName: string })[]> {
@@ -329,7 +347,7 @@ export class SqliteStorage implements IStorage {
     return result as any;
   }
 
-  async getDrafts(decision?: string, userId?: string): Promise<(Draft & { itemTitle: string; itemUrl: string; sourceName: string })[]> {
+  async getDrafts(decision?: string, userId?: string, page: number = 1, limit: number = 50): Promise<{ data: (Draft & { itemTitle: string; itemUrl: string; sourceName: string })[]; total: number; page: number; limit: number }> {
     const conditions: any[] = [];
     if (decision && decision !== "all") {
       conditions.push(eq(drafts.adminDecision, decision));
@@ -337,6 +355,18 @@ export class SqliteStorage implements IStorage {
     if (userId) {
       conditions.push(eq(sources.userId, userId));
     }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const [countResult] = await db
+      .select({ total: count() })
+      .from(drafts)
+      .innerJoin(items, eq(drafts.itemId, items.id))
+      .innerJoin(sources, eq(items.sourceId, sources.id))
+      .where(whereClause);
+
+    const total = (countResult?.total as number) ?? 0;
+    const offset = (page - 1) * limit;
 
     let query = db
       .select({
@@ -348,19 +378,26 @@ export class SqliteStorage implements IStorage {
       .from(drafts)
       .innerJoin(items, eq(drafts.itemId, items.id))
       .innerJoin(sources, eq(items.sourceId, sources.id))
-      .orderBy(desc(drafts.createdAt));
+      .orderBy(desc(drafts.createdAt))
+      .limit(limit)
+      .offset(offset);
 
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions)) as any;
+    if (whereClause) {
+      query = query.where(whereClause) as any;
     }
 
     const result = await query;
-    return result.map((r) => ({
-      ...r.draft,
-      itemTitle: r.itemTitle || "Untitled",
-      itemUrl: r.itemUrl,
-      sourceName: r.sourceName || "Unknown",
-    })) as any;
+    return {
+      data: result.map((r) => ({
+        ...r.draft,
+        itemTitle: r.itemTitle || "Untitled",
+        itemUrl: r.itemUrl,
+        sourceName: r.sourceName || "Unknown",
+      })) as any,
+      total,
+      page,
+      limit,
+    };
   }
 
   async getDraftsByItemId(itemId: number): Promise<Draft[]> {

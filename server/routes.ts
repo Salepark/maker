@@ -150,8 +150,10 @@ export async function registerRoutes(
     try {
       const userId = (req as any).user?.claims?.sub;
       const status = req.query.status as string | undefined;
-      const items = await storage.getItems(status, userId);
-      res.json(items);
+      const page = Math.max(1, parseInt(req.query.page as string) || 1);
+      const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 50));
+      const result = await storage.getItems(status, userId, page, limit);
+      res.json(result);
     } catch (error) {
       handleApiError(res, error, "Failed to get items");
     }
@@ -294,8 +296,10 @@ export async function registerRoutes(
     try {
       const userId = (req as any).user?.claims?.sub;
       const decision = req.query.decision as string | undefined;
-      const drafts = await storage.getDrafts(decision, userId);
-      res.json(drafts);
+      const page = Math.max(1, parseInt(req.query.page as string) || 1);
+      const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 50));
+      const result = await storage.getDrafts(decision, userId, page, limit);
+      res.json(result);
     } catch (error) {
       handleApiError(res, error, "Failed to get drafts");
     }

@@ -58,6 +58,9 @@ The application is set up for desktop distribution using Electron, allowing the 
 ### Job Run Logging & Diagnostics
 Infrastructure for tracking job executions in a `job_runs` table provides detailed diagnostics and execution history for each bot, including API endpoints for checking bot health and last runs.
 
+### Server-Side Pagination
+Items (`/api/items`) and Drafts (`/api/drafts`) APIs support server-side pagination with `page` and `limit` query parameters, returning `{ data, total, page, limit }`. Default page size is 50. Reports (`/api/reports`) use a fixed `.limit(50)`. Frontend pagination UI with page numbers is implemented on Items and Drafts pages.
+
 ### Report Pipeline Reliability
 Includes server-side timeouts, client-side UI feedback for stalls, and background job processing with detailed `job_run` logging. A Fast Report template provides immediate previews, while a `report_metrics` table stores per-report data for trend analysis.
 
