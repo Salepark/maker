@@ -289,7 +289,7 @@ export default function Profiles() {
   }
 
   return (
-    <div className="container mx-auto p-6 max-w-6xl">
+    <div className="container mx-auto p-4 md:p-6 max-w-6xl overflow-hidden">
       {botsList.length > 0 && (
         <div className="mb-8">
           <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
@@ -299,9 +299,9 @@ export default function Profiles() {
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
             {botsList.map((bot) => (
-              <Card key={bot.id} className="overflow-visible" data-testid={`bot-card-${bot.id}`}>
+              <Card key={bot.id} className="overflow-hidden" data-testid={`bot-card-${bot.id}`}>
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
@@ -360,7 +360,7 @@ export default function Profiles() {
             ))}
 
             <Card
-              className="overflow-visible border-dashed hover-elevate cursor-pointer flex items-center justify-center min-h-[160px]"
+              className="overflow-hidden border-dashed hover-elevate cursor-pointer flex items-center justify-center min-h-[160px]"
               onClick={() => setWizardOpen(true)}
               data-testid="card-add-bot"
             >
@@ -406,7 +406,7 @@ export default function Profiles() {
       )}
 
       {!presetsLoading && presets.length === 0 && (
-        <Card className="overflow-visible">
+        <Card className="overflow-hidden">
           <CardContent className="p-8 text-center text-muted-foreground">
             {t("profiles.noTemplates")}
           </CardContent>
@@ -421,13 +421,13 @@ export default function Profiles() {
             <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
               {getCategoryLabel(category)}
             </h3>
-            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
               {categoryPresets.map(preset => {
                 const Icon = getPresetIcon(preset.icon);
                 return (
                   <Card
                     key={preset.id}
-                    className="overflow-visible hover-elevate cursor-pointer"
+                    className="overflow-hidden hover-elevate cursor-pointer"
                     onClick={() => { handlePresetSelect(preset); setWizardOpen(true); }}
                     data-testid={`preset-card-${preset.key}`}
                   >
@@ -437,8 +437,8 @@ export default function Profiles() {
                           <Icon className="h-5 w-5 text-primary" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-3">
-                            <h4 className="font-medium text-sm" data-testid={`text-preset-name-${preset.key}`}>{preset.name}</h4>
+                          <div className="flex items-center justify-between gap-2">
+                            <h4 className="font-medium text-sm truncate" data-testid={`text-preset-name-${preset.key}`}>{preset.name}</h4>
                             <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                           </div>
                           <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{preset.description}</p>
@@ -474,13 +474,13 @@ export default function Profiles() {
       {presets.filter(p => !p.category).length > 0 && (
         <div className="mb-6">
           <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">{t("profiles.other")}</h3>
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
             {presets.filter(p => !p.category).map(preset => {
               const Icon = getPresetIcon(preset.icon);
               return (
                 <Card
                   key={preset.id}
-                  className="overflow-visible hover-elevate cursor-pointer"
+                  className="overflow-hidden hover-elevate cursor-pointer"
                   onClick={() => { handlePresetSelect(preset); setWizardOpen(true); }}
                   data-testid={`preset-card-${preset.key}`}
                 >
@@ -490,8 +490,8 @@ export default function Profiles() {
                         <Icon className="h-5 w-5 text-primary" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-3">
-                          <h4 className="font-medium text-sm">{preset.name}</h4>
+                        <div className="flex items-center justify-between gap-2">
+                          <h4 className="font-medium text-sm truncate">{preset.name}</h4>
                           <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                         </div>
                         <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{preset.description}</p>
