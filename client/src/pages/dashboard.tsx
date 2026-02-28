@@ -204,7 +204,7 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="p-6 space-y-8 max-w-6xl mx-auto">
+    <div className="p-4 md:p-6 space-y-8 max-w-6xl mx-auto overflow-hidden">
       <div className="space-y-2" data-testid="section-hero">
         <h1 className="text-2xl font-bold" data-testid="text-dashboard-title">{t("dashboard.title")}</h1>
         <p className="text-muted-foreground max-w-2xl" data-testid="text-hero-message">
@@ -241,7 +241,7 @@ export default function Dashboard() {
               <Activity className="h-4 w-4 text-primary" />
               <span className="font-semibold text-sm">{t("dashboard.dailyReliability")}</span>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
               <div data-testid="text-last-run">
                 <p className="text-xs text-muted-foreground">{t("dashboard.lastRun")}</p>
                 <p className="text-sm font-medium">
@@ -282,7 +282,7 @@ export default function Dashboard() {
             <p className="text-sm text-muted-foreground mb-6">
               {t("dashboard.onboarding.subtitle")}
             </p>
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
               <div className="flex gap-3">
                 <div className={`shrink-0 flex items-center justify-center h-9 w-9 rounded-md ${hasProviders ? 'bg-green-100 dark:bg-green-900' : 'bg-primary/10'}`}>
                   <Key className={`h-5 w-5 ${hasProviders ? 'text-green-600 dark:text-green-400' : 'text-primary'}`} />
@@ -370,7 +370,7 @@ export default function Dashboard() {
           </Link>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           {featuredPresets.map((preset) => {
             const Icon = getPresetIcon(preset.icon);
             return (
@@ -420,11 +420,11 @@ export default function Dashboard() {
             </Link>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
             {botsList.slice(0, 6).map((bot) => (
-              <Card key={bot.id} className="overflow-visible" data-testid={`card-bot-${bot.id}`}>
+              <Card key={bot.id} className="overflow-hidden" data-testid={`card-bot-${bot.id}`}>
                 <CardContent className="p-4">
-                  <div className="flex items-start justify-between gap-3 mb-3">
+                  <div className="flex items-start justify-between gap-2 mb-3 min-w-0">
                     <div className="flex-1 min-w-0">
                       <h3 className="font-medium truncate" data-testid={`text-bot-name-${bot.id}`}>{bot.name}</h3>
                       <Badge className={`mt-1 ${topicColors[bot.key] || "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"}`}>
@@ -479,34 +479,34 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent className="pt-0">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-              <div className="flex items-center gap-2" data-testid="status-collect">
-                <Zap className="h-3.5 w-3.5 text-green-500" />
-                <span className="text-muted-foreground">{t("dashboard.system.collect")}</span>
-                <span className="font-medium">{schedulerStatus.collectInterval}</span>
+              <div className="flex items-center gap-2 min-w-0" data-testid="status-collect">
+                <Zap className="h-3.5 w-3.5 text-green-500 shrink-0" />
+                <span className="text-muted-foreground truncate">{t("dashboard.system.collect")}</span>
+                <span className="font-medium shrink-0">{schedulerStatus.collectInterval}</span>
               </div>
-              <div className="flex items-center gap-2" data-testid="status-analyze">
-                <Zap className={`h-3.5 w-3.5 ${schedulerStatus.systemLLMAvailable ? 'text-green-500' : 'text-amber-500'}`} />
-                <span className="text-muted-foreground">{t("dashboard.system.analyze")}</span>
-                <span className={`font-medium ${!schedulerStatus.systemLLMAvailable ? 'text-amber-600 dark:text-amber-400' : ''}`}>
+              <div className="flex items-center gap-2 min-w-0" data-testid="status-analyze">
+                <Zap className={`h-3.5 w-3.5 shrink-0 ${schedulerStatus.systemLLMAvailable ? 'text-green-500' : 'text-amber-500'}`} />
+                <span className="text-muted-foreground truncate">{t("dashboard.system.analyze")}</span>
+                <span className={`font-medium shrink-0 ${!schedulerStatus.systemLLMAvailable ? 'text-amber-600 dark:text-amber-400' : ''}`}>
                   {schedulerStatus.systemLLMAvailable ? schedulerStatus.analyzeInterval : t("dashboard.system.paused")}
                 </span>
               </div>
-              <div className="flex items-center gap-2" data-testid="status-draft">
-                <Zap className={`h-3.5 w-3.5 ${schedulerStatus.systemLLMAvailable ? 'text-green-500' : 'text-amber-500'}`} />
-                <span className="text-muted-foreground">{t("dashboard.system.draft")}</span>
-                <span className={`font-medium ${!schedulerStatus.systemLLMAvailable ? 'text-amber-600 dark:text-amber-400' : ''}`}>
+              <div className="flex items-center gap-2 min-w-0" data-testid="status-draft">
+                <Zap className={`h-3.5 w-3.5 shrink-0 ${schedulerStatus.systemLLMAvailable ? 'text-green-500' : 'text-amber-500'}`} />
+                <span className="text-muted-foreground truncate">{t("dashboard.system.draft")}</span>
+                <span className={`font-medium shrink-0 ${!schedulerStatus.systemLLMAvailable ? 'text-amber-600 dark:text-amber-400' : ''}`}>
                   {schedulerStatus.systemLLMAvailable ? schedulerStatus.draftInterval : t("dashboard.system.paused")}
                 </span>
               </div>
-              <div className="flex items-center gap-2" data-testid="status-report">
-                <Zap className={`h-3.5 w-3.5 ${schedulerStatus.systemLLMAvailable ? 'text-green-500' : 'text-amber-500'}`} />
-                <span className="text-muted-foreground">{t("dashboard.system.reports")}</span>
-                <span className={`font-medium ${!schedulerStatus.systemLLMAvailable ? 'text-amber-600 dark:text-amber-400' : ''}`}>
+              <div className="flex items-center gap-2 min-w-0" data-testid="status-report">
+                <Zap className={`h-3.5 w-3.5 shrink-0 ${schedulerStatus.systemLLMAvailable ? 'text-green-500' : 'text-amber-500'}`} />
+                <span className="text-muted-foreground truncate">{t("dashboard.system.reports")}</span>
+                <span className={`font-medium shrink-0 ${!schedulerStatus.systemLLMAvailable ? 'text-amber-600 dark:text-amber-400' : ''}`}>
                   {schedulerStatus.systemLLMAvailable ? schedulerStatus.reportInterval : t("dashboard.system.paused")}
                 </span>
               </div>
             </div>
-            <div className="flex items-center gap-6 text-sm mt-3 pt-3 border-t border-border flex-wrap">
+            <div className="flex items-center gap-4 md:gap-6 text-sm mt-3 pt-3 border-t border-border flex-wrap">
               <div className="flex items-center gap-2">
                 <RefreshCw className="h-4 w-4 text-muted-foreground" />
                 <span className="text-muted-foreground">{t("dashboard.system.lastCollect")}</span>
@@ -542,16 +542,16 @@ export default function Dashboard() {
             {diagResults.map(d => (
                 <div key={d.botId} className="space-y-1">
                   <Link href={`/bots/${d.botId}`}>
-                    <div className="flex items-center gap-2 hover-elevate p-2 rounded-md cursor-pointer" data-testid={`diag-bot-${d.botId}`}>
-                      <Badge variant={d.health === "error" ? "destructive" : d.health === "healthy" ? "secondary" : "outline"}>
+                    <div className="flex items-center gap-2 hover-elevate p-2 rounded-md cursor-pointer min-w-0" data-testid={`diag-bot-${d.botId}`}>
+                      <Badge variant={d.health === "error" ? "destructive" : d.health === "healthy" ? "secondary" : "outline"} className="shrink-0 max-w-[40%] truncate">
                         {d.botName}
                       </Badge>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-xs text-muted-foreground truncate min-w-0 flex-1">
                         {d.health === "healthy"
                           ? (language === "ko" ? "정상 작동 중" : "Running normally")
                           : d.items.map(i => language === "ko" ? i.messageKo : i.messageEn).join(" · ")}
                       </span>
-                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground ml-auto shrink-0" />
+                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                     </div>
                   </Link>
                 </div>
@@ -560,7 +560,7 @@ export default function Dashboard() {
         </Card>
       )}
 
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3 md:gap-4">
         {statCards.map((stat) => (
           <Card key={stat.label} className="hover-elevate cursor-default">
             <CardContent className="p-4">
@@ -604,11 +604,11 @@ export default function Dashboard() {
                     className="p-3 rounded-md border border-transparent hover:border-border hover-elevate cursor-pointer"
                     data-testid={`card-item-${item.id}`}
                   >
-                    <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start justify-between gap-2 min-w-0">
                       <div className="flex-1 min-w-0">
                         <h3 className="font-medium truncate text-sm">{item.title || "Untitled"}</h3>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs text-muted-foreground">{item.sourceName}</span>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          <span className="text-xs text-muted-foreground truncate">{item.sourceName}</span>
                           <span className="text-xs text-muted-foreground">
                             {format(new Date(item.insertedAt), "MMM d, HH:mm")}
                           </span>
