@@ -2,13 +2,11 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Layers, Rss, Settings, Zap, ArrowRight, TrendingUp, BookOpen, Building2, Newspaper, ChevronDown, Key, MessageSquare, PenTool, Laptop, Store, ShoppingCart, LogIn, User, Monitor, Users, Landmark, Check, Shield, ShieldCheck, RefreshCw, WifiOff, Eye, Clock, FileText, ExternalLink, Github, ClipboardList, Globe, Sparkles, BarChart3, Factory, Scale, Ship, UserSearch, Wallet, LineChart, MessageCircle } from "lucide-react";
+import { Bot, Layers, Rss, Settings, Zap, ArrowRight, TrendingUp, BookOpen, Building2, Newspaper, ChevronDown, Key, MessageSquare, PenTool, Laptop, Store, ShoppingCart, User, Users, Check, Shield, ShieldCheck, RefreshCw, WifiOff, Eye, Clock, FileText, ExternalLink, Github, ClipboardList, Globe, Sparkles, BarChart3, Factory, Scale, Ship, UserSearch, Wallet, LineChart, MessageCircle } from "lucide-react";
 import { ShareButton } from "@/components/share-button";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/lib/language-provider";
 
 function FAQItem({ q, a }: { q: string; a: string }) {
@@ -27,79 +25,6 @@ function FAQItem({ q, a }: { q: string; a: string }) {
         <p className="pb-4 text-sm text-muted-foreground leading-relaxed">{a}</p>
       )}
     </div>
-  );
-}
-
-function DemoLoginForm() {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const queryClient = useQueryClient();
-  const { t } = useLanguage();
-
-  async function handleDemoLogin(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-    try {
-      const res = await fetch("/api/demo-login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-        credentials: "include",
-      });
-      if (!res.ok) {
-        setError(t("landing.demo.error"));
-        return;
-      }
-      await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-      window.location.href = "/";
-    } catch {
-      setError(t("landing.demo.failed"));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <Card className="max-w-sm w-full">
-      <CardContent className="pt-6 space-y-4">
-        <div className="flex items-center gap-2 mb-1">
-          <LogIn className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-medium">{t("landing.demo.title")}</span>
-        </div>
-        <form onSubmit={handleDemoLogin} className="space-y-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="demo-username" className="text-xs">{t("landing.demo.id")}</Label>
-            <Input
-              id="demo-username"
-              data-testid="input-demo-username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder={t("landing.demo.idPlaceholder")}
-              autoComplete="username"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="demo-password" className="text-xs">{t("landing.demo.password")}</Label>
-            <Input
-              id="demo-password"
-              data-testid="input-demo-password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder={t("landing.demo.passwordPlaceholder")}
-              autoComplete="current-password"
-            />
-          </div>
-          {error && <p className="text-sm text-destructive" data-testid="text-demo-error">{error}</p>}
-          <Button type="submit" className="w-full" disabled={loading} data-testid="button-demo-login">
-            {loading ? t("landing.demo.loggingIn") : t("landing.demo.loginButton")}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
   );
 }
 
@@ -339,7 +264,6 @@ export default function Landing() {
                   </div>
                 </div>
               </div>
-              <DemoLoginForm />
             </div>
           </div>
         </section>
@@ -500,82 +424,6 @@ export default function Landing() {
               ))}
             </CardContent>
           </Card>
-        </section>
-
-        {/* ===== PRICING ===== */}
-        <section className="max-w-6xl mx-auto px-6 py-16" data-testid="section-pricing">
-          <h2 className="text-2xl font-bold text-center mb-2">{t("landing.pricing.title")}</h2>
-          <p className="text-center text-muted-foreground mb-12">{t("landing.pricing.subtitle")}</p>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
-            {[
-              {
-                key: "web",
-                icon: BarChart3,
-                color: "bg-blue-500 dark:bg-blue-600",
-                features: [t("landing.pricing.web.f1"), t("landing.pricing.web.f2"), t("landing.pricing.web.f3"), t("landing.pricing.web.f4")],
-                popular: false,
-                href: "/api/login",
-              },
-              {
-                key: "local",
-                icon: TrendingUp,
-                color: "bg-primary",
-                features: [t("landing.pricing.local.f1"), t("landing.pricing.local.f2"), t("landing.pricing.local.f3")],
-                popular: true,
-                href: "/api/login",
-              },
-              {
-                key: "desktop",
-                icon: Monitor,
-                color: "bg-emerald-500 dark:bg-emerald-600",
-                features: [t("landing.pricing.desktop.f1"), t("landing.pricing.desktop.f2"), t("landing.pricing.desktop.f3"), t("landing.pricing.desktop.f4")],
-                popular: false,
-                href: "https://github.com/Salepark/maker/releases/latest",
-                external: true,
-              },
-              {
-                key: "teams",
-                icon: Landmark,
-                color: "bg-slate-600 dark:bg-slate-500",
-                features: [t("landing.pricing.teams.f1"), t("landing.pricing.teams.f2"), t("landing.pricing.teams.f3")],
-                popular: false,
-                href: "/api/login",
-              },
-            ].map((plan) => (
-              <Card key={plan.key} className={`flex flex-col relative ${plan.popular ? "ring-2 ring-primary shadow-lg scale-105" : ""}`} data-testid={`card-pricing-${plan.key}`}>
-                {plan.popular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <Badge className="bg-primary text-primary-foreground px-3">BEST</Badge>
-                  </div>
-                )}
-                <div className={`${plan.color} rounded-t-md flex items-center justify-center py-5`}>
-                  <plan.icon className="h-10 w-10 text-white" />
-                </div>
-                <CardContent className="pt-5 pb-6 flex flex-col flex-1 gap-4">
-                  <div>
-                    <h3 className="font-bold text-lg" data-testid={`text-pricing-price-${plan.key}`}>
-                      {t(`landing.pricing.${plan.key}.price`)}
-                    </h3>
-                    <span className="text-xs text-muted-foreground">{t(`landing.pricing.${plan.key}.name`)}</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{t(`landing.pricing.${plan.key}.desc`)}</p>
-                  <ul className="space-y-2 flex-1">
-                    {plan.features.map((f) => (
-                      <li key={f} className="flex items-start gap-2 text-sm">
-                        <Check className="h-4 w-4 shrink-0 mt-0.5 text-primary" />
-                        <span>{f}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <Button asChild className={`w-full ${plan.popular ? "" : "variant-outline"}`} variant={plan.popular ? "default" : "outline"} data-testid={`button-pricing-${plan.key}`}>
-                    <a href={(plan as any).href} {...((plan as any).external ? { target: "_blank", rel: "noopener noreferrer" } : {})}>
-                      {t(`landing.pricing.${plan.key}.button`)}
-                    </a>
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
         </section>
 
         {/* ===== PHILOSOPHY ===== */}
