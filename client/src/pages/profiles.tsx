@@ -92,6 +92,7 @@ const topicColors: Record<string, string> = {
   korea_marketplace: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
   website_promotion: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200",
   korea_competitor_analysis: "bg-lime-100 text-lime-800 dark:bg-lime-900 dark:text-lime-200",
+  us_competitor_analysis: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200",
 };
 
 const outputTypeColors: Record<string, string> = {
