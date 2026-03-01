@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/lib/language-provider";
-import { Plus, Bot as BotIcon, Trash2, Settings, Loader2, Newspaper, Eye, Scale, GraduationCap, ShoppingBag, MessageSquare, TrendingUp, Users, Sparkles, ArrowLeft, Rss, Clock, FileText, ChevronRight, Link2, Search, Briefcase, BookOpen, Building2, PenTool, Laptop, Store, ShoppingCart, Globe } from "lucide-react";
+import { Plus, Bot as BotIcon, Trash2, Settings, Loader2, Newspaper, Eye, Scale, GraduationCap, ShoppingBag, MessageSquare, TrendingUp, Users, Sparkles, ArrowLeft, Rss, Clock, FileText, ChevronRight, Link2, Search, Briefcase, BookOpen, Building2, PenTool, Laptop, Store, ShoppingCart, Globe, BarChart3 } from "lucide-react";
 
 interface SuggestedSource {
   name: string;
@@ -73,7 +73,7 @@ interface BotData {
 }
 
 const iconMap: Record<string, typeof Newspaper> = {
-  Newspaper, Eye, Scale, GraduationCap, ShoppingBag, MessageSquare, TrendingUp, Users, Search, Briefcase, BookOpen, Building2, PenTool, Laptop, Store, ShoppingCart, Globe,
+  Newspaper, Eye, Scale, GraduationCap, ShoppingBag, MessageSquare, TrendingUp, Users, Search, Briefcase, BookOpen, Building2, PenTool, Laptop, Store, ShoppingCart, Globe, BarChart3,
 };
 
 const topicColors: Record<string, string> = {
@@ -91,6 +91,7 @@ const topicColors: Record<string, string> = {
   online_business: "bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-200",
   korea_marketplace: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
   website_promotion: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200",
+  korea_competitor_analysis: "bg-lime-100 text-lime-800 dark:bg-lime-900 dark:text-lime-200",
 };
 
 const outputTypeColors: Record<string, string> = {
