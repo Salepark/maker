@@ -667,15 +667,24 @@ export default function Chat() {
 
   const sendMutation = useMutation({
     mutationFn: async (text: string) => {
-      if (!threadId) throw new Error("No thread");
-      const res = await apiRequest("POST", `/api/chat/threads/${threadId}/message`, { text });
-      return res.json();
+      let currentThreadId = threadId;
+      if (!currentThreadId) {
+        const createRes = await apiRequest("POST", "/api/chat/threads", {});
+        const newThread = await createRes.json();
+        currentThreadId = newThread.id;
+        setThreadId(currentThreadId);
+        queryClient.invalidateQueries({ queryKey: ["/api/chat/threads"] });
+      }
+      const res = await apiRequest("POST", `/api/chat/threads/${currentThreadId}/message`, { text });
+      const data = await res.json();
+      return { ...data, _threadId: currentThreadId };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/chat/threads", threadId, "messages"] });
+    onSuccess: (data: any) => {
+      const tid = data?._threadId || threadId;
+      queryClient.invalidateQueries({ queryKey: ["/api/chat/threads", tid, "messages"] });
       queryClient.invalidateQueries({ queryKey: ["/api/chat/threads"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/console/context", threadId] });
-      queryClient.invalidateQueries({ queryKey: ["/api/chat/threads", threadId, "activeBot"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/console/context", tid] });
+      queryClient.invalidateQueries({ queryKey: ["/api/chat/threads", tid, "activeBot"] });
     },
     onError: (error: any) => {
       toast({
@@ -688,7 +697,7 @@ export default function Chat() {
 
   const confirmMutation = useMutation({
     mutationFn: async ({ pendingMessageId, approve }: { pendingMessageId: number; approve: boolean }) => {
-      if (!threadId) throw new Error("No thread");
+      if (!threadId) throw new Error(t("chat.errorOccurred"));
       const res = await apiRequest("POST", `/api/chat/threads/${threadId}/confirm`, { pendingMessageId, approve });
       return res.json();
     },
