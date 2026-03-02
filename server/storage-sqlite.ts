@@ -21,7 +21,25 @@ import type { IStorage } from "./storage";
 import { eq, desc, sql, and, count, gte, lt, lte, or, isNull, inArray } from "drizzle-orm";
 
 export class SqliteStorage implements IStorage {
+  private async getUserSourceIds(userId: string): Promise<number[]> {
+    const ownedSources = await db.select({ id: sources.id }).from(sources).where(eq(sources.userId, userId));
+    const userBots = await db.select({ id: bots.id }).from(bots).where(eq(bots.userId, userId));
+    const botIds = userBots.map(b => b.id);
+    let linkedSourceIds: number[] = [];
+    if (botIds.length > 0) {
+      const links = await db.select({ sourceId: sourceBotLinks.sourceId }).from(sourceBotLinks).where(inArray(sourceBotLinks.botId, botIds));
+      linkedSourceIds = links.map(l => l.sourceId);
+    }
+    const allIds = new Set([...ownedSources.map(s => s.id), ...linkedSourceIds]);
+    return Array.from(allIds);
+  }
+
   async getStats(userId?: string) {
+    let userSourceIds: number[] | null = null;
+    if (userId) {
+      userSourceIds = await this.getUserSourceIds(userId);
+    }
+
     let statsQuery = db
       .select({
         status: items.status,
@@ -29,8 +47,11 @@ export class SqliteStorage implements IStorage {
       })
       .from(items);
     
-    if (userId) {
-      statsQuery = statsQuery.innerJoin(sources, eq(items.sourceId, sources.id)).where(eq(sources.userId, userId)) as any;
+    if (userSourceIds !== null) {
+      if (userSourceIds.length === 0) {
+        return { total: 0, new: 0, analyzed: 0, drafted: 0, approved: 0, posted: 0, skipped: 0, lastCollectAt: null, lastAnalyzeAt: null };
+      }
+      statsQuery = statsQuery.where(inArray(items.sourceId, userSourceIds)) as any;
     }
 
     const result = await (statsQuery as any).groupBy(items.status);
@@ -68,8 +89,8 @@ export class SqliteStorage implements IStorage {
     let lastCollectQuery = db
       .select({ insertedAt: items.insertedAt })
       .from(items);
-    if (userId) {
-      lastCollectQuery = lastCollectQuery.innerJoin(sources, eq(items.sourceId, sources.id)).where(eq(sources.userId, userId)) as any;
+    if (userSourceIds !== null && userSourceIds.length > 0) {
+      lastCollectQuery = lastCollectQuery.where(inArray(items.sourceId, userSourceIds)) as any;
     }
     const lastCollect = await (lastCollectQuery as any).orderBy(desc(items.insertedAt)).limit(1);
 
@@ -80,11 +101,10 @@ export class SqliteStorage implements IStorage {
     let lastAnalyzeQuery = db
       .select({ createdAt: analysis.createdAt })
       .from(analysis);
-    if (userId) {
+    if (userSourceIds !== null && userSourceIds.length > 0) {
       lastAnalyzeQuery = lastAnalyzeQuery
         .innerJoin(items, eq(analysis.itemId, items.id))
-        .innerJoin(sources, eq(items.sourceId, sources.id))
-        .where(eq(sources.userId, userId)) as any;
+        .where(inArray(items.sourceId, userSourceIds)) as any;
     }
     const lastAnalyze = await (lastAnalyzeQuery as any).orderBy(desc(analysis.createdAt)).limit(1);
 
@@ -137,7 +157,11 @@ export class SqliteStorage implements IStorage {
       conditions.push(eq(items.status, status));
     }
     if (userId) {
-      conditions.push(eq(sources.userId, userId));
+      const userSourceIds = await this.getUserSourceIds(userId);
+      if (userSourceIds.length === 0) {
+        return { data: [], total: 0, page, limit };
+      }
+      conditions.push(inArray(items.sourceId, userSourceIds));
     }
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
@@ -184,6 +208,12 @@ export class SqliteStorage implements IStorage {
   }
 
   async getRecentItems(limit: number = 10, userId?: string): Promise<(Item & { sourceName: string })[]> {
+    let userSourceIds: number[] | null = null;
+    if (userId) {
+      userSourceIds = await this.getUserSourceIds(userId);
+      if (userSourceIds.length === 0) return [];
+    }
+
     let query = db
       .select({
         item: items,
@@ -194,8 +224,8 @@ export class SqliteStorage implements IStorage {
       .orderBy(desc(items.insertedAt))
       .limit(limit);
 
-    if (userId) {
-      query = query.where(eq(sources.userId, userId)) as any;
+    if (userSourceIds !== null) {
+      query = query.where(inArray(items.sourceId, userSourceIds)) as any;
     }
 
     const result = await query;
@@ -212,7 +242,9 @@ export class SqliteStorage implements IStorage {
       lt(analysis.replyWorthinessScore, 50),
     ];
     if (userId) {
-      conditions.push(eq(sources.userId, userId));
+      const userSourceIds = await this.getUserSourceIds(userId);
+      if (userSourceIds.length === 0) return [];
+      conditions.push(inArray(items.sourceId, userSourceIds));
     }
 
     const result = await db
@@ -248,7 +280,9 @@ export class SqliteStorage implements IStorage {
   async getItem(id: number, userId?: string): Promise<(Item & { sourceName: string; analysis?: Analysis; drafts: Draft[] }) | undefined> {
     const conditions: any[] = [eq(items.id, id)];
     if (userId) {
-      conditions.push(eq(sources.userId, userId));
+      const userSourceIds = await this.getUserSourceIds(userId);
+      if (userSourceIds.length === 0) return undefined;
+      conditions.push(inArray(items.sourceId, userSourceIds));
     }
 
     const [itemResult] = await db
@@ -353,7 +387,11 @@ export class SqliteStorage implements IStorage {
       conditions.push(eq(drafts.adminDecision, decision));
     }
     if (userId) {
-      conditions.push(eq(sources.userId, userId));
+      const userSourceIds = await this.getUserSourceIds(userId);
+      if (userSourceIds.length === 0) {
+        return { data: [], total: 0, page, limit };
+      }
+      conditions.push(inArray(items.sourceId, userSourceIds));
     }
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;

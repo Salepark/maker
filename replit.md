@@ -50,7 +50,7 @@ An interactive mind map page at `/maker-intro` (`client/src/pages/maker-intro.ts
 The application supports English and Korean using a homegrown i18n system, with language preferences persisted and all UI text localized.
 
 ### Multi-DB Architecture
-Supports both PostgreSQL (cloud) and SQLite (local desktop) based on environment variables, with schema mirroring and driver abstraction.
+Supports both PostgreSQL (cloud) and SQLite (local desktop) based on environment variables, with schema mirroring and driver abstraction. The SQLite storage uses `getUserSourceIds(userId)` to resolve user-visible sources by combining directly-owned sources (`sources.userId`) with bot-linked sources (via `sourceBotLinks`). This ensures items collected by shared/default sources appear correctly in the dashboard, items list, drafts, and observe views.
 
 ### Electron Desktop Packaging
 The application is set up for desktop distribution using Electron, allowing the Express server to run locally with SQLite, and opening a BrowserWindow for the UI.
