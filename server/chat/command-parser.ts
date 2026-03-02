@@ -40,6 +40,13 @@ function tryKeywordFallback(message: string, context: CommandParseContext): Chat
   const botKey = context.activeBotKey;
   const ko = isKoreanInput(message);
 
+  const queryIndicators = ["알려", "보여", "몇", "어떤", "뭐", "무엇", "어디", "왜", "있나", "있어", "됐", "된", "했는", "나오", "이유", "안되", "안 되", "가능", "what", "which", "how", "why", "tell", "show", "?", "？"];
+  const isQueryLike = queryIndicators.some(q => lower.includes(q));
+
+  if (isQueryLike) {
+    return null;
+  }
+
   const hasPipelineIntent = (
     (lower.includes("수집") && (lower.includes("분석") || lower.includes("리포트") || lower.includes("보고서") || lower.includes("작성"))) ||
     (lower.includes("collect") && (lower.includes("analyz") || lower.includes("report"))) ||

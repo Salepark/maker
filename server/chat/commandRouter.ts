@@ -796,7 +796,12 @@ async function execChat(userId: string, cmd: ChatCommand): Promise<ExecutionResu
     availableBotKeys: userBots.map(b => b.key),
   };
   const userMsg = cmd.args?.userMessage || "";
-  const prompt = buildChatReplyPrompt(userMsg, context);
+
+  const botStatusLines = userBots.map(b =>
+    `- ${b.name} (key: ${b.key}) — ${b.isEnabled ? "Active" : "Paused"}`
+  ).join("\n");
+  const enrichedContext = { ...context, botStatusSummary: botStatusLines };
+  const prompt = buildChatReplyPrompt(userMsg, enrichedContext);
 
   const userLLM = await resolveUserLLM(userId);
 

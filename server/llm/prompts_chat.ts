@@ -47,6 +47,14 @@ Output JSON only. No explanatory sentences.
 - confirmText: Keep it concise and user-friendly. For pipeline_run, use format like "자료 수집 → 분석 → 리포트 생성 (09:00 매일)"
 - For ambiguous or disallowed requests, use type="chat"
 
+[CRITICAL: Distinguish Questions from Commands]
+- If the user is ASKING about something (using question words like "알려줘", "보여줘", "뭐야", "어떤", "왜", "what", "which", "how", "?"), treat it as a QUERY, not an action command
+- "중지된 봇 알려줘" → type="chat" (user is ASKING which bots are paused, NOT requesting to pause)
+- "중지해줘" → type="pause_bot" (user is REQUESTING to pause)
+- "3개 봇 중지했는데 같은 메시지" → type="chat" (user is complaining/asking, NOT requesting to pause)
+- Past tense ("했는데", "됐어", "했어", "된") usually indicates a question about past actions, not new commands
+- General conversation, complaints, or feedback → type="chat"
+
 [Current State]
 Active bot: ${activeBot}
 Available bots: ${botList}
@@ -77,11 +85,12 @@ Bot list, switch bot, bot status, run collect/analyze/draft/report, pause, resum
 Ask a brief clarifying question:`;
 }
 
-export function buildChatReplyPrompt(userMessage: string, context: CommandParseContext): string {
+export function buildChatReplyPrompt(userMessage: string, context: CommandParseContext & { botStatusSummary?: string }): string {
   const activeBot = context.activeBotKey || "(none)";
   const botList = context.availableBotKeys.length > 0
     ? context.availableBotKeys.join(", ")
     : "(none)";
+  const botStatus = context.botStatusSummary || "(no data)";
 
   return `You are Maker's AI assistant. Maker is a "Control-First AI OS" — a personal automation platform that lets users create bots to collect RSS data, analyze content with AI, and generate reports.
 
@@ -98,8 +107,10 @@ Key capabilities you can mention:
 Current state:
 - Active bot: ${activeBot}
 - Available bots: ${botList}
+- Bot status:
+${botStatus}
 
 User message: ${userMessage}
 
-Respond concisely (2-4 sentences). Be helpful and suggest relevant actions when appropriate.`;
+Respond concisely (2-4 sentences). Be helpful and suggest relevant actions when appropriate. If the user asks about bot status, paused bots, or active bots, use the bot status data above to give accurate answers.`;
 }
