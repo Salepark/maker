@@ -117,7 +117,7 @@ export async function generatePlan(
   goal: string,
 ): Promise<AgentPlan> {
   const isDesktop = detectIsDesktop();
-  const effective = await getEffectivePermissions(ctx);
+  const effective = await getEffectivePermissions(ctx.userId, ctx.botId);
   const autonomyLevel = getAutonomyLevel(effective);
   const riskBudget = getRiskBudget(effective, autonomyLevel, isDesktop);
 
@@ -225,7 +225,7 @@ export async function executeAgentRun(
   submittedPlanHash?: string,
 ): Promise<AgentRunResult> {
   const isDesktop = detectIsDesktop();
-  const effective = await getEffectivePermissions(ctx);
+  const effective = await getEffectivePermissions(ctx.userId, ctx.botId);
   const autonomyLevel = getAutonomyLevel(effective);
   const riskBudget = getRiskBudget(effective, autonomyLevel, isDesktop);
   const criticalAutoOk = isCriticalAutoAllowed(effective, isDesktop);

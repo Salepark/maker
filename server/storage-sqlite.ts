@@ -710,27 +710,45 @@ export class SqliteStorage implements IStorage {
 
     const installed: Source[] = [];
     for (const tmpl of templates) {
-      const existing = await db
+      const existingUser = await db
         .select()
         .from(sources)
         .where(and(eq(sources.userId, userId), eq(sources.url, tmpl.url)))
         .limit(1);
-      if (existing.length > 0) {
-        installed.push(existing[0] as any);
+      if (existingUser.length > 0) {
+        installed.push(existingUser[0] as any);
         continue;
       }
-      const [newSource] = await db.insert(sources).values({
-        name: tmpl.name,
-        url: tmpl.url,
-        type: tmpl.type,
-        topic: tmpl.topic,
-        trustLevel: tmpl.trustLevel,
-        region: tmpl.region,
-        userId,
-        isDefault: false,
-        enabled: true,
-      } as any).returning();
-      installed.push(newSource as any);
+      const existingByUrl = await db
+        .select()
+        .from(sources)
+        .where(eq(sources.url, tmpl.url))
+        .limit(1);
+      if (existingByUrl.length > 0) {
+        installed.push(existingByUrl[0] as any);
+        continue;
+      }
+      try {
+        const [newSource] = await db.insert(sources).values({
+          name: tmpl.name,
+          url: tmpl.url,
+          type: tmpl.type,
+          topic: tmpl.topic,
+          trustLevel: tmpl.trustLevel,
+          region: tmpl.region,
+          userId,
+          isDefault: false,
+          enabled: true,
+        } as any).returning();
+        installed.push(newSource as any);
+      } catch (err: any) {
+        if (err?.message?.includes("UNIQUE") || err?.message?.includes("unique")) {
+          const [fallback] = await db.select().from(sources).where(eq(sources.url, tmpl.url)).limit(1);
+          if (fallback) installed.push(fallback as any);
+        } else {
+          throw err;
+        }
+      }
     }
     return installed;
   }
@@ -1398,47 +1416,45 @@ export class SqliteStorage implements IStorage {
     settings: Partial<Omit<InsertBotSettings, 'botId'>>;
     sourceData: Array<{ name: string; url: string; type?: string; topic: string }>;
   }): Promise<Bot> {
-    return await db.transaction(async (tx: any) => {
-      const [bot] = await tx.insert(bots).values({
-        userId: params.userId,
-        key: params.key,
-        name: params.name,
-        isEnabled: true,
-      }).returning();
+    const [bot] = await db.insert(bots).values({
+      userId: params.userId,
+      key: params.key,
+      name: params.name,
+      isEnabled: true,
+    }).returning();
 
-      await tx.insert(botSettings).values({
-        botId: bot.id,
-        ...params.settings,
-      } as any);
+    await db.insert(botSettings).values({
+      botId: bot.id,
+      ...params.settings,
+    } as any);
 
-      if (params.sourceData.length > 0) {
-        const sourceLinks: Array<{ botId: number; sourceId: number; weight: number; isEnabled: boolean }> = [];
-        for (const sd of params.sourceData) {
-          const [existing] = await tx.select().from(sources).where(eq(sources.url, sd.url)).limit(1);
-          let sourceId: number;
-          if (existing) {
-            sourceId = existing.id;
-          } else {
-            const [created] = await tx.insert(sources).values({
-              userId: null,
-              name: sd.name,
-              type: sd.type || "rss",
-              url: sd.url,
-              topic: sd.topic,
-              isDefault: false,
-              enabled: true,
-            }).returning();
-            sourceId = created.id;
-          }
-          sourceLinks.push({ botId: bot.id, sourceId, weight: 3, isEnabled: true });
+    if (params.sourceData.length > 0) {
+      const sourceLinks: Array<{ botId: number; sourceId: number; weight: number; isEnabled: boolean }> = [];
+      for (const sd of params.sourceData) {
+        const [existing] = await db.select().from(sources).where(eq(sources.url, sd.url)).limit(1);
+        let sourceId: number;
+        if (existing) {
+          sourceId = existing.id;
+        } else {
+          const [created] = await db.insert(sources).values({
+            userId: null,
+            name: sd.name,
+            type: sd.type || "rss",
+            url: sd.url,
+            topic: sd.topic,
+            isDefault: false,
+            enabled: true,
+          }).returning();
+          sourceId = created.id;
         }
-        if (sourceLinks.length > 0) {
-          await tx.insert(sourceBotLinks).values(sourceLinks);
-        }
+        sourceLinks.push({ botId: bot.id, sourceId, weight: 3, isEnabled: true });
       }
+      if (sourceLinks.length > 0) {
+        await db.insert(sourceBotLinks).values(sourceLinks);
+      }
+    }
 
-      return bot as Bot;
-    });
+    return bot as Bot;
   }
 
   async getBotByUserAndKey(userId: string, key: string): Promise<Bot | undefined> {
