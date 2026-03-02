@@ -1,6 +1,8 @@
 import { parseCommand } from "./command-parser";
 import { routeCommand, execPipelineRun } from "./commandRouter";
 import { storage } from "../storage";
+import { type LLMConfig } from "../llm/client";
+import { decrypt } from "../lib/crypto";
 
 export interface ChatEngineRequest {
   userId: string;
@@ -37,10 +39,26 @@ export async function processMessage(req: ChatEngineRequest): Promise<ChatEngine
     activeBotKey = activeBot?.key || null;
   }
 
+  let userLLMConfig: LLMConfig | null = null;
+  try {
+    const providers = await storage.listLlmProviders(userId);
+    if (providers.length > 0) {
+      const p = providers[0];
+      userLLMConfig = {
+        providerType: p.providerType,
+        apiKey: decrypt(p.apiKeyEncrypted),
+        baseUrl: p.baseUrl,
+        model: p.defaultModel,
+      };
+    }
+  } catch (err) {
+    console.error("[ChatEngine] Failed to resolve user LLM:", err);
+  }
+
   const parseResult = await parseCommand(text, {
     activeBotKey,
     availableBotKeys: userBots.map(b => b.key),
-  });
+  }, userLLMConfig);
 
   const { command, clarificationNeeded, clarificationText } = parseResult;
 

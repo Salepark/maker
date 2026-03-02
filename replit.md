@@ -32,7 +32,7 @@ Scheduled tasks, managed by `node-cron`, handle content collection from RSS feed
 A multi-provider LLM architecture allows users to integrate their own LLMs (e.g., Anthropic, OpenAI, Google AI, or custom OpenAI-compatible endpoints). API keys are encrypted, and users can assign specific LLM providers and models to their bots. Prompts are topic-based, and outputs are structured JSON.
 
 ### Command Chat
-A natural language interface, powered by Claude AI, enables users to control bots via chat commands. The core chat engine provides reusable `processMessage` and `processConfirm` functions used by both the web UI and external adapters.
+A natural language interface, powered by Claude AI, enables users to control bots via chat commands. The core chat engine provides reusable `processMessage` and `processConfirm` functions used by both the web UI and external adapters. The console chat automatically resolves the user's BYO LLM provider for both command parsing and conversational replies, falling back to the system `LLM_API_KEY` if no user provider is found. If neither is available (e.g., desktop without API keys), a bilingual message prompts the user to register an LLM provider in Settings.
 
 ### External Messaging Adapters
 A modular adapter system (`server/adapters/`) connects Maker to external messaging platforms. A Telegram adapter is implemented, with Discord and Slack planned.

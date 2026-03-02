@@ -1,4 +1,4 @@
-import { callLLMWithJsonParsing } from "../llm/client";
+import { callLLMWithJsonParsing, callLLMWithConfigJson, type LLMConfig } from "../llm/client";
 import { buildCommandParsePrompt, buildClarificationPrompt, type CommandParseContext } from "../llm/prompts_chat";
 import type { ChatCommand, ChatCommandType } from "@shared/chatCommand";
 
@@ -238,7 +238,8 @@ function tryKeywordFallback(message: string, context: CommandParseContext): Chat
 
 export async function parseCommand(
   userMessage: string,
-  context: CommandParseContext
+  context: CommandParseContext,
+  userLLMConfig?: LLMConfig | null
 ): Promise<ParseResult> {
   const isCandidate = isCommandCandidate(userMessage);
 
@@ -251,8 +252,19 @@ export async function parseCommand(
 
   const prompt = buildCommandParsePrompt(userMessage, context);
 
+  async function callJsonParse<T>(p: string, retries: number): Promise<T> {
+    if (userLLMConfig) {
+      try {
+        return await callLLMWithConfigJson<T>(userLLMConfig, p, retries);
+      } catch (err) {
+        console.error("[Parser] User LLM failed, trying system fallback:", err);
+      }
+    }
+    return callLLMWithJsonParsing<T>(p, retries);
+  }
+
   try {
-    const parsed = await callLLMWithJsonParsing<ChatCommand>(prompt, 2);
+    const parsed = await callJsonParse<ChatCommand>(prompt, 2);
 
     if (!parsed.type || !isValidType(parsed.type)) {
       parsed.type = "chat";
@@ -276,7 +288,7 @@ export async function parseCommand(
       let clarificationText: string;
       try {
         const clarifyPrompt = buildClarificationPrompt(userMessage, context);
-        const raw = await callLLMWithJsonParsing<{ reply: string }>(clarifyPrompt, 1);
+        const raw = await callJsonParse<{ reply: string }>(clarifyPrompt, 1);
         clarificationText = raw.reply || "어떤 봇에서 어떤 작업을 실행할지 조금 더 구체적으로 말씀해 주세요.";
       } catch {
         clarificationText = "어떤 봇에서 어떤 작업을 실행할지 조금 더 구체적으로 말씀해 주세요.";

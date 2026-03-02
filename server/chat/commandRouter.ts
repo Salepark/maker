@@ -3,7 +3,7 @@ import { runCollectNow, runAnalyzeNow, runDraftNow, runReportNow } from "../jobs
 import { collectFromSourceIds } from "../services/rss";
 import { analyzeNewItemsBySourceIds } from "../jobs/analyze_items";
 import { generateFastReport, upgradeToFullReport } from "../jobs/report";
-import { hasSystemLLMKey, callLLM } from "../llm/client";
+import { hasSystemLLMKey, callLLM, callLLMWithConfig, type LLMConfig } from "../llm/client";
 import { buildChatReplyPrompt, type CommandParseContext } from "../llm/prompts_chat";
 import { storage } from "../storage";
 import { startRun, endRunOk, endRunError, endRunTimeout } from "../jobs/runLogger";
@@ -757,6 +757,29 @@ async function execRemoveSource(userId: string, cmd: ChatCommand): Promise<Execu
   };
 }
 
+async function resolveUserLLM(userId: string): Promise<LLMConfig | null> {
+  const providers = await storage.listLlmProviders(userId);
+  if (providers.length === 0) return null;
+  const { decrypt } = await import("../lib/crypto");
+  const p = providers[0];
+  return {
+    providerType: p.providerType,
+    apiKey: decrypt(p.apiKeyEncrypted),
+    baseUrl: p.baseUrl,
+    model: p.defaultModel,
+  };
+}
+
+const NO_LLM_MSG =
+  "🔑 AI 대화를 사용하려면 LLM 프로바이더를 등록해 주세요.\n" +
+  "설정 → LLM 프로바이더에서 API 키를 추가할 수 있습니다.\n\n" +
+  "To use AI chat, please register an LLM provider.\n" +
+  "Go to Settings → LLM Providers to add your API key.\n\n" +
+  "기본 명령어는 사용할 수 있습니다:\n" +
+  "• 봇 목록 보여줘 / list bots\n" +
+  "• 봇 상태 보여줘 / bot status\n" +
+  "• 수집 실행 / run collect";
+
 async function execChat(userId: string, cmd: ChatCommand): Promise<ExecutionResult> {
   if (cmd.args?.reply) {
     return {
@@ -767,31 +790,45 @@ async function execChat(userId: string, cmd: ChatCommand): Promise<ExecutionResu
     };
   }
 
-  const defaultMsg = "How can I help? Try: list bots / bot status / run collect / run analyze / run report\n\n사용 가능한 명령어: 봇 목록 보여줘 / 봇 상태 보여줘 / 수집 실행 / 분석 실행 / 리포트 작성";
+  const userBots = await storage.listBots(userId);
+  const context: CommandParseContext = {
+    activeBotKey: cmd.botKey || null,
+    availableBotKeys: userBots.map(b => b.key),
+  };
+  const userMsg = cmd.args?.userMessage || "";
+  const prompt = buildChatReplyPrompt(userMsg, context);
 
-  if (!hasSystemLLMKey()) {
-    return { ok: true, assistantMessage: defaultMsg, executed: cmd, result: null };
+  const userLLM = await resolveUserLLM(userId);
+
+  if (userLLM) {
+    try {
+      const reply = await callLLMWithConfig(userLLM, prompt, 1, 500);
+      return {
+        ok: true,
+        assistantMessage: reply.trim() || NO_LLM_MSG,
+        executed: cmd,
+        result: null,
+      };
+    } catch (err) {
+      console.error("[Chat] User LLM chat reply failed, trying system fallback:", err);
+    }
   }
 
-  try {
-    const userBots = await storage.listBots(userId);
-    const context: CommandParseContext = {
-      activeBotKey: cmd.botKey || null,
-      availableBotKeys: userBots.map(b => b.key),
-    };
-    const userMsg = cmd.args?.userMessage || "";
-    const prompt = buildChatReplyPrompt(userMsg, context);
-    const reply = await callLLM(prompt, 1, 500);
-    return {
-      ok: true,
-      assistantMessage: reply.trim() || defaultMsg,
-      executed: cmd,
-      result: null,
-    };
-  } catch (err) {
-    console.error("[Chat] LLM chat reply failed:", err);
-    return { ok: true, assistantMessage: defaultMsg, executed: cmd, result: null };
+  if (hasSystemLLMKey()) {
+    try {
+      const reply = await callLLM(prompt, 1, 500);
+      return {
+        ok: true,
+        assistantMessage: reply.trim() || NO_LLM_MSG,
+        executed: cmd,
+        result: null,
+      };
+    } catch (err) {
+      console.error("[Chat] System LLM chat reply failed:", err);
+    }
   }
+
+  return { ok: true, assistantMessage: NO_LLM_MSG, executed: cmd, result: null };
 }
 
 export async function routeCommand(userId: string, cmd: ChatCommand, threadId?: number): Promise<ExecutionResult> {
