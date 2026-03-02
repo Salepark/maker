@@ -3,7 +3,8 @@ import { runCollectNow, runAnalyzeNow, runDraftNow, runReportNow } from "../jobs
 import { collectFromSourceIds } from "../services/rss";
 import { analyzeNewItemsBySourceIds } from "../jobs/analyze_items";
 import { generateFastReport, upgradeToFullReport } from "../jobs/report";
-import { hasSystemLLMKey } from "../llm/client";
+import { hasSystemLLMKey, callLLM } from "../llm/client";
+import { buildChatReplyPrompt, type CommandParseContext } from "../llm/prompts_chat";
 import { storage } from "../storage";
 import { startRun, endRunOk, endRunError, endRunTimeout } from "../jobs/runLogger";
 
@@ -756,6 +757,43 @@ async function execRemoveSource(userId: string, cmd: ChatCommand): Promise<Execu
   };
 }
 
+async function execChat(userId: string, cmd: ChatCommand): Promise<ExecutionResult> {
+  if (cmd.args?.reply) {
+    return {
+      ok: true,
+      assistantMessage: cmd.args.reply,
+      executed: cmd,
+      result: null,
+    };
+  }
+
+  const defaultMsg = "How can I help? Try: list bots / bot status / run collect / run analyze / run report\n\n사용 가능한 명령어: 봇 목록 보여줘 / 봇 상태 보여줘 / 수집 실행 / 분석 실행 / 리포트 작성";
+
+  if (!hasSystemLLMKey()) {
+    return { ok: true, assistantMessage: defaultMsg, executed: cmd, result: null };
+  }
+
+  try {
+    const userBots = await storage.listBots(userId);
+    const context: CommandParseContext = {
+      activeBotKey: cmd.botKey || null,
+      availableBotKeys: userBots.map(b => b.key),
+    };
+    const userMsg = cmd.args?.userMessage || "";
+    const prompt = buildChatReplyPrompt(userMsg, context);
+    const reply = await callLLM(prompt, 1, 500);
+    return {
+      ok: true,
+      assistantMessage: reply.trim() || defaultMsg,
+      executed: cmd,
+      result: null,
+    };
+  } catch (err) {
+    console.error("[Chat] LLM chat reply failed:", err);
+    return { ok: true, assistantMessage: defaultMsg, executed: cmd, result: null };
+  }
+}
+
 export async function routeCommand(userId: string, cmd: ChatCommand, threadId?: number): Promise<ExecutionResult> {
   switch (cmd.type) {
     case "list_bots":
@@ -777,12 +815,7 @@ export async function routeCommand(userId: string, cmd: ChatCommand, threadId?: 
     case "pipeline_run":
       return execPipelineRun(userId, cmd);
     case "chat":
-      return {
-        ok: true,
-        assistantMessage: cmd.args?.reply || "How can I help? Try: list bots / bot status / run collect / run analyze / run report\n\n사용 가능한 명령어: 봇 목록 보여줘 / 봇 상태 보여줘 / 수집 실행 / 분석 실행 / 리포트 작성",
-        executed: cmd,
-        result: null,
-      };
+      return execChat(userId, cmd);
     default:
       return {
         ok: false,

@@ -240,18 +240,13 @@ export async function parseCommand(
   userMessage: string,
   context: CommandParseContext
 ): Promise<ParseResult> {
-  if (!isCommandCandidate(userMessage)) {
-    return {
-      command: {
-        type: "chat",
-        botKey: null,
-        args: { reply: "" },
-        confidence: 1.0,
-        needsConfirm: false,
-        confirmText: "",
-      },
-      clarificationNeeded: false,
-    };
+  const isCandidate = isCommandCandidate(userMessage);
+
+  if (isCandidate) {
+    const fallback = tryKeywordFallback(userMessage, context);
+    if (fallback && fallback.confidence >= 0.8) {
+      return { command: fallback, clarificationNeeded: false };
+    }
   }
 
   const prompt = buildCommandParsePrompt(userMessage, context);
@@ -273,6 +268,9 @@ export async function parseCommand(
     }
     if (!parsed.args) parsed.args = {};
     if (!parsed.botKey) parsed.botKey = context.activeBotKey;
+    if (parsed.type === "chat") {
+      parsed.args.userMessage = userMessage;
+    }
 
     if (parsed.confidence < 0.7 && parsed.type !== "chat") {
       let clarificationText: string;
@@ -305,7 +303,7 @@ export async function parseCommand(
       command: {
         type: "chat",
         botKey: null,
-        args: { reply: "AI 파서가 일시적으로 응답하지 않습니다. 잠시 후 다시 시도해 주세요.\n\n직접 명령어를 입력할 수도 있습니다:\n• \"자료 수집해줘\" — 소스에서 자료 수집\n• \"분석해줘\" — 수집된 자료 분석\n• \"리포트 작성해줘\" — 리포트 생성\n• \"수집하고 분석해서 리포트 작성해줘\" — 전체 파이프라인 실행" },
+        args: { userMessage: userMessage, reply: "" },
         confidence: 0,
         needsConfirm: false,
         confirmText: "",

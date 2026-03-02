@@ -32,7 +32,7 @@ Output JSON only. No explanatory sentences.
 7) add_source: Add RSS source. args: { "url": "RSS URL", "name": "source name (optional)" }. botKey needed (uses active bot if not specified).
 8) remove_source: Remove source. args: { "sourceName": "source name or URL" }. botKey needed (uses active bot if not specified).
 9) pipeline_run: Run the FULL pipeline (collect → analyze → report) in one command. Use this when the user wants to collect data AND analyze AND generate a report in a single request. If the user also mentions a schedule time, include it in args. args: { "scheduleTimeLocal": "HH:MM" (optional), "scheduleRule": "DAILY" | "WEEKDAYS" | "WEEKENDS" (optional, default DAILY), "lookbackHours": number (optional), "maxItems": number (optional) }. botKey needed (uses active bot if not specified).
-10) chat: General conversation or when the request does not match any command above. args: { "reply": "natural language response" }
+10) chat: General conversation or when the request does not match any command above. args: { "reply": "natural language response in the same language as the user's message. Provide a helpful, conversational answer about Maker's capabilities, the bot system, or general questions. Be friendly and informative." }
 
 [Pipeline Detection Rules]
 - If the user mentions TWO or MORE of: collecting/gathering data, analyzing, generating report → use pipeline_run
@@ -75,4 +75,31 @@ ${userMessage}
 Bot list, switch bot, bot status, run collect/analyze/draft/report, pause, resume, add source, remove source
 
 Ask a brief clarifying question:`;
+}
+
+export function buildChatReplyPrompt(userMessage: string, context: CommandParseContext): string {
+  const activeBot = context.activeBotKey || "(none)";
+  const botList = context.availableBotKeys.length > 0
+    ? context.availableBotKeys.join(", ")
+    : "(none)";
+
+  return `You are Maker's AI assistant. Maker is a "Control-First AI OS" — a personal automation platform that lets users create bots to collect RSS data, analyze content with AI, and generate reports.
+
+Respond to the user's message naturally and helpfully. Answer in the same language as the user (Korean or English).
+
+Key capabilities you can mention:
+- Bots collect data from RSS sources on a schedule
+- AI analyzes collected items for relevance and importance
+- Reports are generated with summaries and insights
+- Users control permissions, schedules, and data flow
+- Available commands: list bots, bot status, run collect/analyze/report, add/remove sources, pause/resume bots
+- Pipeline: "수집하고 분석해서 리포트 작성해줘" runs the full flow
+
+Current state:
+- Active bot: ${activeBot}
+- Available bots: ${botList}
+
+User message: ${userMessage}
+
+Respond concisely (2-4 sentences). Be helpful and suggest relevant actions when appropriate.`;
 }
