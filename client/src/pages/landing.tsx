@@ -10,28 +10,28 @@ import { useLanguage } from "@/lib/language-provider";
 
 function FitText({ text, className, testId, bg, as: Tag = "div" }: { text: string; className?: string; testId?: string; bg?: string; as?: "h1" | "div" }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLSpanElement>(null);
   const [fontSize, setFontSize] = useState(10);
 
   const fit = useCallback(() => {
     const container = containerRef.current;
-    if (!container) return;
+    const inner = innerRef.current;
+    if (!container || !inner) return;
     const targetWidth = container.clientWidth;
     if (targetWidth <= 0) return;
 
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    inner.style.fontSize = "100px";
+    inner.style.position = "absolute";
+    inner.style.visibility = "hidden";
+    const measuredWidth = inner.getBoundingClientRect().width;
+    inner.style.position = "";
+    inner.style.visibility = "";
 
-    const refSize = 100;
-    ctx.font = `900 ${refSize}px system-ui, -apple-system, sans-serif`;
-    const measured = ctx.measureText(text).width;
-    if (measured <= 0) return;
-
-    const padRatio = bg ? 0.3 : 0;
-    const available = targetWidth * (1 - padRatio * (refSize / measured) * 0.01);
-    const newSize = Math.floor((available / measured) * refSize);
+    if (measuredWidth <= 0) return;
+    const newSize = Math.floor((targetWidth / measuredWidth) * 100 * 0.98);
+    inner.style.fontSize = "";
     setFontSize(newSize);
-  }, [text, bg]);
+  }, [text]);
 
   useEffect(() => {
     fit();
@@ -39,24 +39,16 @@ function FitText({ text, className, testId, bg, as: Tag = "div" }: { text: strin
     return () => window.removeEventListener("resize", fit);
   }, [fit]);
 
-  const inner = (
-    <span
-      className={className}
-      style={{ fontSize: `${fontSize}px`, display: "block", whiteSpace: "nowrap" }}
-      data-testid={testId}
-    >
-      {text}
-    </span>
-  );
-
   return (
-    <div ref={containerRef} className="w-full select-none">
+    <div ref={containerRef} className="w-full select-none overflow-hidden">
       {bg ? (
         <Tag className="inline-block px-[0.12em] py-[0.02em] rounded-md" style={{ backgroundColor: bg }}>
-          {inner}
+          <span ref={innerRef} className={className} style={{ fontSize: `${fontSize}px`, display: "block", whiteSpace: "nowrap" }} data-testid={testId}>{text}</span>
         </Tag>
       ) : (
-        <Tag>{inner}</Tag>
+        <Tag>
+          <span ref={innerRef} className={className} style={{ fontSize: `${fontSize}px`, display: "block", whiteSpace: "nowrap" }} data-testid={testId}>{text}</span>
+        </Tag>
       )}
     </div>
   );
