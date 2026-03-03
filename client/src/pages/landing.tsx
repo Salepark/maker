@@ -1,9 +1,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Layers, Rss, Settings, Zap, ArrowRight, TrendingUp, BookOpen, Building2, Newspaper, ChevronDown, Key, MessageSquare, PenTool, Laptop, Store, ShoppingCart, User, Users, Check, Shield, ShieldCheck, RefreshCw, WifiOff, Eye, Clock, FileText, ExternalLink, Github, ClipboardList, Globe, Sparkles, BarChart3, Factory, Scale, Ship, UserSearch, Wallet, LineChart, MessageCircle } from "lucide-react";
+import { Bot, Rss, ArrowRight, TrendingUp, Building2, Newspaper, ChevronDown, MessageSquare, Shield, RefreshCw, Eye, Clock, FileText, ExternalLink, Github, Sparkles, Factory, Scale, Ship, UserSearch, Wallet, LineChart, MessageCircle } from "lucide-react";
 import { ShareButton } from "@/components/share-button";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -28,75 +27,9 @@ function FAQItem({ q, a }: { q: string; a: string }) {
   );
 }
 
-function SampleReportCard({ type }: { type: "market" | "research" | "promotion" }) {
-  const { t } = useLanguage();
-  const prefix = `landing.sampleReport.${type}`;
-  return (
-    <Card className="overflow-visible" data-testid={`card-sample-report-${type}`}>
-      <CardContent className="pt-6 space-y-4">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <h3 className="font-semibold text-sm">{t(`${prefix}.title`)}</h3>
-          <Badge variant="secondary" data-testid={`badge-report-${type}`}>{t(`${prefix}.badge`)}</Badge>
-        </div>
-        <div className="rounded-md bg-muted/50 p-3" data-testid={`text-report-${type}-summary`}>
-          <p className="text-xs font-medium mb-1 text-foreground">{t("landing.sampleReport.executiveSummary")}</p>
-          <p className="text-xs text-muted-foreground leading-relaxed">{t(`${prefix}.summary`)}</p>
-        </div>
-        <ul className="space-y-2.5">
-          {[1, 2, 3].map((i) => (
-            <li key={i} className="flex items-start gap-2 text-sm" data-testid={`text-report-${type}-item-${i}`}>
-              <FileText className="h-3.5 w-3.5 shrink-0 mt-0.5 text-primary" />
-              <span className="text-muted-foreground text-xs">{t(`${prefix}.item${i}`)}</span>
-            </li>
-          ))}
-        </ul>
-        <div className="pt-2 border-t border-border space-y-1.5">
-          <p className="text-xs text-primary font-medium" data-testid={`text-report-${type}-outlook`}>{t(`${prefix}.outlook`)}</p>
-          <p className="text-xs text-muted-foreground" data-testid={`text-report-${type}-sources`}>{t(`${prefix}.sources`)}</p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
 export default function Landing() {
   const { t } = useLanguage();
   const [showAllUseCases, setShowAllUseCases] = useState(false);
-  const [heroCompany, setHeroCompany] = useState("");
-  const [heroLoading, setHeroLoading] = useState(false);
-
-  const handleHeroAnalyze = async () => {
-    const company = heroCompany.trim();
-    if (!company) {
-      alert(t("demo.hero.emptyInput"));
-      return;
-    }
-
-    console.log("Analysis started:", company);
-    setHeroLoading(true);
-
-    try {
-      const response = await fetch("/api/demo/quick-analysis", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ company }),
-      });
-
-      const data = await response.json();
-      console.log("API Response:", data);
-
-      if (data.success) {
-        window.location.href = `/demo/progress/${data.job_id}`;
-      } else {
-        alert("Error: " + data.error);
-      }
-    } catch (error) {
-      console.error("Error:", error);
-      alert(t("demo.hero.networkError"));
-    } finally {
-      setHeroLoading(false);
-    }
-  };
 
   const useCases = [
     { icon: TrendingUp, title: t("landing.useCase.dailyMarketBrief"), description: t("landing.useCase.dailyMarketBriefDesc") },
@@ -147,66 +80,36 @@ export default function Landing() {
       </nav>
 
       <main className="pt-24 pb-16">
-        {/* ===== HERO: 5-Minute Demo CTA ===== */}
-        <section
-          className="pt-12 pb-6"
-          style={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" }}
-          data-testid="section-hero-demo"
-        >
-          <div className="max-w-6xl mx-auto px-6 text-center">
-            <div className="flex items-center justify-center gap-2 mb-4">
-              <Badge className="bg-white/20 text-white border-white/30 hover:bg-white/30 text-sm px-3 py-1" data-testid="badge-gpt4o-hero">
-                <Sparkles className="h-3.5 w-3.5 mr-1.5" />
-                Powered by OpenAI GPT-4o
-              </Badge>
-            </div>
+        {/* ===== HERO: I.am.maker / maker.am ===== */}
+        <section className="max-w-6xl mx-auto px-6 pt-12 pb-4" data-testid="section-hero">
+          <div className="select-none">
             <h1
-              className="text-white font-extrabold mb-6"
-              style={{ fontSize: "clamp(1.8rem, 5vw, 3rem)" }}
-              data-testid="text-hero-headline"
+              className="font-black tracking-tight text-foreground leading-[0.95]"
+              style={{ fontSize: "clamp(3rem, 10vw, 7rem)" }}
+              data-testid="text-hero-title"
             >
-              {t("demo.hero.headline1")}
-              <br />
-              <span className="text-yellow-300">{t("demo.hero.headline2")}</span>
+              I.am.maker
             </h1>
-            <p className="text-white/90 text-lg mb-10 max-w-xl mx-auto" data-testid="text-hero-subheadline">
-              {t("demo.hero.subheadline")}
-              <br />
-              <strong>{t("demo.hero.subheadlineBold")}</strong>
-            </p>
-            <div className="bg-white/95 dark:bg-background/95 rounded-2xl p-8 max-w-xl mx-auto">
-              <div className="flex gap-4 mb-5">
-                <Input
-                  type="text"
-                  value={heroCompany}
-                  onChange={(e) => setHeroCompany(e.target.value)}
-                  placeholder={t("demo.hero.placeholder")}
-                  className="flex-1"
-                  data-testid="input-hero-company"
-                />
-                <Button
-                  onClick={handleHeroAnalyze}
-                  disabled={heroLoading}
-                  style={{ background: "#667eea" }}
-                  data-testid="button-hero-analyze"
-                >
-                  {heroLoading ? t("demo.hero.analyzing") : t("demo.hero.analyzeButton")}
-                </Button>
-              </div>
-              <p className="text-sm text-emerald-600 dark:text-emerald-400 m-0 flex items-center justify-center gap-4 flex-wrap" data-testid="text-hero-benefits">
-                <span className="flex items-center gap-1"><Check className="h-3.5 w-3.5" /> {t("demo.hero.benefitFree")}</span>
-                <span className="flex items-center gap-1"><Check className="h-3.5 w-3.5" /> {t("demo.hero.benefitNoSignup")}</span>
-                <span className="flex items-center gap-1"><Check className="h-3.5 w-3.5" /> {t("demo.hero.benefitTime")}</span>
-              </p>
+            <div
+              className="mt-2 inline-block px-4 py-1 rounded-md"
+              style={{ backgroundColor: "#3b82f6" }}
+            >
+              <span
+                className="font-black tracking-tight text-white leading-[0.95]"
+                style={{ fontSize: "clamp(3rem, 10vw, 7rem)" }}
+                data-testid="text-hero-domain"
+              >
+                maker.am
+              </span>
             </div>
           </div>
         </section>
 
-        {/* ===== HERO: CTA + Pipeline + Demo Login ===== */}
+        {/* ===== SUB-HERO: CTA + Feature Cards ===== */}
         <section className="max-w-6xl mx-auto px-6 py-12">
           <div className="grid lg:grid-cols-2 gap-12 items-start">
             <div className="space-y-6">
-              <h2 className="text-3xl lg:text-4xl font-bold leading-tight" data-testid="text-hero-title">
+              <h2 className="text-3xl lg:text-4xl font-bold leading-tight" data-testid="text-sub-hero-title">
                 {t("landing.hero.title1")}
                 <br />
                 <span className="text-primary">{t("landing.hero.title2")}</span>
@@ -222,66 +125,31 @@ export default function Landing() {
                   </a>
                 </Button>
               </div>
-              <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
-                <div className="flex items-center gap-1">
-                  <Sparkles className="h-4 w-4" />
-                  <span>{t("landing.hero.badge1")}</span>
+            </div>
+
+            <div className="relative space-y-4">
+              <div className="flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-100 dark:border-blue-900/50" data-testid="card-feature-sources">
+                <Rss className="h-7 w-7 text-blue-600 dark:text-blue-400 shrink-0" />
+                <div>
+                  <div className="font-semibold text-sm" data-testid="text-feature-sources-title">{t("landing.hero.chooseSources")}</div>
+                  <div className="text-sm text-muted-foreground" data-testid="text-feature-sources-desc">{t("landing.hero.chooseSourcesDesc")}</div>
                 </div>
-                <div className="flex items-center gap-1">
-                  <Clock className="h-4 w-4" />
-                  <span>{t("landing.hero.badge2")}</span>
+              </div>
+              <div className="flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-100 dark:border-blue-900/50" data-testid="card-feature-schedule">
+                <Clock className="h-7 w-7 text-blue-600 dark:text-blue-400 shrink-0" />
+                <div>
+                  <div className="font-semibold text-sm" data-testid="text-feature-schedule-title">{t("landing.hero.scheduleFormat")}</div>
+                  <div className="text-sm text-muted-foreground" data-testid="text-feature-schedule-desc">{t("landing.hero.scheduleFormatDesc")}</div>
                 </div>
-                <div className="flex items-center gap-1">
-                  <MessageSquare className="h-4 w-4" />
-                  <span>{t("landing.hero.badge3")}</span>
+              </div>
+              <div className="flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-100 dark:border-blue-900/50" data-testid="card-feature-ai">
+                <Sparkles className="h-7 w-7 text-blue-600 dark:text-blue-400 shrink-0" />
+                <div>
+                  <div className="font-semibold text-sm" data-testid="text-feature-ai-title">{t("landing.hero.aiAnalysis")}</div>
+                  <div className="text-sm text-muted-foreground" data-testid="text-feature-ai-desc">{t("landing.hero.aiAnalysisDesc")}</div>
                 </div>
               </div>
             </div>
-
-            <div className="relative space-y-6">
-              <div className="bg-gradient-to-br from-primary/20 to-primary/5 rounded-md p-8 border border-border/50">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3 p-4 bg-background rounded-md border border-border">
-                    <Newspaper className="h-8 w-8 text-primary" />
-                    <div>
-                      <div className="font-medium">{t("landing.hero.chooseSources")}</div>
-                      <div className="text-sm text-muted-foreground">{t("landing.hero.chooseSourcesDesc")}</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 p-4 bg-background rounded-md border border-border">
-                    <Clock className="h-8 w-8 text-primary" />
-                    <div>
-                      <div className="font-medium">{t("landing.hero.scheduleFormat")}</div>
-                      <div className="text-sm text-muted-foreground">{t("landing.hero.scheduleFormatDesc")}</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 p-4 bg-background rounded-md border border-border">
-                    <Sparkles className="h-8 w-8 text-primary" />
-                    <div>
-                      <div className="font-medium">{t("landing.hero.aiAnalysis")}</div>
-                      <div className="text-sm text-muted-foreground">{t("landing.hero.aiAnalysisDesc")}</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ===== SAMPLE REPORTS ===== */}
-        <section className="max-w-6xl mx-auto px-6 py-16" data-testid="section-sample-reports">
-          <h2 className="text-2xl font-bold text-center mb-4">{t("landing.sampleReport.title")}</h2>
-          <p className="text-center text-muted-foreground mb-4 max-w-lg mx-auto">
-            {t("landing.sampleReport.subtitle")}
-          </p>
-          <p className="text-center text-xs text-muted-foreground mb-10 flex items-center justify-center gap-1.5">
-            <Clock className="h-3.5 w-3.5" />
-            {t("landing.sampleReport.daily")}
-          </p>
-          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            <SampleReportCard type="promotion" />
-            <SampleReportCard type="market" />
-            <SampleReportCard type="research" />
           </div>
         </section>
 
