@@ -10,21 +10,28 @@ import { useLanguage } from "@/lib/language-provider";
 
 function FitText({ text, className, testId, bg, as: Tag = "div" }: { text: string; className?: string; testId?: string; bg?: string; as?: "h1" | "div" }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const textRef = useRef<HTMLSpanElement>(null);
-  const [fontSize, setFontSize] = useState(16);
+  const [fontSize, setFontSize] = useState(10);
 
   const fit = useCallback(() => {
     const container = containerRef.current;
-    const span = textRef.current;
-    if (!container || !span) return;
-    const containerWidth = container.clientWidth;
-    span.style.fontSize = "100px";
-    const textWidth = span.scrollWidth;
-    if (textWidth > 0) {
-      const newSize = Math.floor((containerWidth / textWidth) * 100);
-      setFontSize(newSize);
-    }
-  }, []);
+    if (!container) return;
+    const targetWidth = container.clientWidth;
+    if (targetWidth <= 0) return;
+
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const refSize = 100;
+    ctx.font = `900 ${refSize}px system-ui, -apple-system, sans-serif`;
+    const measured = ctx.measureText(text).width;
+    if (measured <= 0) return;
+
+    const padRatio = bg ? 0.3 : 0;
+    const available = targetWidth * (1 - padRatio * (refSize / measured) * 0.01);
+    const newSize = Math.floor((available / measured) * refSize);
+    setFontSize(newSize);
+  }, [text, bg]);
 
   useEffect(() => {
     fit();
@@ -34,7 +41,6 @@ function FitText({ text, className, testId, bg, as: Tag = "div" }: { text: strin
 
   const inner = (
     <span
-      ref={textRef}
       className={className}
       style={{ fontSize: `${fontSize}px`, display: "block", whiteSpace: "nowrap" }}
       data-testid={testId}
@@ -46,7 +52,7 @@ function FitText({ text, className, testId, bg, as: Tag = "div" }: { text: strin
   return (
     <div ref={containerRef} className="w-full select-none">
       {bg ? (
-        <Tag className="inline-block px-[0.15em] py-[0.02em] rounded-md" style={{ backgroundColor: bg }}>
+        <Tag className="inline-block px-[0.12em] py-[0.02em] rounded-md" style={{ backgroundColor: bg }}>
           {inner}
         </Tag>
       ) : (
