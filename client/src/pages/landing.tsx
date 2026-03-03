@@ -28,7 +28,7 @@ function FitText({ text, className, testId, bg, as: Tag = "div" }: { text: strin
     inner.style.visibility = "";
 
     if (measuredWidth <= 0) return;
-    const newSize = Math.floor((targetWidth / measuredWidth) * 100 * 0.98);
+    const newSize = Math.floor((targetWidth / measuredWidth) * 100 * 0.92);
     inner.style.fontSize = "";
     setFontSize(newSize);
   }, [text]);
