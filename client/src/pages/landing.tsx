@@ -81,22 +81,22 @@ export default function Landing() {
 
       <main className="pt-24 pb-16">
         {/* ===== HERO: I.am.maker / maker.am ===== */}
-        <section className="w-full px-6 md:px-10 lg:px-16 pt-12 pb-4" data-testid="section-hero">
-          <div className="select-none">
+        <section className="w-full px-4 sm:px-6 md:px-10 lg:px-16 pt-12 pb-4 overflow-hidden" data-testid="section-hero">
+          <div className="select-none w-full">
             <h1
-              className="font-black tracking-tighter text-foreground leading-[0.9] whitespace-nowrap overflow-hidden"
-              style={{ fontSize: "clamp(2.5rem, 11.5vw, 12rem)" }}
+              className="font-black tracking-[-0.06em] text-foreground leading-[0.9] w-full"
+              style={{ fontSize: "clamp(3rem, 14vw, 18rem)" }}
               data-testid="text-hero-title"
             >
               I.am.maker
             </h1>
             <div
-              className="mt-1 inline-block px-[0.3em] py-[0.05em] rounded-md"
+              className="mt-1 inline-block px-[0.25em] py-[0.04em] rounded-md"
               style={{ backgroundColor: "#3b82f6" }}
             >
               <span
-                className="font-black tracking-tighter text-white leading-[0.9]"
-                style={{ fontSize: "clamp(2.5rem, 11.5vw, 12rem)" }}
+                className="font-black tracking-[-0.06em] text-white leading-[0.9]"
+                style={{ fontSize: "clamp(3rem, 14vw, 18rem)" }}
                 data-testid="text-hero-domain"
               >
                 maker.am
