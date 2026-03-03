@@ -127,7 +127,7 @@ export default function Landing() {
 
       <main className="pt-24 pb-16">
         {/* ===== HERO: I.am.maker / maker.am ===== */}
-        <section className="w-full px-4 sm:px-6 md:px-8 pt-12 pb-4 overflow-hidden" data-testid="section-hero">
+        <section className="max-w-6xl mx-auto px-6 pt-12 pb-4 overflow-hidden" data-testid="section-hero">
           <FitText text="I.am.maker" className="font-black tracking-[-0.04em] text-foreground leading-[0.95]" testId="text-hero-title" as="h1" />
           <FitText text="maker.am" className="font-black tracking-[-0.04em] text-white leading-[0.95]" testId="text-hero-domain" bg="#3b82f6" />
         </section>
