@@ -40,7 +40,7 @@ function FitText({ text, className, testId, bg, as: Tag = "div" }: { text: strin
   }, [fit]);
 
   return (
-    <div ref={containerRef} className="w-full select-none overflow-hidden">
+    <div ref={containerRef} className="w-full select-none overflow-hidden flex justify-center">
       {bg ? (
         <Tag className="inline-block px-[0.12em] py-[0.02em] rounded-md" style={{ backgroundColor: bg }}>
           <span ref={innerRef} className={className} style={{ fontSize: `${fontSize}px`, display: "block", whiteSpace: "nowrap" }} data-testid={testId}>{text}</span>
