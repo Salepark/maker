@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +7,54 @@ import { ShareButton } from "@/components/share-button";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useLanguage } from "@/lib/language-provider";
+
+function FitText({ text, className, testId, bg, as: Tag = "div" }: { text: string; className?: string; testId?: string; bg?: string; as?: "h1" | "div" }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLSpanElement>(null);
+  const [fontSize, setFontSize] = useState(16);
+
+  const fit = useCallback(() => {
+    const container = containerRef.current;
+    const span = textRef.current;
+    if (!container || !span) return;
+    const containerWidth = container.clientWidth;
+    span.style.fontSize = "100px";
+    const textWidth = span.scrollWidth;
+    if (textWidth > 0) {
+      const newSize = Math.floor((containerWidth / textWidth) * 100);
+      setFontSize(newSize);
+    }
+  }, []);
+
+  useEffect(() => {
+    fit();
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, [fit]);
+
+  const inner = (
+    <span
+      ref={textRef}
+      className={className}
+      style={{ fontSize: `${fontSize}px`, display: "block", whiteSpace: "nowrap" }}
+      data-testid={testId}
+    >
+      {text}
+    </span>
+  );
+
+  return (
+    <div ref={containerRef} className="w-full select-none">
+      {bg ? (
+        <Tag className="inline-block px-[0.15em] py-[0.02em] rounded-md" style={{ backgroundColor: bg }}>
+          {inner}
+        </Tag>
+      ) : (
+        <Tag>{inner}</Tag>
+      )}
+    </div>
+  );
+}
 
 function FAQItem({ q, a }: { q: string; a: string }) {
   const [open, setOpen] = useState(false);
@@ -82,27 +130,8 @@ export default function Landing() {
       <main className="pt-24 pb-16">
         {/* ===== HERO: I.am.maker / maker.am ===== */}
         <section className="w-full px-4 sm:px-6 md:px-8 pt-12 pb-4 overflow-hidden" data-testid="section-hero">
-          <div className="select-none w-full">
-            <h1
-              className="font-black tracking-[-0.05em] text-foreground leading-[0.95] w-fit"
-              style={{ fontSize: "min(19vw, calc(100vw / 5.5))" }}
-              data-testid="text-hero-title"
-            >
-              I.am.maker
-            </h1>
-            <div
-              className="inline-block px-[0.15em] py-[0.02em] rounded-md"
-              style={{ backgroundColor: "#3b82f6" }}
-            >
-              <span
-                className="font-black tracking-[-0.05em] text-white leading-[0.95]"
-                style={{ fontSize: "min(19vw, calc(100vw / 5.5))" }}
-                data-testid="text-hero-domain"
-              >
-                maker.am
-              </span>
-            </div>
-          </div>
+          <FitText text="I.am.maker" className="font-black tracking-[-0.04em] text-foreground leading-[0.95]" testId="text-hero-title" as="h1" />
+          <FitText text="maker.am" className="font-black tracking-[-0.04em] text-white leading-[0.95]" testId="text-hero-domain" bg="#3b82f6" />
         </section>
 
         {/* ===== SUB-HERO: CTA + Feature Cards ===== */}
